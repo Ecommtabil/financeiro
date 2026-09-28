@@ -298,7 +298,7 @@ function BotaoImportar({ itens, cfg, salvar }: { itens: Item[]; cfg: Config; sal
       for (const r of rows.slice(hdr + 1)) {
         const g = GRUPO_POR_NOME[norm(r[ci.g])], cat = norm(r[ci.cat]), item = ci.item >= 0 ? norm(r[ci.item]) : "";
         if (!g || !cat) continue;
-        const regra: Regra = { sobe: ci.sobe < 0 || !["NAO", "N", "0", "FALSE"].includes(norm(r[ci.sobe])), indice: paraNumero(r[ci.ind]) ?? undefined };
+        const regra: { sobe: boolean; indice: number | undefined } = { sobe: ci.sobe < 0 || !["NAO", "N", "0", "FALSE"].includes(norm(r[ci.sobe])), indice: paraNumero(r[ci.ind]) ?? undefined };
         const doCat = itens.filter((i) => i.g === g && norm(i.cat) === cat);
         if (!doCat.length) { nao.push(String(r[ci.cat])); continue; }
         if (item) {
@@ -307,7 +307,7 @@ function BotaoImportar({ itens, cfg, salvar }: { itens: Item[]; cfg: Config; sal
           ri[it.id] = { ...regraDo(cfg, it.id, it.catKey, it.tipo), ...Object.fromEntries(Object.entries(regra).filter(([, v]) => v !== undefined)) };
         } else {
           const ck = doCat[0]!.catKey;
-          rc[ck] = { indice: regra.indice ?? rc[ck]?.indice ?? Number(doCat[0]!.tipo === "E" ? cfg.indice_padrao_entradas : cfg.indice_padrao_saidas), sobe: regra.sobe };
+          rc[ck] = { indice: regra.indice ?? rc[ck]?.indice ?? Number(doCat[0]!.tipo === "E" ? cfg.indice_padrao_entradas : cfg.indice_padrao_saidas), sobe: regra.sobe } as Required<Regra>;
           for (const i of doCat) delete ri[i.id];
         }
         n++;
