@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { valorSaida } from "./calc";
 import { norm, type Previa } from "./importacao";
 
 export type Tabela = "entradas" | "saidas" | "entradas_pessoais";
@@ -74,12 +75,7 @@ export function useImportar() {
   });
 }
 
-/** Valor da saída num mês "aaaa-mm". */
+/** Valor da saída num mês "aaaa-mm" — delega para o módulo único de cálculo. */
 export function valorSaidaNoMes(s: Saida, chave: string): number {
-  if (s.valor_fixo != null) {
-    if (s.ri && chave < s.ri) return 0;
-    if (s.rf && chave > s.rf) return 0;
-    return Number(s.valor_fixo);
-  }
-  return Number((s.valores_mes as Record<string, number>)?.[chave] ?? 0);
+  return valorSaida(s, chave);
 }
