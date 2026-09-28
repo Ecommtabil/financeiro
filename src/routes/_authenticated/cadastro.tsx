@@ -228,7 +228,7 @@ function Entradas({ busca }: { busca: string }) {
   const atualizar = useAtualizar("entradas");
   const excluir = useExcluir("entradas");
   const inserir = useInserir("entradas");
-  const vazio = { codigo: "", empresa: "", carteira: "", grupo: "", regime: "", dia: "", valor: "" };
+  const vazio = { codigo: "", empresa: "", carteira: "", grupo: "", regime: "", dia: "", valor: "", inicio: "", fim: "" };
   const [f, setF] = useState(vazio);
   const lista = data.filter((e) => contem(busca, e.codigo, e.empresa, e.carteira, e.grupo, e.regime));
   const ativos = lista.filter((e) => e.ativo);
@@ -241,7 +241,7 @@ function Entradas({ busca }: { busca: string }) {
       <Form onSubmit={() => {
         const valor = paraNumero(f.valor);
         if (!f.empresa.trim() || valor == null) return;
-        inserir.mutate({ codigo: f.codigo || null, empresa: f.empresa.trim(), carteira: f.carteira || null, grupo: f.grupo || null, regime: f.regime || null, dia: Number(f.dia) || null, valor, origem: "manual" });
+        inserir.mutate({ codigo: f.codigo || null, empresa: f.empresa.trim(), carteira: f.carteira || null, grupo: f.grupo || null, regime: f.regime || null, dia: Number(f.dia) || null, valor, inicio: f.inicio || null, fim: f.fim || null, origem: "manual" });
         setF(vazio);
       }}>
         <F l="Código"><Input className="h-8 w-20" value={f.codigo} onChange={(e) => setF({ ...f, codigo: e.target.value })} /></F>
@@ -251,10 +251,12 @@ function Entradas({ busca }: { busca: string }) {
         <F l="Regime"><Input className="h-8 w-36" value={f.regime} onChange={(e) => setF({ ...f, regime: e.target.value })} /></F>
         <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
+        <F l="Início (opcional)"><Input className="h-8 w-36" type="month" value={f.inicio} onChange={(e) => setF({ ...f, inicio: e.target.value })} /></F>
+        <F l="Fim (opcional)"><Input className="h-8 w-36" type="month" value={f.fim} onChange={(e) => setF({ ...f, fim: e.target.value })} /></F>
       </Form>
       <div className="surface-card mt-4 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead><tr className="border-b border-border">{["Código", "Empresa", "Carteira", "Grupo", "Regime", "Dia", "Ativo", "Valor/mês", ""].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+          <thead><tr className="border-b border-border">{["Código", "Empresa", "Carteira", "Grupo", "Regime", "Dia", "Ativo", "Valor/mês", "Início", "Fim", ""].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
           <tbody>
             {lista.map((e) => (
               <tr key={e.id} className={`border-b border-border/60 ${e.ativo ? "" : "opacity-50"}`}>
@@ -266,10 +268,12 @@ function Entradas({ busca }: { busca: string }) {
                 <td className={`${td} num`}>{e.dia}</td>
                 <td className={td}><Checkbox checked={e.ativo} onCheckedChange={(v) => atualizar.mutate({ id: e.id, v: { ativo: !!v } })} /></td>
                 <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
+                <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={e.inicio ?? ""} title="Vazio = desde sempre" onBlur={(ev) => { const v = ev.target.value || null; if (v !== e.inicio) atualizar.mutate({ id: e.id, v: { inicio: v } }); }} /></td>
+                <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={e.fim ?? ""} title="Vazio = contínua" onBlur={(ev) => { const v = ev.target.value || null; if (v !== e.fim) atualizar.mutate({ id: e.id, v: { fim: v } }); }} /></td>
                 <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
               </tr>
             ))}
-            {!lista.length ? <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Nenhuma entrada.</td></tr> : null}
+            {!lista.length ? <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Nenhuma entrada.</td></tr> : null}
           </tbody>
         </table>
       </div>
