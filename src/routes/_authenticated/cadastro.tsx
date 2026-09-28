@@ -32,7 +32,6 @@ const mesDeChave = (k?: string | null) => {
   const [a, m] = k.split("-").map(Number);
   return formatarMes(a!, m!);
 };
-const casa = (s: string) => norm(s).includes(norm(s)) && s;
 const th = "px-2 py-2 text-left text-xs font-medium text-muted-foreground whitespace-nowrap";
 const td = "px-2 py-1.5 whitespace-nowrap";
 const sel = "h-8 rounded-md border border-input bg-background px-2 text-sm";
@@ -331,4 +330,3 @@ function Pessoais({ busca }: { busca: string }) {
   );
 }
 
-void casa;
