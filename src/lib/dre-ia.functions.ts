@@ -7,7 +7,7 @@ export const sugerirDRE = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ categoria: z.string().max(120), descricao: z.string().min(3).max(1000) }).parse(d))
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
+    const key = process.env['LOVABLE_API_KEY'];
     if (!key) throw new Error("IA não configurada.");
     try {
       return await sugerirLinhaDRE(key, data.categoria, data.descricao);
