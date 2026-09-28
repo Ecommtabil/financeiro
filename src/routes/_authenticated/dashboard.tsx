@@ -82,8 +82,9 @@ function DashboardPage() {
   const contas = contasDoMes(mes, dados, cfg, horizonte);
   const receberEsc = contas.receber.filter((c) => c.tipo === "entrada");
   const receberPes = contas.receber.filter((c) => c.tipo === "pessoal");
-  const pagarEsc = contas.pagar.filter((c) => destinoSaida(dados.saidas.find((s) => s.id === c.id) as Saida) === "ESCRITORIO");
-  const pagarPes = contas.pagar.filter((c) => destinoSaida(dados.saidas.find((s) => s.id === c.id) as Saida) === "PESSOAL");
+  const destinos = new Map(dados.saidas.map((s) => [s.id, destinoSaida(s)]));
+  const pagarEsc = contas.pagar.filter((c) => destinos.get(c.id) !== "PESSOAL");
+  const pagarPes = contas.pagar.filter((c) => destinos.get(c.id) === "PESSOAL");
   const saldoBancos = soma([...saldosAtuais(saldos.data ?? [], todasBaixas).values()].map((x) => x.atual));
 
   return (
@@ -199,7 +200,7 @@ function Pessoal(p: PainelProps & { saldoBancos: number }) {
   </>;
 }
 
-function Indicador({ titulo, valor, detalhe, destaque, icone }: { titulo: string; valor: string; detalhe?: string; destaque?: "positivo" | "negativo"; icone?: ReactNode }) {
+function Indicador({ titulo, valor, detalhe, destaque, icone }: { titulo: string; valor: string; detalhe?: string; destaque?: "positivo" | "negativo" | undefined; icone?: ReactNode }) {
   return <div className="surface-card min-h-32 p-4"><div className="flex items-center justify-between gap-2"><p className="label-eyebrow">{titulo}</p>{icone ? <span className="text-muted-foreground [&>svg]:size-4">{icone}</span> : null}</div><p className={`num mt-5 break-words text-xl font-semibold ${destaque === "negativo" ? "text-negative" : destaque === "positivo" ? "text-positive" : ""}`}>{valor}</p>{detalhe ? <p className="mt-1 text-xs text-muted-foreground">{detalhe}</p> : null}</div>;
 }
 
