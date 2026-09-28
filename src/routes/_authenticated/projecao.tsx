@@ -231,7 +231,7 @@ function Projecao() {
           </table>
         </div>
       </section>
-
+    </div>
   );
 }
 
