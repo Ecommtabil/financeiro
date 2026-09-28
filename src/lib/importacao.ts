@@ -22,7 +22,7 @@ export function paraNumero(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-async function lerPlanilha(file: File): Promise<XLSX.WorkBook> {
+export async function lerPlanilha(file: File): Promise<XLSX.WorkBook> {
   const buf = await file.arrayBuffer();
   try {
     return XLSX.read(buf, { type: "array", cellDates: true });
@@ -45,7 +45,7 @@ function linhas(wb: XLSX.WorkBook, tipo: TipoImport): unknown[][] {
   return XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[nome]!, { header: 1, raw: true, defval: null });
 }
 
-function acharCabecalho(rows: unknown[][], chaves: string[]): number {
+export function acharCabecalho(rows: unknown[][], chaves: string[]): number {
   for (let i = 0; i < Math.min(30, rows.length); i++) {
     const cels = (rows[i] ?? []).map(norm);
     if (chaves.every((k) => cels.some((c) => c.includes(k)))) return i;

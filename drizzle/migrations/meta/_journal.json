@@ -22,6 +22,13 @@
       "when": 1790618460109,
       "tag": "0002_entradas_inicio_fim",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790619051293,
+      "tag": "0003_saldos_baixas",
+      "breakpoints": true
     }
   ]
 }

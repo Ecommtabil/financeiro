@@ -1,4 +1,5 @@
 /** Módulo único de cálculo — usado por todas as telas. Chave de mês = "aaaa-mm". */
+import type { Tables } from "@/integrations/supabase/types";
 import type { Config } from "./config";
 import type { Entrada, EntradaPessoal, Saida } from "./dados";
 import type { Horizonte, MesRef } from "./horizonte";
@@ -113,4 +114,67 @@ export function somar(lista: TotaisMes[]): TotaisMes {
 /** Totais de todos os meses do horizonte, na ordem. */
 export function totaisHorizonte(d: Dados, cfg: Config, h: Horizonte): Map<string, TotaisMes> {
   return new Map(h.meses.map((m) => [chaveMes(m), totaisDoMes(m, d, cfg, h)]));
+}
+
+// ---------- contas do mês, baixas, saldos e caixa projetado ----------
+export type Baixa = Tables<"baixas">;
+export type Saldo = Tables<"saldos">;
+export type TipoConta = "entrada" | "pessoal" | "saida";
+export type Conta = { tipo: TipoConta; id: string; mes: string; nome: string; dia: number | null; banco: string | null; grupo: string | null; valor: number };
+export type SituacaoConta = "Baixado" | "Vencido" | "Em aberto";
+
+/** A receber (entradas ativas + pessoais) e a pagar (saídas) do mês, com valor projetado (reajustado). */
+export function contasDoMes(m: MesRef, d: Dados, cfg: Config, h: Horizonte): { receber: Conta[]; pagar: Conta[] } {
+  const k = chaveMes(m), rm = cfg.reajuste_mes, receber: Conta[] = [], pagar: Conta[] = [];
+  for (const e of d.entradas) {
+    const v = valorEntrada(e, k);
+    if (v) receber.push({ tipo: "entrada", id: e.id, mes: k, nome: e.empresa, dia: e.dia, banco: e.banco, grupo: e.grupo, valor: v * fator(m, h.y0, rm, regraDo(cfg, e.id, chaveCatEntrada(e), "E")) });
+  }
+  for (const p of d.pessoais) {
+    const v = valorEntradaPessoal(p, k);
+    if (v) receber.push({ tipo: "pessoal", id: p.id, mes: k, nome: p.descricao, dia: p.dia, banco: p.banco, grupo: null, valor: v * fator(m, h.y0, rm, regraDo(cfg, p.id, CHAVE_CAT_PESSOAL, "E")) });
+  }
+  for (const s of d.saidas) {
+    const v = valorSaida(s, k);
+    if (v) pagar.push({ tipo: "saida", id: s.id, mes: k, nome: s.descricao, dia: s.dia, banco: s.banco, grupo: null, valor: v * fator(m, h.y0, rm, regraDo(cfg, s.id, chaveCatSaida(s), "S")) });
+  }
+  return { receber, pagar };
+}
+
+export const chaveBaixa = (tipo: string, id: string, mes: string) => `${tipo}|${id}|${mes}`;
+export const mapaBaixas = (b: Baixa[]) => new Map(b.map((x) => [chaveBaixa(x.tipo, x.item_id, x.mes), x]));
+
+export function situacaoConta(c: Conta, baixas: Map<string, Baixa>, hoje = new Date()): SituacaoConta {
+  if (baixas.has(chaveBaixa(c.tipo, c.id, c.mes))) return "Baixado";
+  const kh = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
+  if (c.mes < kh || (c.mes === kh && (c.dia ?? 0) < hoje.getDate())) return "Vencido";
+  return "Em aberto";
+}
+
+const nb = (b?: string | null) => (b ?? "").trim().toUpperCase() || "SEM BANCO";
+
+/** Saldo atual = informado + recebimentos − pagamentos baixados DEPOIS do atualizado_em do saldo. */
+export function saldosAtuais(saldos: Saldo[], baixas: Baixa[]): Map<string, { informado: number; atual: number; saldo?: Saldo }> {
+  const r = new Map<string, { informado: number; atual: number; saldo?: Saldo }>();
+  for (const s of saldos) r.set(nb(s.banco), { informado: Number(s.saldo), atual: Number(s.saldo), saldo: s });
+  for (const b of baixas) {
+    const x = r.get(nb(b.banco));
+    if (!x?.saldo || b.baixado_em <= x.saldo.atualizado_em) continue;
+    x.atual += (b.tipo === "saida" ? -1 : 1) * Number(b.valor);
+  }
+  return r;
+}
+
+/** Caixa no fim do mês M = saldo atual total + Σ(a receber em aberto − a pagar em aberto) do início do horizonte até M. */
+export function caixaProjetado(d: Dados, cfg: Config, h: Horizonte, saldos: Saldo[], baixas: Baixa[]): Map<string, number> {
+  const mb = mapaBaixas(baixas);
+  let caixa = [...saldosAtuais(saldos, baixas).values()].reduce((t, x) => t + x.atual, 0);
+  const r = new Map<string, number>();
+  for (const m of h.meses) {
+    const { receber, pagar } = contasDoMes(m, d, cfg, h);
+    const aberto = (l: Conta[]) => l.reduce((t, c) => t + (mb.has(chaveBaixa(c.tipo, c.id, c.mes)) ? 0 : c.valor), 0);
+    caixa += aberto(receber) - aberto(pagar);
+    r.set(chaveMes(m), caixa);
+  }
+  return r;
 }

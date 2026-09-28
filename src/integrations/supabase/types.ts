@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      baixas: {
+        Row: {
+          baixado_em: string
+          banco: string | null
+          created_at: string
+          id: string
+          item_id: string
+          mes: string
+          origem: string
+          tipo: string
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          baixado_em?: string
+          banco?: string | null
+          created_at?: string
+          id?: string
+          item_id: string
+          mes: string
+          origem?: string
+          tipo: string
+          user_id?: string
+          valor?: number
+        }
+        Update: {
+          baixado_em?: string
+          banco?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string
+          mes?: string
+          origem?: string
+          tipo?: string
+          user_id?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       config: {
         Row: {
           anos_projecao: number
@@ -200,6 +239,36 @@ export type Database = {
           user_id?: string
           valor_fixo?: number | null
           valores_mes?: Json
+        }
+        Relationships: []
+      }
+      saldos: {
+        Row: {
+          atualizado_em: string
+          banco: string
+          created_at: string
+          id: string
+          origem: string
+          saldo: number
+          user_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          banco: string
+          created_at?: string
+          id?: string
+          origem?: string
+          saldo?: number
+          user_id?: string
+        }
+        Update: {
+          atualizado_em?: string
+          banco?: string
+          created_at?: string
+          id?: string
+          origem?: string
+          saldo?: number
+          user_id?: string
         }
         Relationships: []
       }
