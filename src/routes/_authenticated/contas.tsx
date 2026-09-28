@@ -153,7 +153,7 @@ function PorVencimento({ linhas, lado }: { linhas: Linha[]; lado: "receber" | "p
         <tbody>
           {meses.map((k) => {
             const doMes = linhas.filter((l) => l.mes === k);
-            const [a, m] = k.split("-");
+            const m = k.split("-")[1];
             let diaAnt: number | null | undefined;
             return (
               <Fragment key={k}>
@@ -172,7 +172,7 @@ function PorVencimento({ linhas, lado }: { linhas: Linha[]; lado: "receber" | "p
                     </tr>
                   );
                 })}
-                <tr className="border-b"><td colSpan={6} className="px-3 py-1.5 text-right text-xs text-muted-foreground">Subtotal {rotMes(k)} · {a}</td>
+                <tr className="border-b"><td colSpan={6} className="px-3 py-1.5 text-right text-xs text-muted-foreground">Subtotal {rotMes(k)}</td>
                   <td className="num px-3 py-1.5 text-right font-semibold">{formatarBRL(doMes.reduce((t, l) => t + l.exibido, 0))}</td></tr>
               </Fragment>
             );
