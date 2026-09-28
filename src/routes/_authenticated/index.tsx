@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { usePeriodo } from "@/components/app-shell";
 import { useConfig } from "@/lib/config";
 import { useLista } from "@/lib/dados";
-import { chaveMes, somar, totaisHorizonte, type TotaisMes } from "@/lib/calc";
+import { caixaProjetado, chaveMes, somar, totaisHorizonte, type TotaisMes } from "@/lib/calc";
+import { useBaixas, useSaldos } from "@/lib/situacao";
 import { formatarBRL, formatarNumero } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -22,12 +23,13 @@ export const Route = createFileRoute("/_authenticated/")({
   component: Panorama,
 });
 
-type Linha = { rotulo: string; valor: (t: TotaisMes, acum: number) => number | null; tipo?: "grupo" | "sub" | "destaque" | "pct" };
+type Linha = { rotulo: string; valor: (t: TotaisMes, acum: number, caixa: number | null) => number | null; tipo?: "grupo" | "sub" | "destaque" | "pct" };
 
 function Panorama() {
   const { horizonte: h, colunas } = usePeriodo();
   const { data: cfg } = useConfig();
   const ent = useLista("entradas"), sai = useLista("saidas"), pes = useLista("entradas_pessoais");
+  const saldos = useSaldos(), baixas = useBaixas();
   const [visao, setVisao] = useState<"E" | "P">("E");
   const [sel, setSel] = useState<string | null>(null);
 
@@ -35,6 +37,10 @@ function Panorama() {
     if (!h || !cfg || !ent.data || !sai.data || !pes.data) return null;
     return totaisHorizonte({ entradas: ent.data, saidas: sai.data, pessoais: pes.data }, cfg, h);
   }, [h, cfg, ent.data, sai.data, pes.data]);
+  const caixa = useMemo(() => {
+    if (!h || !cfg || !ent.data || !sai.data || !pes.data || !saldos.data || !baixas.data) return null;
+    return caixaProjetado({ entradas: ent.data, saidas: sai.data, pessoais: pes.data }, cfg, h, saldos.data, baixas.data);
+  }, [h, cfg, ent.data, sai.data, pes.data, saldos.data, baixas.data]);
 
   if (!h || !porMes) return <div className="px-6 py-8 text-muted-foreground lg:px-10">Carregando…</div>;
 
@@ -46,9 +52,9 @@ function Panorama() {
   const cols = colunas.map((c) => {
     const t = somar(c.meses.map((m) => porMes.get(chaveMes(m))!));
     const ult = c.meses[c.meses.length - 1];
-    return { ...c, t, acum: ult ? acumAte.get(chaveMes(ult)) ?? 0 : 0 };
+    return { ...c, t, acum: ult ? acumAte.get(chaveMes(ult)) ?? 0 : 0, caixa: ult && caixa ? caixa.get(chaveMes(ult)) ?? null : null };
   });
-  const total = { t: somar(cols.map((c) => c.t)), acum: cols[cols.length - 1]?.acum ?? 0 };
+  const total = { t: somar(cols.map((c) => c.t)), acum: cols[cols.length - 1]?.acum ?? 0, caixa: cols[cols.length - 1]?.caixa ?? null };
   const atual = cols.find((c) => c.chave === sel) ?? cols[0];
   const semDestino = (sai.data ?? []).filter((s) => !s.destino).length;
 
@@ -72,7 +78,7 @@ function Panorama() {
         ...cats((t) => t.porCatPessoal).map((k): Linha => ({ rotulo: k, valor: (t) => t.porCatPessoal[k] ?? 0, tipo: "sub" })),
         { rotulo: "= Reserva", valor: (t) => t.R, tipo: "destaque" },
         { rotulo: "Reserva acumulada", valor: (_t, ac) => ac },
-        { rotulo: "Caixa projetado", valor: () => null },
+        { rotulo: "Caixa projetado", valor: (_t, _a, cx) => cx },
       ];
 
   const fmt = (v: number | null, l: Linha) => (v == null ? "—" : l.tipo === "pct" ? `${formatarNumero(v, 1)}%` : formatarNumero(v));
@@ -139,11 +145,11 @@ function Panorama() {
           <tbody>
             {linhas.map((l, i) => {
               const cls = l.tipo === "destaque" ? "bg-primary/10 font-semibold" : l.tipo === "grupo" ? "font-medium border-t" : l.tipo === "sub" ? "text-muted-foreground" : "";
-              const tv = l.valor(total.t, total.acum);
+              const tv = l.valor(total.t, total.acum, total.caixa);
               return (
                 <tr key={i} className={cls}>
                   <td className={`sticky left-0 bg-card px-3 py-1.5 ${l.tipo === "sub" ? "pl-7" : ""}`}>{l.rotulo}</td>
-                  {cols.map((c) => { const v = l.valor(c.t, c.acum); return <td key={c.chave} className={`num px-3 py-1.5 text-right ${v != null ? cor(v) : ""}`}>{fmt(v, l)}</td>; })}
+                  {cols.map((c) => { const v = l.valor(c.t, c.acum, c.caixa); return <td key={c.chave} className={`num px-3 py-1.5 text-right ${v != null ? cor(v) : ""}`}>{fmt(v, l)}</td>; })}
                   <td className={`num px-3 py-1.5 text-right font-medium ${tv != null ? cor(tv) : ""}`}>{fmt(tv, l)}</td>
                 </tr>
               );
@@ -151,7 +157,7 @@ function Panorama() {
           </tbody>
         </table>
       </div>
-      {visao === "P" && <p className="text-xs text-muted-foreground">Caixa projetado será preenchido quando os saldos de caixa forem cadastrados.</p>}
+      {visao === "P" && <p className="text-xs text-muted-foreground">Caixa projetado = saldo atual dos bancos + tudo o que está em aberto a receber menos a pagar até o fim do período. Na coluna Total, é o caixa no último mês.</p>}
     </div>
   );
 }

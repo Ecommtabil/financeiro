@@ -16,3 +16,4 @@
 - Período escolhido no cabeçalho é lido via `usePeriodo()` (colunas mês a mês ou por ano), para as abas não reimplementarem o seletor.
 - Configuração do usuário (tabela `config`, 1 linha por usuário) é lida/salva por `useConfig`/`useSalvarConfig` em `src/lib/config.ts`.
 - Todo valor do mês, reajuste e total (E, SE, SP, EP, L, R) vem de `src/lib/calc.ts`, para as telas nunca divergirem nos números.
+- Baixas (tabela `baixas`, 1 por conta+mês) e saldos (tabela `saldos`, 1 por banco) moram em `src/lib/situacao.ts`; saldo atual, situação da conta e caixa projetado vêm só de `src/lib/calc.ts` (`saldosAtuais`, `situacaoConta`, `caixaProjetado`), para Situação, Panorama e Balanço baterem.
