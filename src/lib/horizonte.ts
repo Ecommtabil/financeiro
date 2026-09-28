@@ -26,7 +26,8 @@ export type Horizonte = {
 
 /** Regra única do horizonte de projeção — usada pelo app inteiro. baseISO = "aaaa-mm-dd". */
 export function calcularHorizonte(baseISO: string, anosProjecao: number, incluirRestante: boolean): Horizonte {
-  const [by, bm, bd] = baseISO.split("-").map(Number);
+  const partes = baseISO.split("-").map(Number);
+  const by = partes[0] ?? 0, bm = partes[1] ?? 1, bd = partes[2] ?? 1;
   let primeiro: MesRef = bd === 1 ? { ano: by, mes: bm } : bm === 12 ? { ano: by + 1, mes: 1 } : { ano: by, mes: bm + 1 };
   if (!incluirRestante || primeiro.ano > by) primeiro = { ano: by + 1, mes: 1 };
   const ultimo: MesRef = { ano: by + anosProjecao, mes: 12 };
@@ -45,7 +46,7 @@ export function calcularHorizonte(baseISO: string, anosProjecao: number, incluir
       ano: a,
       parcial,
       rotulo: parcial ? `${a}*` : String(a),
-      rotuloPeriodo: parcial ? `${a} (${MESES_CURTOS[ms[0].mes - 1]}–${MESES_CURTOS[ms[ms.length - 1].mes - 1]})` : String(a),
+      rotuloPeriodo: parcial ? `${a} (${MESES_CURTOS[(ms[0]?.mes ?? 1) - 1]}–${MESES_CURTOS[(ms[ms.length - 1]?.mes ?? 12) - 1]})` : String(a),
       meses: ms,
     });
   }
