@@ -15,6 +15,13 @@
       "when": 1790616844587,
       "tag": "0001_entradas_saidas",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790618460109,
+      "tag": "0002_entradas_inicio_fim",
+      "breakpoints": true
     }
   ]
 }
