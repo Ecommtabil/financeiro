@@ -1,4 +1,5 @@
 /** Módulo único de cálculo — usado por todas as telas. Chave de mês = "aaaa-mm". */
+import type { Tables } from "@/integrations/supabase/types";
 import type { Config } from "./config";
 import type { Entrada, EntradaPessoal, Saida } from "./dados";
 import type { Horizonte, MesRef } from "./horizonte";
@@ -116,7 +117,6 @@ export function totaisHorizonte(d: Dados, cfg: Config, h: Horizonte): Map<string
 }
 
 // ---------- contas do mês, baixas, saldos e caixa projetado ----------
-import type { Tables } from "@/integrations/supabase/types";
 export type Baixa = Tables<"baixas">;
 export type Saldo = Tables<"saldos">;
 export type TipoConta = "entrada" | "pessoal" | "saida";
