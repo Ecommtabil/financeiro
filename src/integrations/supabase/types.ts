@@ -65,8 +65,10 @@ export type Database = {
           created_at: string
           dia: number | null
           empresa: string
+          fim: string | null
           grupo: string | null
           id: string
+          inicio: string | null
           origem: string
           regime: string | null
           setor: string | null
@@ -81,8 +83,10 @@ export type Database = {
           created_at?: string
           dia?: number | null
           empresa: string
+          fim?: string | null
           grupo?: string | null
           id?: string
+          inicio?: string | null
           origem?: string
           regime?: string | null
           setor?: string | null
@@ -97,8 +101,10 @@ export type Database = {
           created_at?: string
           dia?: number | null
           empresa?: string
+          fim?: string | null
           grupo?: string | null
           id?: string
+          inicio?: string | null
           origem?: string
           regime?: string | null
           setor?: string | null

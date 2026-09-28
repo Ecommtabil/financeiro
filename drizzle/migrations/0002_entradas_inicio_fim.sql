@@ -1,0 +1,1 @@
+ALTER TABLE public.entradas ADD COLUMN IF NOT EXISTS inicio text, ADD COLUMN IF NOT EXISTS fim text;
