@@ -8,6 +8,13 @@
       "when": 1790615920993,
       "tag": "0000_criar_config",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790616844587,
+      "tag": "0001_entradas_saidas",
+      "breakpoints": true
     }
   ]
 }
