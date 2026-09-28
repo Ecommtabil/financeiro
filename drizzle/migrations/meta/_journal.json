@@ -36,6 +36,13 @@
       "when": 1790625219928,
       "tag": "0004_investimentos_bens_dividas",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790626049309,
+      "tag": "0005_bens_dividas_tipo_destino",
+      "breakpoints": true
     }
   ]
 }
