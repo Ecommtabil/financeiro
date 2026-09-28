@@ -105,7 +105,7 @@ function Situacao() {
 }
 
 /* ---------------- saldos ---------------- */
-function CartaoBanco({ banco, info }: { banco: string; info?: { informado: number; atual: number; saldo?: { atualizado_em: string } } }) {
+function CartaoBanco({ banco, info }: { banco: string; info: { informado: number; atual: number; saldo?: { atualizado_em: string } } | undefined }) {
   const salvar = useSalvarSaldo();
   return (
     <div className="surface-card rounded-lg border bg-card p-4">
