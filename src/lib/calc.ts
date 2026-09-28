@@ -178,3 +178,28 @@ export function caixaProjetado(d: Dados, cfg: Config, h: Horizonte, saldos: Sald
   }
   return r;
 }
+
+// ---------- DRE ----------
+export type GrupoDRE = "IMP" | "PES" | "DESP" | "SOC" | "FIN";
+export const GRUPOS_DRE: { id: GrupoDRE; rotulo: string }[] = [
+  { id: "IMP", rotulo: "Impostos sobre a receita" },
+  { id: "PES", rotulo: "Custos com pessoal" },
+  { id: "DESP", rotulo: "Despesas operacionais e administrativas" },
+  { id: "SOC", rotulo: "Retirada dos sócios" },
+  { id: "FIN", rotulo: "Financiamentos e investimentos" },
+];
+const semAcento = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").trim().toUpperCase();
+export const chaveCatDRE = (cat: string) => semAcento(cat);
+export function grupoPadraoDRE(cat: string): GrupoDRE {
+  const c = semAcento(cat);
+  if (c.includes("IMPOSTO")) return "IMP";
+  if (c.includes("FUNCIONARIO") || c.includes("TERCERISTA") || c.includes("TERCEIRISTA")) return "PES";
+  if (c.includes("SOCIO")) return "SOC";
+  if (c.includes("INVESTIMENTO")) return "FIN";
+  return "DESP";
+}
+/** Grupo da DRE de uma categoria do escritório: config.dre_map → senão classificação padrão. */
+export function grupoDRE(cfg: Config, cat: string): GrupoDRE {
+  const m = (cfg.dre_map ?? {}) as Record<string, GrupoDRE>;
+  return m[chaveCatDRE(cat)] ?? grupoPadraoDRE(cat);
+}
