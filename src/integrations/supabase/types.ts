@@ -53,6 +53,36 @@ export type Database = {
         }
         Relationships: []
       }
+      bens: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          origem: string
+          tipo: string | null
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          origem?: string
+          tipo?: string | null
+          user_id?: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          origem?: string
+          tipo?: string | null
+          user_id?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       config: {
         Row: {
           anos_projecao: number
@@ -91,6 +121,45 @@ export type Database = {
           regras_categoria?: Json
           regras_item?: Json
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      dividas: {
+        Row: {
+          created_at: string
+          credor: string | null
+          id: string
+          juros: number
+          nome: string
+          origem: string
+          parcela_fixa: number
+          saida_id: string | null
+          saldo: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credor?: string | null
+          id?: string
+          juros?: number
+          nome: string
+          origem?: string
+          parcela_fixa?: number
+          saida_id?: string | null
+          saldo?: number
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          credor?: string | null
+          id?: string
+          juros?: number
+          nome?: string
+          origem?: string
+          parcela_fixa?: number
+          saida_id?: string | null
+          saldo?: number
           user_id?: string
         }
         Relationships: []
@@ -188,6 +257,51 @@ export type Database = {
           origem?: string
           user_id?: string
           valor?: number
+        }
+        Relationships: []
+      }
+      investimentos: {
+        Row: {
+          aporte_fixo: number
+          created_at: string
+          destino: string | null
+          id: string
+          instituicao: string | null
+          nome: string
+          origem: string
+          saida_id: string | null
+          saldo_inicial: number
+          taxa: number
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          aporte_fixo?: number
+          created_at?: string
+          destino?: string | null
+          id?: string
+          instituicao?: string | null
+          nome: string
+          origem?: string
+          saida_id?: string | null
+          saldo_inicial?: number
+          taxa?: number
+          tipo?: string
+          user_id?: string
+        }
+        Update: {
+          aporte_fixo?: number
+          created_at?: string
+          destino?: string | null
+          id?: string
+          instituicao?: string | null
+          nome?: string
+          origem?: string
+          saida_id?: string | null
+          saldo_inicial?: number
+          taxa?: number
+          tipo?: string
+          user_id?: string
         }
         Relationships: []
       }
