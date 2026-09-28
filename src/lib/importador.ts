@@ -74,7 +74,7 @@ async function substituirImportados<T extends "entradas" | "saidas" | "entradas_
       if (error) throw error;
     } else inserir.push(n);
   }
-  const del = await supabase.from(t).delete().eq("origem", "import");
+  const del = await supabase.from(t as "saidas").delete().eq("origem", "import");
   if (del.error) throw del.error;
   for (let i = 0; i < inserir.length; i += 500) {
     const { error } = await supabase.from(t).insert(inserir.slice(i, i + 500) as never);

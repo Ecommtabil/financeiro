@@ -258,6 +258,6 @@ function acharGrupo(v: unknown): GrupoDRE | null {
   return null;
 }
 
-function BotaoImportar(_: { cfg: Config; cats: string[]; salvar: unknown }) {
+function BotaoImportar(_: { cfg: Config; cats: string[]; salvar: (v: Partial<Config>) => unknown }) {
   return <LinkImportar tipo="dre" rotulo="Importar classificação" />;
 }

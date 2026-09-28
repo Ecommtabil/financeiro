@@ -281,6 +281,6 @@ function CampoIndice({ valor, salvar, className }: { valor: number; salvar: (v: 
 // ---------- importar reajustes ----------
 const GRUPO_POR_NOME: Record<string, string> = { "ENTRADAS ESCRITORIO": "E", "SAIDAS ESCRITORIO": "SE", "SAIDAS PESSOAIS": "SP", "ENTRADAS PESSOAIS": "EP" };
 
-function BotaoImportar(_: { itens: Item[]; cfg: Config; salvar: unknown }) {
+function BotaoImportar(_: { itens: Item[]; cfg: Config; salvar: (v: Partial<Config>) => unknown }) {
   return <LinkImportar tipo="reajustes" rotulo="Importar reajustes" />;
 }

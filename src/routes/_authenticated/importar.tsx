@@ -12,7 +12,7 @@ const IDS = TIPOS.map((t) => t.id) as TipoImp[];
 
 export const Route = createFileRoute("/_authenticated/importar")({
   validateSearch: (s: Record<string, unknown>): { tipo?: TipoImp } =>
-    IDS.includes(s.tipo as TipoImp) ? { tipo: s.tipo as TipoImp } : {},
+    IDS.includes(s["tipo"] as TipoImp) ? { tipo: s["tipo"] as TipoImp } : {},
   head: () => ({
     meta: [
       { title: "Importar planilha · Fluxo Escritório & Casa" },

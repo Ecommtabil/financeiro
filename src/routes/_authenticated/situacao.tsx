@@ -282,7 +282,7 @@ function CampoNum({ valor, onSalvar, className = "" }: { valor: number | null; o
   );
 }
 
-function BotaoImportar({ rotulo, tipo }: { rotulo: string; tipo: "saldos" | "baixas"; acao?: unknown }) {
+function BotaoImportar({ rotulo, tipo }: { rotulo: string; tipo: "saldos" | "baixas"; acao?: (f: File) => unknown }) {
   return <LinkImportar tipo={tipo} rotulo={rotulo} />;
 }
 
