@@ -14,7 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      config: {
+        Row: {
+          anos_projecao: number
+          base_data: string | null
+          dre_map: Json
+          incluir_restante: boolean
+          indice_padrao_entradas: number
+          indice_padrao_saidas: number
+          reajuste_mes: number
+          regras_categoria: Json
+          regras_item: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anos_projecao?: number
+          base_data?: string | null
+          dre_map?: Json
+          incluir_restante?: boolean
+          indice_padrao_entradas?: number
+          indice_padrao_saidas?: number
+          reajuste_mes?: number
+          regras_categoria?: Json
+          regras_item?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          anos_projecao?: number
+          base_data?: string | null
+          dre_map?: Json
+          incluir_restante?: boolean
+          indice_padrao_entradas?: number
+          indice_padrao_saidas?: number
+          reajuste_mes?: number
+          regras_categoria?: Json
+          regras_item?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
