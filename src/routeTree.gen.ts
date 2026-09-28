@@ -10,33 +10,91 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BaseZeroRouteImport } from './routes/base-zero'
+import { Route as EntradasRouteImport } from './routes/entradas'
+import { Route as ImportarRouteImport } from './routes/importar'
+import { Route as ProjecaoRouteImport } from './routes/projecao'
+import { Route as SaidasRouteImport } from './routes/saidas'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BaseZeroRoute = BaseZeroRouteImport.update({
+  id: '/base-zero',
+  path: '/base-zero',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EntradasRoute = EntradasRouteImport.update({
+  id: '/entradas',
+  path: '/entradas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportarRoute = ImportarRouteImport.update({
+  id: '/importar',
+  path: '/importar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjecaoRoute = ProjecaoRouteImport.update({
+  id: '/projecao',
+  path: '/projecao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SaidasRoute = SaidasRouteImport.update({
+  id: '/saidas',
+  path: '/saidas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/base-zero': typeof BaseZeroRoute
+  '/entradas': typeof EntradasRoute
+  '/importar': typeof ImportarRoute
+  '/projecao': typeof ProjecaoRoute
+  '/saidas': typeof SaidasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/base-zero': typeof BaseZeroRoute
+  '/entradas': typeof EntradasRoute
+  '/importar': typeof ImportarRoute
+  '/projecao': typeof ProjecaoRoute
+  '/saidas': typeof SaidasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/base-zero': typeof BaseZeroRoute
+  '/entradas': typeof EntradasRoute
+  '/importar': typeof ImportarRoute
+  '/projecao': typeof ProjecaoRoute
+  '/saidas': typeof SaidasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    '/' | '/base-zero' | '/entradas' | '/importar' | '/projecao' | '/saidas'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/base-zero' | '/entradas' | '/importar' | '/projecao' | '/saidas'
+  id:
+    | '__root__'
+    | '/'
+    | '/base-zero'
+    | '/entradas'
+    | '/importar'
+    | '/projecao'
+    | '/saidas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BaseZeroRoute: typeof BaseZeroRoute
+  EntradasRoute: typeof EntradasRoute
+  ImportarRoute: typeof ImportarRoute
+  ProjecaoRoute: typeof ProjecaoRoute
+  SaidasRoute: typeof SaidasRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +106,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/base-zero': {
+      id: '/base-zero'
+      path: '/base-zero'
+      fullPath: '/base-zero'
+      preLoaderRoute: typeof BaseZeroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/entradas': {
+      id: '/entradas'
+      path: '/entradas'
+      fullPath: '/entradas'
+      preLoaderRoute: typeof EntradasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/importar': {
+      id: '/importar'
+      path: '/importar'
+      fullPath: '/importar'
+      preLoaderRoute: typeof ImportarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projecao': {
+      id: '/projecao'
+      path: '/projecao'
+      fullPath: '/projecao'
+      preLoaderRoute: typeof ProjecaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/saidas': {
+      id: '/saidas'
+      path: '/saidas'
+      fullPath: '/saidas'
+      preLoaderRoute: typeof SaidasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BaseZeroRoute: BaseZeroRoute,
+  EntradasRoute: EntradasRoute,
+  ImportarRoute: ImportarRoute,
+  ProjecaoRoute: ProjecaoRoute,
+  SaidasRoute: SaidasRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
