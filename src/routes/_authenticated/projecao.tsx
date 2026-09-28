@@ -232,34 +232,6 @@ function Projecao() {
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        {([["Entradas do ano", com.E, sem.E], ["Saídas escritório", com.SE, sem.SE], ["Lucro", com.L, sem.L],
-          ["Saídas pessoais líquidas", com.SP - com.EP, sem.SP - sem.EP], ["Reserva", com.R, sem.R]] as const).map(([r, c, s]) => (
-          <div key={r} className="surface-card p-4">
-            <div className="label-eyebrow">{r}</div>
-            <div className="num mt-1 text-lg font-semibold">{formatarBRL(c)}</div>
-            <div className="num text-xs text-muted-foreground">{sinal(c - s)} vs sem reajuste</div>
-          </div>
-        ))}
-      </div>
-
-      <TabelaLinhas titulo="Resumo por ano" colunas={h.anos.map((a) => ({ rotulo: a.rotulo, t: calc.doAno(a.ano, "com") }))} acumulada />
-      <TabelaLinhas titulo={`Mês a mês · ${ano}`} colunas={calc.mesesAno.map((m) => ({ rotulo: formatarMes(m.ano, m.mes), t: calc.porMes.get(chaveMes(m))!.com }))} total />
-
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">Sem nenhum reajuste × Com reajustes acumulados · {ano}</h2>
-        <div className="surface-card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-muted-foreground"><tr className="border-b text-right"><th className="px-3 py-2 text-left" /><th className="px-3 py-2">Sem nenhum reajuste</th><th className="px-3 py-2">Com reajustes acumulados</th><th className="px-3 py-2">Diferença</th></tr></thead>
-            <tbody>{LINHAS.map(([r, f]) => (
-              <tr key={r} className="border-b last:border-0"><td className="px-3 py-1.5">{r}</td>
-                <td className="num px-3 py-1.5 text-right">{formatarBRL(f(sem))}</td><td className="num px-3 py-1.5 text-right">{formatarBRL(f(com))}</td>
-                <td className="num px-3 py-1.5 text-right font-semibold">{sinal(f(com) - f(sem))}</td></tr>
-            ))}</tbody>
-          </table>
-        </div>
-      </section>
-    </div>
   );
 }
 
