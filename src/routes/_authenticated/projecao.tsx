@@ -142,7 +142,7 @@ function Projecao() {
         ))}
       </div>
 
-      <TabelaLinhas titulo="Resumo por ano" colunas={h.anos.map((a) => ({ rotulo: a.rotulo, t: calc.doAno(a.ano, "com") }))} acumulada />
+      <TabelaLinhas titulo="Resumo por ano" colunas={anosAnalise.map((a) => ({ rotulo: String(a.ano), t: calc.doAno(a.ano, "com") }))} acumulada />
       <TabelaLinhas titulo={`Mês a mês · ${ano}`} colunas={calc.mesesAno.map((m) => ({ rotulo: formatarMes(m.ano, m.mes), t: calc.porMes.get(chaveMes(m))!.com }))} total />
 
       <section className="space-y-2">
