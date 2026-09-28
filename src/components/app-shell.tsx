@@ -101,7 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Select>
               ) : null}
               <Button size="sm" asChild>
-                <Link to="/cadastro"><FileSpreadsheet className="size-4" />Importar planilha</Link>
+                <Link to="/importar"><FileSpreadsheet className="size-4" />Importar planilha</Link>
               </Button>
               <Button variant="ghost" size="icon" onClick={sair} aria-label="Sair"><LogOut className="size-4" /></Button>
             </div>

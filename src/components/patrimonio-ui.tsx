@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { LinkImportar } from "@/components/link-importar";
 import { Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,24 +26,8 @@ export function CampoTxt({ valor, onSalvar, className = "", placeholder }: { val
   );
 }
 
-export function BotaoImportarPat({ tabela, rotulo, saidas }: { tabela: TabPat; rotulo: string; saidas: Saida[] }) {
-  const ref = useRef<HTMLInputElement>(null);
-  const qc = useQueryClient();
-  const [ocupado, setOcupado] = useState(false);
-  return (
-    <div className="flex items-center gap-1">
-      <input ref={ref} type="file" accept=".xlsx,.xls" className="hidden" onChange={async (e) => {
-        const f = e.target.files?.[0]; e.target.value = "";
-        if (!f) return;
-        setOcupado(true);
-        try { toast.success(await importarPat(tabela, f, saidas)); qc.invalidateQueries({ queryKey: [tabela] }); }
-        catch (err) { toast.error((err as Error).message); }
-        finally { setOcupado(false); }
-      }} />
-      <Button size="sm" variant="ghost" title="Baixar modelo" onClick={() => baixarModeloPat(tabela)}><Download className="size-4" /></Button>
-      <Button size="sm" variant="outline" disabled={ocupado} onClick={() => ref.current?.click()}><FileSpreadsheet className="size-4" />{ocupado ? "Importando…" : rotulo}</Button>
-    </div>
-  );
+export function BotaoImportarPat({ tabela, rotulo }: { tabela: TabPat; rotulo: string; saidas?: unknown }) {
+  return <LinkImportar tipo={tabela} rotulo={rotulo} />;
 }
 
 export function Op({ children }: { children: string }) {

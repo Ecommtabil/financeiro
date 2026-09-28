@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { LinkImportar } from "@/components/link-importar";
 import { Fragment, useMemo, useRef, useState } from "react";
 import { Download, FileSpreadsheet, Search } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -280,60 +281,6 @@ function CampoIndice({ valor, salvar, className }: { valor: number; salvar: (v: 
 // ---------- importar reajustes ----------
 const GRUPO_POR_NOME: Record<string, string> = { "ENTRADAS ESCRITORIO": "E", "SAIDAS ESCRITORIO": "SE", "SAIDAS PESSOAIS": "SP", "ENTRADAS PESSOAIS": "EP" };
 
-function BotaoImportar({ itens, cfg, salvar }: { itens: Item[]; cfg: Config; salvar: (v: Partial<Config>) => Promise<unknown> }) {
-  const ref = useRef<HTMLInputElement>(null);
-  const [ocupado, setOcupado] = useState(false);
-  const importar = async (file: File) => {
-    setOcupado(true);
-    try {
-      const wb = await lerPlanilha(file);
-      const nome = wb.SheetNames.find((n) => norm(n) === "REAJUSTES") ?? wb.SheetNames.find((n) => norm(n) !== "COMO PREENCHER")!;
-      const rows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[nome]!, { header: 1, raw: true, defval: null });
-      const hdr = acharCabecalho(rows, ["GRUPO", "CATEGORIA"]);
-      const cab = (rows[hdr] ?? []).map(norm);
-      const c = (k: string) => cab.findIndex((x) => x.includes(k));
-      const ci = { g: c("GRUPO"), cat: c("CATEGORIA"), item: c("ITEM"), sobe: c("SOBE"), ind: c("INDICE") };
-      const rc = { ...((cfg.regras_categoria ?? {}) as Record<string, Regra>) }, ri = { ...((cfg.regras_item ?? {}) as Record<string, Regra>) };
-      let n = 0; const nao: string[] = [];
-      for (const r of rows.slice(hdr + 1)) {
-        const g = GRUPO_POR_NOME[norm(r[ci.g])], cat = norm(r[ci.cat]), item = ci.item >= 0 ? norm(r[ci.item]) : "";
-        if (!g || !cat) continue;
-        const regra: { sobe: boolean; indice: number | undefined } = { sobe: ci.sobe < 0 || !["NAO", "N", "0", "FALSE"].includes(norm(r[ci.sobe])), indice: paraNumero(r[ci.ind]) ?? undefined };
-        const doCat = itens.filter((i) => i.g === g && norm(i.cat) === cat);
-        if (!doCat.length) { nao.push(String(r[ci.cat])); continue; }
-        if (item) {
-          const it = doCat.find((i) => norm(i.nome) === item);
-          if (!it) { nao.push(String(r[ci.item])); continue; }
-          ri[it.id] = { ...regraDo(cfg, it.id, it.catKey, it.tipo), ...Object.fromEntries(Object.entries(regra).filter(([, v]) => v !== undefined)) };
-        } else {
-          const ck = doCat[0]!.catKey;
-          rc[ck] = { indice: regra.indice ?? rc[ck]?.indice ?? Number(doCat[0]!.tipo === "E" ? cfg.indice_padrao_entradas : cfg.indice_padrao_saidas), sobe: regra.sobe } as Required<Regra>;
-          for (const i of doCat) delete ri[i.id];
-        }
-        n++;
-      }
-      if (!n) throw new Error(`Nenhum reajuste reconhecido.${nao.length ? ` Não achei: ${nao.slice(0, 5).join(", ")}` : ""}`);
-      await salvar({ regras_categoria: rc, regras_item: ri });
-      toast.success(`${n} reajustes importados${nao.length ? ` · ${nao.length} não encontrados` : ""}`);
-    } catch (e) { toast.error((e as Error).message); } finally { setOcupado(false); if (ref.current) ref.current.value = ""; }
-  };
-  const modelo = () => {
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["GRUPO", "CATEGORIA", "ITEM", "SOBE", "INDICE"],
-      ["Entradas escritório", "Simples Nacional", "", "SIM", 5], ["Entradas escritório", "Simples Nacional", "NG Reservatórios", "SIM", 5],
-      ["Saídas escritório", "Aluguel", "", "SIM", 4.5], ["Saídas pessoais", "Assinaturas", "", "NÃO", 0]]), "REAJUSTES");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["COMO PREENCHER"],
-      ["GRUPO: Entradas escritório, Saídas escritório, Saídas pessoais ou Entradas pessoais."],
-      ["CATEGORIA: carteira (entradas) ou categoria (saídas), igual ao Cadastro. Para entradas pessoais use 'Entradas pessoais'."],
-      ["ITEM vazio = regra da categoria inteira (apaga as exceções dos itens dela). ITEM preenchido = exceção só para esse item."],
-      ["SOBE: SIM ou NÃO. INDICE: percentual ao ano (5 = 5%)."]]), "COMO PREENCHER");
-    XLSX.writeFile(wb, "modelo-reajustes.xlsx");
-  };
-  return (
-    <div className="flex gap-2">
-      <Button variant="outline" size="sm" onClick={modelo}><Download className="mr-1.5 h-4 w-4" />Modelo</Button>
-      <Button size="sm" disabled={ocupado} onClick={() => ref.current?.click()}><FileSpreadsheet className="mr-1.5 h-4 w-4" />{ocupado ? "Importando…" : "Importar reajustes"}</Button>
-      <input ref={ref} type="file" accept=".xlsx,.xls" hidden onChange={(e) => e.target.files?.[0] && importar(e.target.files[0])} />
-    </div>
-  );
+function BotaoImportar(_: { itens: Item[]; cfg: Config; salvar: unknown }) {
+  return <LinkImportar tipo="reajustes" rotulo="Importar reajustes" />;
 }

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { LinkImportar } from "@/components/link-importar";
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
@@ -257,50 +258,6 @@ function acharGrupo(v: unknown): GrupoDRE | null {
   return null;
 }
 
-function BotaoImportar({ cfg, cats, salvar }: { cfg: Config; cats: string[]; salvar: (v: Partial<Config>) => Promise<unknown> }) {
-  const ref = useRef<HTMLInputElement>(null);
-  const [ocupado, setOcupado] = useState(false);
-  const importar = async (file: File) => {
-    setOcupado(true);
-    try {
-      const wb = await lerPlanilha(file);
-      const nome = wb.SheetNames.find((n) => norm(n) === "CLASSIFICACAO") ?? wb.SheetNames.find((n) => norm(n) !== "COMO PREENCHER")!;
-      const rows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[nome]!, { header: 1, raw: true, defval: null });
-      const hdr = acharCabecalho(rows, ["CATEGORIA"]);
-      const cab = (rows[hdr] ?? []).map(norm);
-      const ic = cab.findIndex((x) => x.includes("CATEGORIA")), il = cab.findIndex((x) => x.includes("LINHA") || x.includes("DRE") || x.includes("GRUPO"));
-      if (ic < 0 || il < 0) throw new Error("A planilha precisa das colunas CATEGORIA e LINHA DA DRE.");
-      const mapa = { ...((cfg.dre_map ?? {}) as Record<string, GrupoDRE>) };
-      let n = 0; const ruins: string[] = [];
-      for (const r of rows.slice(hdr + 1)) {
-        const cat = String(r[ic] ?? "").trim();
-        if (!cat) continue;
-        const g = acharGrupo(r[il]);
-        if (!g) { ruins.push(cat); continue; }
-        const real = cats.find((c) => chaveCatDRE(c) === chaveCatDRE(cat)) ?? cat;
-        if (g === grupoPadraoDRE(real)) delete mapa[chaveCatDRE(real)]; else mapa[chaveCatDRE(real)] = g;
-        n++;
-      }
-      if (!n) throw new Error("Nenhuma classificação reconhecida.");
-      await salvar({ dre_map: mapa });
-      toast.success(`${n} categorias classificadas${ruins.length ? ` · linha não reconhecida em: ${ruins.slice(0, 5).join(", ")}` : ""}`);
-    } catch (e) { toast.error((e as Error).message); } finally { setOcupado(false); if (ref.current) ref.current.value = ""; }
-  };
-  const modelo = () => {
-    const wb = XLSX.utils.book_new();
-    const linhas = cats.length ? [...cats].sort().map((c) => [c, rotuloGrupo(grupoDRE(cfg, c))]) : [["IMPOSTO", rotuloGrupo("IMP")], ["FUNCIONARIO", rotuloGrupo("PES")], ["ALUGUEL", rotuloGrupo("DESP")]];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["CATEGORIA", "LINHA DA DRE"], ...linhas]), "CLASSIFICACAO");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["COMO PREENCHER"],
-      ["CATEGORIA: categoria das saídas do escritório, igual ao Cadastro (maiúsculas e acentos não importam)."],
-      ["LINHA DA DRE: uma destas opções:"], ...GRUPOS_DRE.map((g) => [`  • ${g.rotulo}`]),
-      ["Categorias fora da planilha mantêm a classificação atual."]]), "COMO PREENCHER");
-    XLSX.writeFile(wb, "modelo-classificacao-dre.xlsx");
-  };
-  return (
-    <div className="flex gap-2">
-      <Button variant="outline" size="sm" onClick={modelo}><Download className="mr-1.5 h-4 w-4" />Modelo</Button>
-      <Button size="sm" disabled={ocupado} onClick={() => ref.current?.click()}><FileSpreadsheet className="mr-1.5 h-4 w-4" />{ocupado ? "Importando…" : "Importar classificação"}</Button>
-      <input ref={ref} type="file" accept=".xlsx,.xls" hidden onChange={(e) => e.target.files?.[0] && importar(e.target.files[0])} />
-    </div>
-  );
+function BotaoImportar(_: { cfg: Config; cats: string[]; salvar: unknown }) {
+  return <LinkImportar tipo="dre" rotulo="Importar classificação" />;
 }

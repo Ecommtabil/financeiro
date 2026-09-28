@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { LinkImportar } from "@/components/link-importar";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Download, FileSpreadsheet, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,49 +64,7 @@ function Cadastro() {
 }
 
 function Importar({ tipo, rotulo }: { tipo: TipoImport; rotulo: string }) {
-  const ref = useRef<HTMLInputElement>(null);
-  const { data: config } = useConfig();
-  const [previa, setPrevia] = useState<Previa | null>(null);
-  const [erro, setErro] = useState<string | null>(null);
-  const importar = useImportar();
-  const anoBase = Number(config?.base_data?.slice(0, 4) ?? new Date().getFullYear());
-
-  async function escolher(f?: File) {
-    if (!f) return;
-    setErro(null);
-    try {
-      setPrevia(await lerImportacao(f, tipo, anoBase, { brl: formatarBRL, mes: mesDeChave }));
-    } catch (e) {
-      setErro((e as Error).message);
-    }
-    if (ref.current) ref.current.value = "";
-  }
-
-  return (
-    <>
-      <Button variant="ghost" size="sm" onClick={() => baixarModelo(tipo)}><Download className="size-4" />Modelo</Button>
-      <Button size="sm" onClick={() => ref.current?.click()}><FileSpreadsheet className="size-4" />Importar {rotulo}</Button>
-      <input ref={ref} type="file" accept=".xlsx,.xls" hidden onChange={(e) => escolher(e.target.files?.[0])} />
-      <Dialog open={!!previa || !!erro} onOpenChange={(o) => !o && (setPrevia(null), setErro(null))}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Importar {rotulo}</DialogTitle>
-            <DialogDescription>{erro ? "A planilha não pôde ser lida." : "Confira antes de gravar. Os itens cadastrados na tela são mantidos."}</DialogDescription>
-          </DialogHeader>
-          {erro ? <p className="text-sm text-negative">{erro}</p> : <p className="num text-lg font-semibold">{previa?.resumo}</p>}
-          {importar.error ? <p className="text-sm text-negative">{(importar.error as Error).message}</p> : null}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => (setPrevia(null), setErro(null))}>Cancelar</Button>
-            {previa ? (
-              <Button disabled={importar.isPending || !previa.itens.length} onClick={() => importar.mutate(previa, { onSuccess: () => setPrevia(null) })}>
-                {importar.isPending ? "Importando…" : "Importar"}
-              </Button>
-            ) : null}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
+  return <LinkImportar tipo={tipo === "entradas_pessoais" ? "pessoais" : tipo} rotulo={`Importar ${rotulo}`} variant="default" />;
 }
 
 function CampoValor({ valor, onSalvar }: { valor: number; onSalvar: (n: number) => void }) {

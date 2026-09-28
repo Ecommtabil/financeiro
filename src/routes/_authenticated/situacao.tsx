@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { LinkImportar } from "@/components/link-importar";
 import { useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Download, FileSpreadsheet, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -281,24 +282,8 @@ function CampoNum({ valor, onSalvar, className = "" }: { valor: number | null; o
   );
 }
 
-function BotaoImportar({ rotulo, tipo, acao }: { rotulo: string; tipo: "saldos" | "baixas"; acao: (f: File) => Promise<string> }) {
-  const ref = useRef<HTMLInputElement>(null);
-  const qc = useQueryClient();
-  const [ocupado, setOcupado] = useState(false);
-  return (
-    <div className="flex items-center gap-1">
-      <input ref={ref} type="file" accept=".xlsx,.xls" className="hidden" onChange={async (e) => {
-        const f = e.target.files?.[0]; e.target.value = "";
-        if (!f) return;
-        setOcupado(true);
-        try { toast.success(await acao(f)); qc.invalidateQueries({ queryKey: [tipo] }); }
-        catch (err) { toast.error((err as Error).message); }
-        finally { setOcupado(false); }
-      }} />
-      <Button size="sm" variant="ghost" title="Baixar modelo" onClick={() => baixarModeloSituacao(tipo)}><Download className="size-4" /></Button>
-      <Button size="sm" variant="outline" disabled={ocupado} onClick={() => ref.current?.click()}><FileSpreadsheet className="size-4" />{ocupado ? "Importando…" : rotulo}</Button>
-    </div>
-  );
+function BotaoImportar({ rotulo, tipo }: { rotulo: string; tipo: "saldos" | "baixas"; acao?: unknown }) {
+  return <LinkImportar tipo={tipo} rotulo={rotulo} />;
 }
 
 function Op({ children }: { children: string }) {
