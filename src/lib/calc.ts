@@ -203,3 +203,53 @@ export function grupoDRE(cfg: Config, cat: string): GrupoDRE {
   const m = (cfg.dre_map ?? {}) as Record<string, GrupoDRE>;
   return m[chaveCatDRE(cat)] ?? grupoPadraoDRE(cat);
 }
+
+// ---------- Investimentos, bens e dívidas ----------
+export type Investimento = Tables<"investimentos">;
+export type Bem = Tables<"bens">;
+export type Divida = Tables<"dividas">;
+
+/** Valor projetado (com reajuste) de uma saída no mês. */
+export function valorSaidaProjetado(s: Saida, m: MesRef, cfg: Config, h: Horizonte): number {
+  const v = valorSaida(s, chaveMes(m));
+  return v ? v * fator(m, h.y0, cfg.reajuste_mes, regraDo(cfg, s.id, chaveCatSaida(s), "S")) : 0;
+}
+
+export type MesInvest = { saldo: number; aporte: number; rendimento: number };
+/** Evolução: saldo = anterior + anterior × taxa + aporte do mês (aporte = valor fixo ou saída projetada). */
+export function evolucaoInvestimento(i: Investimento, saidas: Saida[], cfg: Config, h: Horizonte): Map<string, MesInvest> {
+  const s = i.saida_id ? saidas.find((x) => x.id === i.saida_id) : undefined;
+  const r = new Map<string, MesInvest>();
+  let saldo = Number(i.saldo_inicial);
+  for (const m of h.meses) {
+    const rendimento = saldo * Number(i.taxa) / 100;
+    const aporte = i.saida_id ? (s ? valorSaidaProjetado(s, m, cfg, h) : 0) : Number(i.aporte_fixo);
+    saldo += rendimento + aporte;
+    r.set(chaveMes(m), { saldo, aporte, rendimento });
+  }
+  return r;
+}
+
+/** Saldo devedor mês a mês = max(0, saldo + saldo × juros − parcela). */
+export function evolucaoDivida(d: Divida, saidas: Saida[], cfg: Config, h: Horizonte): Map<string, number> {
+  const s = d.saida_id ? saidas.find((x) => x.id === d.saida_id) : undefined;
+  const r = new Map<string, number>();
+  let saldo = Number(d.saldo);
+  for (const m of h.meses) {
+    const parcela = d.saida_id ? (s ? valorSaidaProjetado(s, m, cfg, h) : 0) : Number(d.parcela_fixa);
+    saldo = Math.max(0, saldo + saldo * Number(d.juros) / 100 - parcela);
+    r.set(chaveMes(m), saldo);
+  }
+  return r;
+}
+
+const DIVIDA_RE = /PRONAMPE|BANCO DO POVO|EMPREST|FINANCIAM/;
+export const pareceDivida = (s: Saida) => DIVIDA_RE.test(semAcento(`${s.descricao} ${s.categoria ?? ""}`));
+export const saidaDeInvestimento = (s: Saida) => semAcento(s.categoria ?? "").includes("INVESTIMENTO") && !pareceDivida(s);
+export function tipoInvestimentoSugerido(nome: string): string {
+  const n = semAcento(nome);
+  if (n.includes("CONSORCIO")) return "Consórcio";
+  if (n.includes("PREVID")) return "Previdência";
+  if (n.includes("TERRENO") || n.includes("IMOVEL")) return "Imóvel";
+  return "Aplicação";
+}

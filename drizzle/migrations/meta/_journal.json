@@ -29,6 +29,13 @@
       "when": 1790619051293,
       "tag": "0003_saldos_baixas",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790625219928,
+      "tag": "0004_investimentos_bens_dividas",
+      "breakpoints": true
     }
   ]
 }
