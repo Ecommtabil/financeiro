@@ -56,6 +56,147 @@ export type Database = {
         }
         Relationships: []
       }
+      entradas: {
+        Row: {
+          ativo: boolean
+          banco: string | null
+          carteira: string | null
+          codigo: string | null
+          created_at: string
+          dia: number | null
+          empresa: string
+          grupo: string | null
+          id: string
+          origem: string
+          regime: string | null
+          setor: string | null
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          ativo?: boolean
+          banco?: string | null
+          carteira?: string | null
+          codigo?: string | null
+          created_at?: string
+          dia?: number | null
+          empresa: string
+          grupo?: string | null
+          id?: string
+          origem?: string
+          regime?: string | null
+          setor?: string | null
+          user_id?: string
+          valor?: number
+        }
+        Update: {
+          ativo?: boolean
+          banco?: string | null
+          carteira?: string | null
+          codigo?: string | null
+          created_at?: string
+          dia?: number | null
+          empresa?: string
+          grupo?: string | null
+          id?: string
+          origem?: string
+          regime?: string | null
+          setor?: string | null
+          user_id?: string
+          valor?: number
+        }
+        Relationships: []
+      }
+      entradas_pessoais: {
+        Row: {
+          banco: string | null
+          created_at: string
+          descricao: string
+          dia: number | null
+          fim: string | null
+          id: string
+          inicio: string | null
+          origem: string
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          banco?: string | null
+          created_at?: string
+          descricao: string
+          dia?: number | null
+          fim?: string | null
+          id?: string
+          inicio?: string | null
+          origem?: string
+          user_id?: string
+          valor?: number
+        }
+        Update: {
+          banco?: string | null
+          created_at?: string
+          descricao?: string
+          dia?: number | null
+          fim?: string | null
+          id?: string
+          inicio?: string | null
+          origem?: string
+          user_id?: string
+          valor?: number
+        }
+        Relationships: []
+      }
+      saidas: {
+        Row: {
+          banco: string | null
+          categoria: string | null
+          created_at: string
+          descricao: string
+          destino: string | null
+          dia: number | null
+          id: string
+          origem: string
+          pgto: string | null
+          rf: string | null
+          ri: string | null
+          user_id: string
+          valor_fixo: number | null
+          valores_mes: Json
+        }
+        Insert: {
+          banco?: string | null
+          categoria?: string | null
+          created_at?: string
+          descricao: string
+          destino?: string | null
+          dia?: number | null
+          id?: string
+          origem?: string
+          pgto?: string | null
+          rf?: string | null
+          ri?: string | null
+          user_id?: string
+          valor_fixo?: number | null
+          valores_mes?: Json
+        }
+        Update: {
+          banco?: string | null
+          categoria?: string | null
+          created_at?: string
+          descricao?: string
+          destino?: string | null
+          dia?: number | null
+          id?: string
+          origem?: string
+          pgto?: string | null
+          rf?: string | null
+          ri?: string | null
+          user_id?: string
+          valor_fixo?: number | null
+          valores_mes?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
