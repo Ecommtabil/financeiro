@@ -136,7 +136,7 @@ function acharLinhaDRE(v: unknown): GrupoDRE | null {
 // ---------- definições ----------
 export const TIPOS: Def[] = [
   {
-    id: "entradas", titulo: "Entradas", aba: "ENTRADAS", chaves: ["EMPRESA", "VALOR"], contagem: "entradas",
+    id: "entradas", titulo: "Entradas", aba: "ENTRADAS", aliases: ["RECEITAS"], chaves: ["EMPRESA", "VALOR"], contagem: "entradas",
     colunas: [["CODIGOS", "Código do cliente"], ["EMPRESAS", "Nome da empresa (obrigatório)"], ["CARTEIRA", "Carteira"], ["Dia do vencimento", "Dia 1 a 31"], ["Recebimento", "Banco onde recebe"], ["Situação", "Ativo ou Inativo"], ["Regime Tributário", "Regime"], ["Grupo", "Grupo (boleto único)"], ["Setor", "Setor"], ["Valor", "Valor mensal (obrigatório; pode ser fórmula)"], ["INICIO", "Primeiro mês mm/aaaa (opcional)"], ["FIM", "Último mês mm/aaaa (opcional)"]],
     exportar: (c) => [
       ["CODIGOS", "EMPRESAS", "CARTEIRA", "Dia do vencimento", "Recebimento", "Situação", "Regime Tributário", "Grupo", "Setor", "Valor", "INICIO", "FIM"],
@@ -162,7 +162,7 @@ export const TIPOS: Def[] = [
     },
   },
   {
-    id: "saidas", titulo: "Saídas", aba: "SAIDAS", chaves: ["DESCRI"], contagem: "saídas",
+    id: "saidas", titulo: "Saídas", aba: "SAIDAS", aliases: ["DESPESAS"], chaves: ["DESCRI"], contagem: "saídas",
     colunas: [["DESCRIÇÃO", "Nome da despesa (obrigatório)"], ["CATEGORIA", "Categoria (\"Físico (2016)\"/\"Virtual (2024)\" vira ASSINATURAS)"], ["PGTO", "Forma de pagamento"], ["BANCO", "Banco"], ["VCTO", "Dia do vencimento"], ["DESTINO", "ESCRITÓRIO, PESSOAL/CASA ou vazio"], ["Um mês por coluna", "10/2026, OUT/26, OUTUBRO ou OUTUBRO 2026 — valor do mês"]],
     exportar: (c) => {
       const ks = new Set<string>();
@@ -517,7 +517,9 @@ const rowsDe = (wb: XLSX.WorkBook, nome: string) => XLSX.utils.sheet_to_json<unk
 /** Um tipo: usa a aba com o nome do tipo, senão a primeira aba (fora "COMO PREENCHER"). */
 export async function lerArquivo(file: File, tipo: TipoImp, c: Ctx): Promise<Previa> {
   const wb = await lerPlanilha(file), d = defDe(tipo);
-  const nome = abaExata(wb, d) ?? wb.SheetNames.find((n) => !norm(n).startsWith("COMO PREENCHER"));
+  const temCab = (n: string) => { try { acharCabecalho(rowsDe(wb, n), d.chaves); return true; } catch { return false; } };
+  const livres = wb.SheetNames.filter((n) => !norm(n).startsWith("COMO PREENCHER"));
+  const nome = abaExata(wb, d) ?? livres.find(temCab) ?? livres[0];
   if (!nome) throw new Error("A planilha não tem abas com dados.");
   return d.ler(rowsDe(wb, nome), c);
 }
