@@ -56,6 +56,7 @@ export type Database = {
       bens: {
         Row: {
           created_at: string
+          destino: string | null
           id: string
           nome: string
           origem: string
@@ -65,6 +66,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          destino?: string | null
           id?: string
           nome: string
           origem?: string
@@ -74,6 +76,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          destino?: string | null
           id?: string
           nome?: string
           origem?: string
@@ -129,6 +132,7 @@ export type Database = {
         Row: {
           created_at: string
           credor: string | null
+          destino: string | null
           id: string
           juros: number
           nome: string
@@ -136,11 +140,13 @@ export type Database = {
           parcela_fixa: number
           saida_id: string | null
           saldo: number
+          tipo: string | null
           user_id: string
         }
         Insert: {
           created_at?: string
           credor?: string | null
+          destino?: string | null
           id?: string
           juros?: number
           nome: string
@@ -148,11 +154,13 @@ export type Database = {
           parcela_fixa?: number
           saida_id?: string | null
           saldo?: number
+          tipo?: string | null
           user_id?: string
         }
         Update: {
           created_at?: string
           credor?: string | null
+          destino?: string | null
           id?: string
           juros?: number
           nome?: string
@@ -160,6 +168,7 @@ export type Database = {
           parcela_fixa?: number
           saida_id?: string | null
           saldo?: number
+          tipo?: string | null
           user_id?: string
         }
         Relationships: []
