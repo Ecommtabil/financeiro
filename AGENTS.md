@@ -9,9 +9,9 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-## Convenções do projeto
+# Decisões técnicas
 
-- Design system em `src/styles.css` (tokens oklch da paleta oficial, utilitários `num`, `surface-card`, `chip-escritorio`, `chip-pessoal`); componentes nunca usam cores fixas, para manter a identidade e o modo escuro consistentes.
-- Formatação pt-BR (moeda, mês "Out/26") e normalização de bancos vivem em `src/lib/format.ts`, para haver uma única fonte dessas regras.
-- Layout comum (navegação lateral) em `src/components/app-shell.tsx`, renderizado uma vez no `__root`; rotas cuidam só do conteúdo.
-- Exclusões usam `src/components/botao-excluir.tsx` ("Confirmar" por 3s), atendendo à regra de não apagar sem confirmação.
+- Cabeçalho + abas (`src/components/app-shell.tsx`) é renderizado pelo layout `_authenticated`, não pelo `__root`, para a tela de login ficar sem o layout do app.
+- Horizonte da projeção vem só de `calcularHorizonte` em `src/lib/horizonte.ts`, para toda tela usar a mesma regra de meses/anos/Y0.
+- Período escolhido no cabeçalho é lido via `usePeriodo()` (colunas mês a mês ou por ano), para as abas não reimplementarem o seletor.
+- Configuração do usuário (tabela `config`, 1 linha por usuário) é lida/salva por `useConfig`/`useSalvarConfig` em `src/lib/config.ts`.
