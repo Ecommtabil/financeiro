@@ -1,5 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AbaVazia } from "@/components/app-shell";
+import { Fragment, useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
+import { toast } from "sonner";
+import { ChevronDown, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { usePeriodo } from "@/components/app-shell";
+import { useConfig, useSalvarConfig, type Config } from "@/lib/config";
+import { useLista } from "@/lib/dados";
+import { GRUPOS_DRE, chaveCatDRE, chaveMes, grupoDRE, grupoPadraoDRE, somar, totaisHorizonte, type GrupoDRE, type TotaisMes } from "@/lib/calc";
+import { acharCabecalho, lerPlanilha, norm } from "@/lib/importacao";
+import { formatarBRL, formatarNumero } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/dre")({
   head: () => ({
@@ -12,5 +22,233 @@ export const Route = createFileRoute("/_authenticated/dre")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: () => <AbaVazia titulo="DRE" descricao="Demonstrativo de resultado do escritório, mês a mês ou por ano." usaPeriodo />,
+  component: DRE,
 });
+
+type Res = { RB: number; g: Record<GrupoDRE, number>; RL: number; LB: number; RO: number; RLiq: number; t: TotaisMes };
+const rotuloGrupo = (id: GrupoDRE) => GRUPOS_DRE.find((g) => g.id === id)!.rotulo;
+
+function calcular(t: TotaisMes, cfg: Config): Res {
+  const g: Record<GrupoDRE, number> = { IMP: 0, PES: 0, DESP: 0, SOC: 0, FIN: 0 };
+  for (const [cat, v] of Object.entries(t.porCatEscritorio)) g[grupoDRE(cfg, cat)] += v;
+  const RB = t.E, RL = RB - g.IMP, LB = RL - g.PES, RO = LB - g.DESP, RLiq = RO - g.SOC - g.FIN;
+  return { RB, g, RL, LB, RO, RLiq, t };
+}
+
+type Linha = { id: string; rotulo: string; v: (r: Res) => number; tipo?: "total" | "destaque" | "sub" | "grupo"; abre?: string; pai?: string };
+
+function DRE() {
+  const { horizonte: h, colunas } = usePeriodo();
+  const { data: cfg } = useConfig();
+  const salvar = useSalvarConfig();
+  const ent = useLista("entradas"), sai = useLista("saidas"), pes = useLista("entradas_pessoais");
+  const [abertos, setAbertos] = useState<Set<string>>(new Set());
+
+  const porMes = useMemo(() => {
+    if (!h || !cfg || !ent.data || !sai.data || !pes.data) return null;
+    return totaisHorizonte({ entradas: ent.data, saidas: sai.data, pessoais: pes.data }, cfg, h);
+  }, [h, cfg, ent.data, sai.data, pes.data]);
+
+  if (!h || !cfg || !porMes) return <div className="px-6 py-8 text-muted-foreground lg:px-10">Carregando…</div>;
+
+  const cols = colunas.map((c) => ({ ...c, r: calcular(somar(c.meses.map((m) => porMes.get(chaveMes(m))!)), cfg) }));
+  const total = calcular(somar(cols.map((c) => c.r.t)), cfg);
+
+  // categorias do escritório (todas do cadastro + as com valor)
+  const catsEsc = new Set<string>(Object.keys(total.t.porCatEscritorio));
+  for (const s of sai.data ?? []) if (s.destino !== "PESSOAL") catsEsc.add(s.categoria?.trim() || "Sem categoria");
+  const ordena = (o: Record<string, number>, ks: string[]) => ks.sort((a, b) => (o[b] ?? 0) - (o[a] ?? 0));
+  const catsDoGrupo = (g: GrupoDRE) => ordena(total.t.porCatEscritorio, Object.keys(total.t.porCatEscritorio).filter((c) => grupoDRE(cfg, c) === g));
+
+  const subCats = (g: GrupoDRE): Linha[] => catsDoGrupo(g).map((c) => ({ id: `${g}|${c}`, rotulo: c, v: (r) => -(r.t.porCatEscritorio[c] ?? 0), tipo: "sub", pai: g }));
+  const menos = (g: GrupoDRE): Linha[] => [{ id: g, rotulo: `(−) ${rotuloGrupo(g)}`, v: (r) => -r.g[g], tipo: "grupo", abre: g }, ...subCats(g)];
+
+  const escritorio: Linha[] = [
+    { id: "RB", rotulo: "Receita bruta de serviços", v: (r) => r.RB, tipo: "grupo", abre: "RB" },
+    ...ordena(total.t.porCarteira, Object.keys(total.t.porCarteira)).map((k): Linha => ({ id: `RB|${k}`, rotulo: k, v: (r) => r.t.porCarteira[k] ?? 0, tipo: "sub", pai: "RB" })),
+    ...menos("IMP"),
+    { id: "RL", rotulo: "= Receita líquida", v: (r) => r.RL, tipo: "total" },
+    ...menos("PES"),
+    { id: "LB", rotulo: "= Lucro bruto", v: (r) => r.LB, tipo: "total" },
+    ...menos("DESP"),
+    { id: "RO", rotulo: "= Resultado operacional", v: (r) => r.RO, tipo: "total" },
+    ...menos("SOC"),
+    ...menos("FIN"),
+    { id: "RLIQ", rotulo: "= Resultado líquido do escritório", v: (r) => r.RLiq, tipo: "destaque" },
+  ];
+  const pessoal: Linha[] = [
+    { id: "P0", rotulo: "Resultado do escritório", v: (r) => r.RLiq, tipo: "grupo" },
+    { id: "EP", rotulo: "(+) Entradas pessoais", v: (r) => r.t.EP, tipo: "grupo", abre: "EP" },
+    ...ordena(total.t.porOrigemPessoal, Object.keys(total.t.porOrigemPessoal)).map((k): Linha => ({ id: `EP|${k}`, rotulo: k, v: (r) => r.t.porOrigemPessoal[k] ?? 0, tipo: "sub", pai: "EP" })),
+    { id: "SP", rotulo: "(−) Saídas pessoais", v: (r) => -r.t.SP, tipo: "grupo", abre: "SP" },
+    ...ordena(total.t.porCatPessoal, Object.keys(total.t.porCatPessoal)).map((k): Linha => ({ id: `SP|${k}`, rotulo: k, v: (r) => -(r.t.porCatPessoal[k] ?? 0), tipo: "sub", pai: "SP" })),
+    { id: "R", rotulo: "= Reserva", v: (r) => r.t.R, tipo: "destaque" },
+  ];
+
+  const alterna = (id: string) => setAbertos((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const pct = (v: number, base: number) => (base ? `${formatarNumero((v / base) * 100, 1)}%` : "—");
+
+  const tabela = (titulo: string, linhas: Linha[]) => (
+    <div className="overflow-x-auto rounded-lg border bg-card">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b text-muted-foreground">
+            <th className="sticky left-0 min-w-64 bg-card px-3 py-2 text-left font-medium text-foreground">{titulo}</th>
+            {cols.map((c) => <th key={c.chave} className="px-3 py-2 text-right font-medium">{c.rotulo}</th>)}
+            <th className="px-3 py-2 text-right font-semibold text-foreground">Total</th>
+            <th className="px-3 py-2 text-right font-medium">AV%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {linhas.filter((l) => !l.pai || abertos.has(l.pai)).map((l) => {
+            const tem = l.abre && linhas.some((x) => x.pai === l.abre);
+            const cls = l.tipo === "destaque" ? "bg-primary/10 font-semibold" : l.tipo === "total" ? "border-t font-semibold" : l.tipo === "grupo" ? "border-t font-medium" : "text-muted-foreground";
+            const tv = l.v(total);
+            return (
+              <tr key={l.id} className={cls}>
+                <td className={`sticky left-0 bg-card px-3 py-1.5 ${l.tipo === "sub" ? "pl-9" : ""}`}>
+                  {tem ? (
+                    <button onClick={() => alterna(l.abre!)} className="inline-flex items-center gap-1 text-left">
+                      {abertos.has(l.abre!) ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}{l.rotulo}
+                    </button>
+                  ) : <span className={l.abre ? "pl-[1.125rem]" : ""}>{l.rotulo}</span>}
+                </td>
+                {cols.map((c) => { const v = l.v(c.r); return <td key={c.chave} className={`num px-3 py-1.5 text-right ${v < 0 ? "text-negative" : ""}`}>{formatarNumero(v)}</td>; })}
+                <td className={`num px-3 py-1.5 text-right font-medium ${tv < 0 ? "text-negative" : ""}`}>{formatarNumero(tv)}</td>
+                <td className="num px-3 py-1.5 text-right text-muted-foreground">{pct(tv, total.RB)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const mapa = (cfg.dre_map ?? {}) as Record<string, GrupoDRE>;
+  const reclassificar = (cat: string, g: GrupoDRE) => {
+    const n = { ...mapa };
+    if (g === grupoPadraoDRE(cat)) delete n[chaveCatDRE(cat)]; else n[chaveCatDRE(cat)] = g;
+    salvar.mutate({ dre_map: n }, { onError: (e) => toast.error(e.message) });
+  };
+
+  return (
+    <div className="space-y-5 px-6 py-6 lg:px-10">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">DRE</h1>
+        <BotaoImportar cfg={cfg} cats={[...catsEsc]} salvar={(v) => salvar.mutateAsync(v)} />
+      </div>
+
+      <div className="surface-card grid gap-4 rounded-lg border bg-card px-5 py-4 sm:grid-cols-3 lg:grid-cols-5">
+        <Ind rotulo="Receita bruta" v={total.RB} />
+        <Ind rotulo="Receita líquida" v={total.RL} extra={`${pct(total.RL, total.RB)} da bruta`} />
+        <Ind rotulo="Lucro bruto" v={total.LB} extra={`margem ${pct(total.LB, total.RB)}`} />
+        <Ind rotulo="Resultado líquido" v={total.RLiq} extra={`margem ${pct(total.RLiq, total.RB)}`} forte />
+        <Ind rotulo="Reserva" v={total.t.R} forte />
+      </div>
+
+      {tabela("Resultado do escritório", escritorio)}
+      {tabela("Resultado pessoal", pessoal)}
+      <p className="text-xs text-muted-foreground">AV% = valor da linha ÷ receita bruta do período. O resultado líquido do escritório é igual ao Lucro do Panorama.</p>
+
+      <div className="rounded-lg border bg-card">
+        <div className="border-b px-4 py-3">
+          <h2 className="font-semibold">Classificação das categorias do escritório</h2>
+          <p className="text-xs text-muted-foreground">Escolha em qual linha da DRE cada categoria entra. Fica salvo na hora.</p>
+        </div>
+        <table className="w-full text-sm">
+          <thead><tr className="border-b text-muted-foreground"><th className="px-4 py-2 text-left font-medium">Categoria</th><th className="px-4 py-2 text-left font-medium">Linha da DRE</th><th className="px-4 py-2 text-right font-medium">Total no período</th></tr></thead>
+          <tbody>
+            {[...catsEsc].sort((a, b) => a.localeCompare(b, "pt-BR")).map((c) => {
+              const g = grupoDRE(cfg, c), mudou = chaveCatDRE(c) in mapa;
+              return (
+                <tr key={c} className="border-b last:border-0">
+                  <td className="px-4 py-1.5">{c}{mudou && <span className="ml-2 text-xs text-warning">alterada</span>}</td>
+                  <td className="px-4 py-1.5">
+                    <select value={g} onChange={(e) => reclassificar(c, e.target.value as GrupoDRE)} className="rounded-md border bg-background px-2 py-1">
+                      {GRUPOS_DRE.map((x) => <option key={x.id} value={x.id}>{x.rotulo}{x.id === grupoPadraoDRE(c) ? " (padrão)" : ""}</option>)}
+                    </select>
+                  </td>
+                  <td className="num px-4 py-1.5 text-right text-negative">{formatarNumero(-(total.t.porCatEscritorio[c] ?? 0))}</td>
+                </tr>
+              );
+            })}
+            {!catsEsc.size && <tr><td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">Nenhuma categoria de saída do escritório cadastrada.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Ind({ rotulo, v, extra, forte }: { rotulo: string; v: number; extra?: string; forte?: boolean }) {
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{rotulo}</div>
+      <div className={`num ${forte ? "text-xl font-semibold" : "text-lg"} ${v < 0 ? "text-negative" : forte ? "text-primary" : ""}`}>{formatarBRL(v)}</div>
+      {extra && <div className="num text-xs text-muted-foreground">{extra}</div>}
+    </div>
+  );
+}
+
+const GRUPO_POR_NOME: Record<string, GrupoDRE> = Object.fromEntries(
+  GRUPOS_DRE.flatMap((g) => [[norm(g.rotulo), g.id], [g.id, g.id]]),
+);
+function acharGrupo(v: unknown): GrupoDRE | null {
+  const t = norm(v);
+  if (!t) return null;
+  if (GRUPO_POR_NOME[t]) return GRUPO_POR_NOME[t]!;
+  if (t.includes("IMPOSTO")) return "IMP";
+  if (t.includes("PESSOAL")) return "PES";
+  if (t.includes("SOCIO")) return "SOC";
+  if (t.includes("FINANC") || t.includes("INVEST")) return "FIN";
+  if (t.includes("DESPESA") || t.includes("OPERAC")) return "DESP";
+  return null;
+}
+
+function BotaoImportar({ cfg, cats, salvar }: { cfg: Config; cats: string[]; salvar: (v: Partial<Config>) => Promise<unknown> }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const importar = async (file: File) => {
+    setOcupado(true);
+    try {
+      const wb = await lerPlanilha(file);
+      const nome = wb.SheetNames.find((n) => norm(n) === "CLASSIFICACAO") ?? wb.SheetNames.find((n) => norm(n) !== "COMO PREENCHER")!;
+      const rows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[nome]!, { header: 1, raw: true, defval: null });
+      const hdr = acharCabecalho(rows, ["CATEGORIA"]);
+      const cab = (rows[hdr] ?? []).map(norm);
+      const ic = cab.findIndex((x) => x.includes("CATEGORIA")), il = cab.findIndex((x) => x.includes("LINHA") || x.includes("DRE") || x.includes("GRUPO"));
+      if (ic < 0 || il < 0) throw new Error("A planilha precisa das colunas CATEGORIA e LINHA DA DRE.");
+      const mapa = { ...((cfg.dre_map ?? {}) as Record<string, GrupoDRE>) };
+      let n = 0; const ruins: string[] = [];
+      for (const r of rows.slice(hdr + 1)) {
+        const cat = String(r[ic] ?? "").trim();
+        if (!cat) continue;
+        const g = acharGrupo(r[il]);
+        if (!g) { ruins.push(cat); continue; }
+        const real = cats.find((c) => chaveCatDRE(c) === chaveCatDRE(cat)) ?? cat;
+        if (g === grupoPadraoDRE(real)) delete mapa[chaveCatDRE(real)]; else mapa[chaveCatDRE(real)] = g;
+        n++;
+      }
+      if (!n) throw new Error("Nenhuma classificação reconhecida.");
+      await salvar({ dre_map: mapa });
+      toast.success(`${n} categorias classificadas${ruins.length ? ` · linha não reconhecida em: ${ruins.slice(0, 5).join(", ")}` : ""}`);
+    } catch (e) { toast.error((e as Error).message); } finally { setOcupado(false); if (ref.current) ref.current.value = ""; }
+  };
+  const modelo = () => {
+    const wb = XLSX.utils.book_new();
+    const linhas = cats.length ? [...cats].sort().map((c) => [c, rotuloGrupo(grupoDRE(cfg, c))]) : [["IMPOSTO", rotuloGrupo("IMP")], ["FUNCIONARIO", rotuloGrupo("PES")], ["ALUGUEL", rotuloGrupo("DESP")]];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["CATEGORIA", "LINHA DA DRE"], ...linhas]), "CLASSIFICACAO");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["COMO PREENCHER"],
+      ["CATEGORIA: categoria das saídas do escritório, igual ao Cadastro (maiúsculas e acentos não importam)."],
+      ["LINHA DA DRE: uma destas opções:"], ...GRUPOS_DRE.map((g) => [`  • ${g.rotulo}`]),
+      ["Categorias fora da planilha mantêm a classificação atual."]]), "COMO PREENCHER");
+    XLSX.writeFile(wb, "modelo-classificacao-dre.xlsx");
+  };
+  return (
+    <div className="flex gap-2">
+      <Button variant="outline" size="sm" onClick={modelo}><Download className="mr-1.5 h-4 w-4" />Modelo</Button>
+      <Button size="sm" disabled={ocupado} onClick={() => ref.current?.click()}><FileSpreadsheet className="mr-1.5 h-4 w-4" />{ocupado ? "Importando…" : "Importar classificação"}</Button>
+      <input ref={ref} type="file" accept=".xlsx,.xls" hidden onChange={(e) => e.target.files?.[0] && importar(e.target.files[0])} />
+    </div>
+  );
+}
