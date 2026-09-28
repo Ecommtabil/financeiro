@@ -9,148 +9,67 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as BaseZeroRouteImport } from './routes/base-zero'
-import { Route as EntradasRouteImport } from './routes/entradas'
-import { Route as ImportarRouteImport } from './routes/importar'
-import { Route as ProjecaoRouteImport } from './routes/projecao'
-import { Route as SaidasRouteImport } from './routes/saidas'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BaseZeroRoute = BaseZeroRouteImport.update({
-  id: '/base-zero',
-  path: '/base-zero',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EntradasRoute = EntradasRouteImport.update({
-  id: '/entradas',
-  path: '/entradas',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImportarRoute = ImportarRouteImport.update({
-  id: '/importar',
-  path: '/importar',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProjecaoRoute = ProjecaoRouteImport.update({
-  id: '/projecao',
-  path: '/projecao',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SaidasRoute = SaidasRouteImport.update({
-  id: '/saidas',
-  path: '/saidas',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/base-zero': typeof BaseZeroRoute
-  '/entradas': typeof EntradasRoute
-  '/importar': typeof ImportarRoute
-  '/projecao': typeof ProjecaoRoute
-  '/saidas': typeof SaidasRoute
+  '/': typeof AuthenticatedRouteRoute
+  '/auth': typeof AuthRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/base-zero': typeof BaseZeroRoute
-  '/entradas': typeof EntradasRoute
-  '/importar': typeof ImportarRoute
-  '/projecao': typeof ProjecaoRoute
-  '/saidas': typeof SaidasRoute
+  '/': typeof AuthenticatedRouteRoute
+  '/auth': typeof AuthRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/base-zero': typeof BaseZeroRoute
-  '/entradas': typeof EntradasRoute
-  '/importar': typeof ImportarRoute
-  '/projecao': typeof ProjecaoRoute
-  '/saidas': typeof SaidasRoute
+  '/_authenticated': typeof AuthenticatedRouteRoute
+  '/auth': typeof AuthRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    '/' | '/base-zero' | '/entradas' | '/importar' | '/projecao' | '/saidas'
+  fullPaths: '/' | '/auth'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/base-zero' | '/entradas' | '/importar' | '/projecao' | '/saidas'
-  id:
-    | '__root__'
-    | '/'
-    | '/base-zero'
-    | '/entradas'
-    | '/importar'
-    | '/projecao'
-    | '/saidas'
+  to: '/' | '/auth'
+  id: '__root__' | '/_authenticated' | '/auth'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  BaseZeroRoute: typeof BaseZeroRoute
-  EntradasRoute: typeof EntradasRoute
-  ImportarRoute: typeof ImportarRoute
-  ProjecaoRoute: typeof ProjecaoRoute
-  SaidasRoute: typeof SaidasRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRoute
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/base-zero': {
-      id: '/base-zero'
-      path: '/base-zero'
-      fullPath: '/base-zero'
-      preLoaderRoute: typeof BaseZeroRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/entradas': {
-      id: '/entradas'
-      path: '/entradas'
-      fullPath: '/entradas'
-      preLoaderRoute: typeof EntradasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/importar': {
-      id: '/importar'
-      path: '/importar'
-      fullPath: '/importar'
-      preLoaderRoute: typeof ImportarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/projecao': {
-      id: '/projecao'
-      path: '/projecao'
-      fullPath: '/projecao'
-      preLoaderRoute: typeof ProjecaoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/saidas': {
-      id: '/saidas'
-      path: '/saidas'
-      fullPath: '/saidas'
-      preLoaderRoute: typeof SaidasRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  BaseZeroRoute: BaseZeroRoute,
-  EntradasRoute: EntradasRoute,
-  ImportarRoute: ImportarRoute,
-  ProjecaoRoute: ProjecaoRoute,
-  SaidasRoute: SaidasRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRoute,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
