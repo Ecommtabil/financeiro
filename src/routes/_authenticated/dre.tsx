@@ -4,6 +4,9 @@ import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sparkles } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { sugerirDRE } from "@/lib/dre-ia.functions";
 import { usePeriodo } from "@/components/app-shell";
 import { useConfig, useSalvarConfig, type Config } from "@/lib/config";
 import { useLista } from "@/lib/dados";
@@ -150,6 +153,8 @@ function DRE() {
       {tabela("Resultado pessoal", pessoal)}
       <p className="text-xs text-muted-foreground">AV% = valor da linha ÷ receita bruta do período. O resultado líquido do escritório é igual ao Lucro do Panorama.</p>
 
+      <SugestaoIA cats={[...catsEsc]} cfg={cfg} aplicar={reclassificar} />
+
       <div className="rounded-lg border bg-card">
         <div className="border-b px-4 py-3">
           <h2 className="font-semibold">Classificação das categorias do escritório</h2>
@@ -176,6 +181,53 @@ function DRE() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function SugestaoIA({ cats, cfg, aplicar }: { cats: string[]; cfg: Config; aplicar: (cat: string, g: GrupoDRE) => void }) {
+  const chamar = useServerFn(sugerirDRE);
+  const [cat, setCat] = useState("");
+  const [desc, setDesc] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [res, setRes] = useState<{ cat: string; grupo: GrupoDRE; motivo: string } | null>(null);
+  const pedir = async () => {
+    setOcupado(true); setRes(null);
+    try {
+      const r = await chamar({ data: { categoria: cat.trim(), descricao: desc.trim() } });
+      setRes({ cat: cat.trim(), ...r });
+    } catch (e) { toast.error((e as Error).message); } finally { setOcupado(false); }
+  };
+  const existente = cats.find((c) => chaveCatDRE(c) === chaveCatDRE(res?.cat ?? ""));
+  return (
+    <div className="rounded-lg border bg-card">
+      <div className="border-b px-4 py-3">
+        <h2 className="flex items-center gap-2 font-semibold"><Sparkles className="size-4 text-primary" />Sugerir linha da DRE com IA</h2>
+        <p className="text-xs text-muted-foreground">Descreva a despesa e a IA indica em qual linha da DRE ela deve entrar. Você decide se aplica.</p>
+      </div>
+      <div className="grid gap-3 p-4 md:grid-cols-[14rem_1fr_auto] md:items-start">
+        <div>
+          <input list="dre-cats" value={cat} onChange={(e) => setCat(e.target.value)} placeholder="Categoria (ex.: CONTADOR)" className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+          <datalist id="dre-cats">{cats.map((c) => <option key={c} value={c} />)}</datalist>
+        </div>
+        <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} maxLength={1000}
+          placeholder="O que é essa despesa? Ex.: mensalidade do sistema de folha de pagamento usado pela equipe" className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+        <Button onClick={pedir} disabled={ocupado || desc.trim().length < 3}>{ocupado ? "Consultando…" : "Sugerir"}</Button>
+      </div>
+      {res && (
+        <div className="flex flex-wrap items-center gap-3 border-t bg-primary/5 px-4 py-3 text-sm">
+          <div className="flex-1">
+            <div><span className="text-muted-foreground">Sugestão:</span> <b>{rotuloGrupo(res.grupo)}</b>
+              {existente && grupoDRE(cfg, existente) === res.grupo && <span className="ml-2 text-xs text-muted-foreground">(já está nessa linha)</span>}</div>
+            {res.motivo && <div className="text-xs text-muted-foreground">{res.motivo}</div>}
+          </div>
+          {existente ? (
+            <Button size="sm" variant="outline" disabled={grupoDRE(cfg, existente) === res.grupo}
+              onClick={() => { aplicar(existente, res.grupo); toast.success(`${existente} → ${rotuloGrupo(res.grupo)}`); }}>Aplicar a {existente}</Button>
+          ) : <span className="text-xs text-muted-foreground">{res.cat ? "Categoria ainda não existe no cadastro — a sugestão será aplicada quando você usar este nome." : ""}</span>}
+          {!existente && res.cat && <Button size="sm" variant="outline" onClick={() => { aplicar(res.cat, res.grupo); toast.success("Classificação guardada"); }}>Guardar mesmo assim</Button>}
+        </div>
+      )}
     </div>
   );
 }
