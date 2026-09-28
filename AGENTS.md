@@ -15,3 +15,4 @@
 - Horizonte da projeção vem só de `calcularHorizonte` em `src/lib/horizonte.ts`, para toda tela usar a mesma regra de meses/anos/Y0.
 - Período escolhido no cabeçalho é lido via `usePeriodo()` (colunas mês a mês ou por ano), para as abas não reimplementarem o seletor.
 - Configuração do usuário (tabela `config`, 1 linha por usuário) é lida/salva por `useConfig`/`useSalvarConfig` em `src/lib/config.ts`.
+- Todo valor do mês, reajuste e total (E, SE, SP, EP, L, R) vem de `src/lib/calc.ts`, para as telas nunca divergirem nos números.
