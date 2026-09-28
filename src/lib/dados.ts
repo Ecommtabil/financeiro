@@ -34,7 +34,7 @@ export function useAtualizar<T extends Tabela>(tabela: T) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, v }: { id: string; v: TablesUpdate<T> }) => {
-      const { error } = await supabase.from(tabela).update(v as never).eq("id", id);
+      const { error } = await supabase.from(tabela as "saidas").update(v as never).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: [tabela] }),
