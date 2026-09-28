@@ -1,5 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AbaVazia } from "@/components/app-shell";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { Download, FileSpreadsheet, Plus, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { BotaoExcluir } from "@/components/botao-excluir";
+import { usePeriodo } from "@/components/app-shell";
+import { useConfig } from "@/lib/config";
+import { formatarBRL, formatarMes, formatarNumero, normalizarBanco } from "@/lib/format";
+import { baixarModelo, chaveMes, lerImportacao, norm, paraNumero, type Previa, type TipoImport } from "@/lib/importacao";
+import { useAtualizar, useExcluir, useImportar, useInserir, useLista, valorSaidaNoMes, type Saida } from "@/lib/dados";
 
 export const Route = createFileRoute("/_authenticated/cadastro")({
   head: () => ({
@@ -12,5 +24,311 @@ export const Route = createFileRoute("/_authenticated/cadastro")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: () => <AbaVazia titulo="Cadastro" descricao="Cadastre entradas, saídas e contas na tela ou importe por planilha."  />,
+  component: Cadastro,
 });
+
+const mesDeChave = (k?: string | null) => {
+  if (!k) return "";
+  const [a, m] = k.split("-").map(Number);
+  return formatarMes(a!, m!);
+};
+const casa = (s: string) => norm(s).includes(norm(s)) && s;
+const th = "px-2 py-2 text-left text-xs font-medium text-muted-foreground whitespace-nowrap";
+const td = "px-2 py-1.5 whitespace-nowrap";
+const sel = "h-8 rounded-md border border-input bg-background px-2 text-sm";
+
+function Cadastro() {
+  const [busca, setBusca] = useState("");
+  return (
+    <div className="px-6 py-8 lg:px-10">
+      <h1 className="text-2xl font-semibold">Cadastro</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Cadastre na tela ou importe por planilha. Reimportar substitui só o que veio de planilha.</p>
+      <Tabs defaultValue="saidas" className="mt-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <TabsList>
+            <TabsTrigger value="saidas">Saídas</TabsTrigger>
+            <TabsTrigger value="entradas">Entradas</TabsTrigger>
+            <TabsTrigger value="pessoais">Entradas pessoais</TabsTrigger>
+          </TabsList>
+          <div className="relative ml-auto w-72">
+            <Search className="absolute top-2 left-2 size-4 text-muted-foreground" />
+            <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar…" className="h-8 pl-8" />
+          </div>
+        </div>
+        <TabsContent value="saidas"><Saidas busca={busca} /></TabsContent>
+        <TabsContent value="entradas"><Entradas busca={busca} /></TabsContent>
+        <TabsContent value="pessoais"><Pessoais busca={busca} /></TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function Importar({ tipo, rotulo }: { tipo: TipoImport; rotulo: string }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const { data: config } = useConfig();
+  const [previa, setPrevia] = useState<Previa | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const importar = useImportar();
+  const anoBase = Number(config?.base_data?.slice(0, 4) ?? new Date().getFullYear());
+
+  async function escolher(f?: File) {
+    if (!f) return;
+    setErro(null);
+    try {
+      setPrevia(await lerImportacao(f, tipo, anoBase, { brl: formatarBRL, mes: mesDeChave }));
+    } catch (e) {
+      setErro((e as Error).message);
+    }
+    if (ref.current) ref.current.value = "";
+  }
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" onClick={() => baixarModelo(tipo)}><Download className="size-4" />Modelo</Button>
+      <Button size="sm" onClick={() => ref.current?.click()}><FileSpreadsheet className="size-4" />Importar {rotulo}</Button>
+      <input ref={ref} type="file" accept=".xlsx,.xls" hidden onChange={(e) => escolher(e.target.files?.[0])} />
+      <Dialog open={!!previa || !!erro} onOpenChange={(o) => !o && (setPrevia(null), setErro(null))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Importar {rotulo}</DialogTitle>
+            <DialogDescription>{erro ? "A planilha não pôde ser lida." : "Confira antes de gravar. Os itens cadastrados na tela são mantidos."}</DialogDescription>
+          </DialogHeader>
+          {erro ? <p className="text-sm text-negative">{erro}</p> : <p className="num text-lg font-semibold">{previa?.resumo}</p>}
+          {importar.error ? <p className="text-sm text-negative">{(importar.error as Error).message}</p> : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => (setPrevia(null), setErro(null))}>Cancelar</Button>
+            {previa ? (
+              <Button disabled={importar.isPending || !previa.itens.length} onClick={() => importar.mutate(previa, { onSuccess: () => setPrevia(null) })}>
+                {importar.isPending ? "Importando…" : "Importar"}
+              </Button>
+            ) : null}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function CampoValor({ valor, onSalvar }: { valor: number; onSalvar: (n: number) => void }) {
+  const [t, setT] = useState<string | null>(null);
+  return (
+    <Input
+      className="num h-8 w-28 text-right"
+      value={t ?? formatarNumero(valor)}
+      onFocus={() => setT(formatarNumero(valor))}
+      onChange={(e) => setT(e.target.value)}
+      onBlur={() => {
+        const n = paraNumero(t);
+        setT(null);
+        if (n != null && n !== valor) onSalvar(n);
+      }}
+      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+    />
+  );
+}
+
+function Barra({ children, total }: { children: ReactNode; total: string }) {
+  return <div className="mt-4 flex flex-wrap items-center gap-2"><span className="num text-sm text-muted-foreground">{total}</span><div className="ml-auto flex flex-wrap items-center gap-2">{children}</div></div>;
+}
+
+function Form({ children, onSubmit }: { children: ReactNode; onSubmit: () => void }) {
+  return (
+    <form className="surface-card mt-4 flex flex-wrap items-end gap-2 p-4" onSubmit={(e) => (e.preventDefault(), onSubmit())}>
+      {children}
+      <Button type="submit" size="sm"><Plus className="size-4" />Adicionar</Button>
+    </form>
+  );
+}
+const F = ({ l, children }: { l: string; children: ReactNode }) => <label className="grid gap-1 text-xs text-muted-foreground">{l}{children}</label>;
+
+function contem(busca: string, ...campos: (string | null | undefined)[]) {
+  const b = norm(busca);
+  return !b || campos.some((c) => norm(c).includes(b));
+}
+
+/* ---------------- Saídas ---------------- */
+function Saidas({ busca }: { busca: string }) {
+  const { data = [] } = useLista("saidas");
+  const { horizonte } = usePeriodo();
+  const atualizar = useAtualizar("saidas");
+  const excluir = useExcluir("saidas");
+  const inserir = useInserir("saidas");
+  const [semDestino, setSemDestino] = useState(false);
+  const p = horizonte?.primeiro;
+  const k1 = p ? chaveMes(p.ano, p.mes) : "";
+  const vazio = { descricao: "", categoria: "", banco: "", dia: "", destino: "", valor: "", ri: k1, rf: "" };
+  const [f, setF] = useState(vazio);
+  const categorias = useMemo(() => [...new Set(data.map((s) => s.categoria).filter(Boolean))].sort() as string[], [data]);
+  const lista = data.filter((s) => (!semDestino || !s.destino) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
+
+  function editarValor(s: Saida, n: number) {
+    if (s.valor_fixo != null) atualizar.mutate({ id: s.id, v: { valor_fixo: n } });
+    else atualizar.mutate({ id: s.id, v: { valores_mes: { ...(s.valores_mes as Record<string, number>), [k1]: n } } });
+  }
+
+  return (
+    <>
+      <Barra total={`${lista.length} saídas · ${formatarBRL(lista.reduce((t, s) => t + valorSaidaNoMes(s, k1), 0))} em ${mesDeChave(k1)}`}>
+        <label className="flex items-center gap-2 text-sm"><Checkbox checked={semDestino} onCheckedChange={(v) => setSemDestino(!!v)} />Mostrar só as sem destino</label>
+        <Importar tipo="saidas" rotulo="saídas" />
+      </Barra>
+      <Form onSubmit={() => {
+        const valor = paraNumero(f.valor);
+        if (!f.descricao.trim() || valor == null) return;
+        inserir.mutate({ descricao: f.descricao.trim(), categoria: f.categoria.trim().toUpperCase() || null, banco: f.banco ? normalizarBanco(f.banco) : null, dia: Number(f.dia) || null, destino: (f.destino || null) as Saida["destino"], valor_fixo: valor, ri: f.ri || k1, rf: f.rf || null, origem: "manual" });
+        setF(vazio);
+      }}>
+        <F l="Descrição"><Input className="h-8 w-56" value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} /></F>
+        <F l="Categoria"><Input className="h-8 w-40" list="cats" value={f.categoria} onChange={(e) => setF({ ...f, categoria: e.target.value })} /></F>
+        <datalist id="cats">{categorias.map((c) => <option key={c} value={c} />)}</datalist>
+        <F l="Banco"><Input className="h-8 w-32" value={f.banco} onChange={(e) => setF({ ...f, banco: e.target.value })} /></F>
+        <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
+        <F l="Destino"><SelDestino value={f.destino} onChange={(v) => setF({ ...f, destino: v })} /></F>
+        <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
+        <F l="Início"><Input className="h-8 w-36" type="month" value={f.ri} onChange={(e) => setF({ ...f, ri: e.target.value })} /></F>
+        <F l="Fim (opcional)"><Input className="h-8 w-36" type="month" value={f.rf} onChange={(e) => setF({ ...f, rf: e.target.value })} /></F>
+      </Form>
+      <div className="surface-card mt-4 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr className="border-b border-border">{["Descrição", "Categoria", "Pagamento", "Banco", "Dia", "Destino", `Valor ${mesDeChave(k1)}`, "Vigência", ""].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+          <tbody>
+            {lista.map((s) => (
+              <tr key={s.id} className="border-b border-border/60">
+                <td className={td}>{s.descricao}</td>
+                <td className={td}>{s.categoria}</td>
+                <td className={td}>{s.pgto}</td>
+                <td className={td}>{s.banco}</td>
+                <td className={`${td} num`}>{s.dia}</td>
+                <td className={td}><SelDestino value={s.destino ?? ""} onChange={(v) => atualizar.mutate({ id: s.id, v: { destino: (v || null) as Saida["destino"] } })} /></td>
+                <td className={td}><CampoValor valor={valorSaidaNoMes(s, k1)} onSalvar={(n) => editarValor(s, n)} /></td>
+                <td className={`${td} text-muted-foreground`}>{s.rf ? `até ${mesDeChave(s.rf)}` : "contínua"}</td>
+                <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(s.id)} /></td>
+              </tr>
+            ))}
+            {!lista.length ? <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Nenhuma saída.</td></tr> : null}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function SelDestino({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <select className={sel} value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">sem destino</option>
+      <option value="ESCRITORIO">Escritório</option>
+      <option value="PESSOAL">Pessoal</option>
+    </select>
+  );
+}
+
+/* ---------------- Entradas ---------------- */
+function Entradas({ busca }: { busca: string }) {
+  const { data = [] } = useLista("entradas");
+  const atualizar = useAtualizar("entradas");
+  const excluir = useExcluir("entradas");
+  const inserir = useInserir("entradas");
+  const vazio = { codigo: "", empresa: "", carteira: "", grupo: "", regime: "", dia: "", valor: "" };
+  const [f, setF] = useState(vazio);
+  const lista = data.filter((e) => contem(busca, e.codigo, e.empresa, e.carteira, e.grupo, e.regime));
+  const ativos = lista.filter((e) => e.ativo);
+
+  return (
+    <>
+      <Barra total={`${lista.length} contratos · ${formatarBRL(ativos.reduce((t, e) => t + Number(e.valor), 0))}/mês (ativos)`}>
+        <Importar tipo="entradas" rotulo="entradas" />
+      </Barra>
+      <Form onSubmit={() => {
+        const valor = paraNumero(f.valor);
+        if (!f.empresa.trim() || valor == null) return;
+        inserir.mutate({ codigo: f.codigo || null, empresa: f.empresa.trim(), carteira: f.carteira || null, grupo: f.grupo || null, regime: f.regime || null, dia: Number(f.dia) || null, valor, origem: "manual" });
+        setF(vazio);
+      }}>
+        <F l="Código"><Input className="h-8 w-20" value={f.codigo} onChange={(e) => setF({ ...f, codigo: e.target.value })} /></F>
+        <F l="Empresa"><Input className="h-8 w-56" value={f.empresa} onChange={(e) => setF({ ...f, empresa: e.target.value })} /></F>
+        <F l="Carteira"><Input className="h-8 w-32" value={f.carteira} onChange={(e) => setF({ ...f, carteira: e.target.value })} /></F>
+        <F l="Grupo"><Input className="h-8 w-32" value={f.grupo} onChange={(e) => setF({ ...f, grupo: e.target.value })} /></F>
+        <F l="Regime"><Input className="h-8 w-36" value={f.regime} onChange={(e) => setF({ ...f, regime: e.target.value })} /></F>
+        <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
+        <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
+      </Form>
+      <div className="surface-card mt-4 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr className="border-b border-border">{["Código", "Empresa", "Carteira", "Grupo", "Regime", "Dia", "Ativo", "Valor/mês", ""].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+          <tbody>
+            {lista.map((e) => (
+              <tr key={e.id} className={`border-b border-border/60 ${e.ativo ? "" : "opacity-50"}`}>
+                <td className={`${td} num`}>{e.codigo}</td>
+                <td className={td}>{e.empresa}</td>
+                <td className={td}>{e.carteira}</td>
+                <td className={td}>{e.grupo}</td>
+                <td className={td}>{e.regime}</td>
+                <td className={`${td} num`}>{e.dia}</td>
+                <td className={td}><Checkbox checked={e.ativo} onCheckedChange={(v) => atualizar.mutate({ id: e.id, v: { ativo: !!v } })} /></td>
+                <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
+                <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
+              </tr>
+            ))}
+            {!lista.length ? <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Nenhuma entrada.</td></tr> : null}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+/* ---------------- Entradas pessoais ---------------- */
+function Pessoais({ busca }: { busca: string }) {
+  const { data = [] } = useLista("entradas_pessoais");
+  const atualizar = useAtualizar("entradas_pessoais");
+  const excluir = useExcluir("entradas_pessoais");
+  const inserir = useInserir("entradas_pessoais");
+  const { horizonte } = usePeriodo();
+  const k1 = horizonte ? chaveMes(horizonte.primeiro.ano, horizonte.primeiro.mes) : "";
+  const vazio = { descricao: "", dia: "", banco: "", inicio: k1, fim: "", valor: "" };
+  const [f, setF] = useState(vazio);
+  const lista = data.filter((e) => contem(busca, e.descricao, e.banco));
+
+  return (
+    <>
+      <Barra total={`${lista.length} entradas pessoais · ${formatarBRL(lista.reduce((t, e) => t + Number(e.valor), 0))}/mês`}>
+        <Importar tipo="entradas_pessoais" rotulo="entradas pessoais" />
+      </Barra>
+      <Form onSubmit={() => {
+        const valor = paraNumero(f.valor);
+        if (!f.descricao.trim() || valor == null) return;
+        inserir.mutate({ descricao: f.descricao.trim(), dia: Number(f.dia) || null, banco: f.banco ? normalizarBanco(f.banco) : null, inicio: f.inicio || k1 || null, fim: f.fim || null, valor, origem: "manual" });
+        setF(vazio);
+      }}>
+        <F l="Origem"><Input className="h-8 w-56" value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} /></F>
+        <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
+        <F l="Banco"><Input className="h-8 w-32" value={f.banco} onChange={(e) => setF({ ...f, banco: e.target.value })} /></F>
+        <F l="Início"><Input className="h-8 w-36" type="month" value={f.inicio} onChange={(e) => setF({ ...f, inicio: e.target.value })} /></F>
+        <F l="Fim (opcional)"><Input className="h-8 w-36" type="month" value={f.fim} onChange={(e) => setF({ ...f, fim: e.target.value })} /></F>
+        <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
+      </Form>
+      <div className="surface-card mt-4 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr className="border-b border-border">{["Origem", "Dia", "Banco", "Início", "Fim", "Valor/mês", ""].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+          <tbody>
+            {lista.map((e) => (
+              <tr key={e.id} className="border-b border-border/60">
+                <td className={td}>{e.descricao}</td>
+                <td className={`${td} num`}>{e.dia}</td>
+                <td className={td}>{e.banco}</td>
+                <td className={`${td} num`}>{mesDeChave(e.inicio)}</td>
+                <td className={`${td} num`}>{e.fim ? mesDeChave(e.fim) : "contínua"}</td>
+                <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
+                <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
+              </tr>
+            ))}
+            {!lista.length ? <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Nenhuma entrada pessoal.</td></tr> : null}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+void casa;
