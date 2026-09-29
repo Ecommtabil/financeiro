@@ -8,8 +8,9 @@ import type { Saida } from "./dados";
 import { tipoInvestimentoSugerido } from "./calc";
 
 export type TabPat = "investimentos" | "bens" | "dividas";
+type TabLista = TabPat | "carteira";
 
-export function useListaPat<T extends TabPat>(t: T) {
+export function useListaPat<T extends TabLista>(t: T) {
   return useQuery({
     queryKey: [t],
     queryFn: async () => {
@@ -19,7 +20,7 @@ export function useListaPat<T extends TabPat>(t: T) {
     },
   });
 }
-export function useInserirPat<T extends TabPat>(t: T) {
+export function useInserirPat<T extends TabLista>(t: T) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (v: TablesInsert<T> | TablesInsert<T>[]) => {
@@ -29,7 +30,7 @@ export function useInserirPat<T extends TabPat>(t: T) {
     onSuccess: () => qc.invalidateQueries({ queryKey: [t] }),
   });
 }
-export function useAtualizarPat<T extends TabPat>(t: T) {
+export function useAtualizarPat<T extends TabLista>(t: T) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, v }: { id: string; v: TablesUpdate<T> }) => {
@@ -39,7 +40,7 @@ export function useAtualizarPat<T extends TabPat>(t: T) {
     onSuccess: () => qc.invalidateQueries({ queryKey: [t] }),
   });
 }
-export function useExcluirPat(t: TabPat) {
+export function useExcluirPat(t: TabLista) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {

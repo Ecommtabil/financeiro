@@ -37,6 +37,7 @@ const COMPORTA: Record<TipoImp, string> = {
   investimentos: "Substitui a lista inteira.",
   bens: "Substitui a lista inteira.",
   dividas: "Substitui a lista inteira.",
+  carteira: "Substitui a lista inteira.",
 };
 
 async function modelo(t: TipoImp) {

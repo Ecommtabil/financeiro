@@ -13,12 +13,12 @@ import {
   type Baixa, type Bem, type Divida, type GrupoDRE, type Investimento, type Regra, type Saldo,
 } from "./calc";
 
-export type TipoImp = "entradas" | "saidas" | "pessoais" | "saldos" | "baixas" | "reajustes" | "dre" | "investimentos" | "bens" | "dividas";
+export type TipoImp = "entradas" | "saidas" | "pessoais" | "saldos" | "baixas" | "reajustes" | "dre" | "investimentos" | "bens" | "dividas" | "carteira";
 
 export type Ctx = {
   cfg: Config; h: Horizonte;
   entradas: Entrada[]; saidas: Saida[]; pessoais: EntradaPessoal[];
-  saldos: Saldo[]; baixas: Baixa[]; investimentos: Investimento[]; bens: Bem[]; dividas: Divida[];
+  saldos: Saldo[]; baixas: Baixa[]; investimentos: Investimento[]; bens: Bem[]; dividas: Divida[]; carteira: Tables<"carteira">[];
 };
 
 export type Previa = {
@@ -81,7 +81,7 @@ async function substituirImportados<T extends "entradas" | "saidas" | "entradas_
     if (error) throw error;
   }
 }
-async function substituirLista(t: "investimentos" | "bens" | "dividas", itens: Record<string, unknown>[]) {
+async function substituirLista(t: "investimentos" | "bens" | "dividas" | "carteira", itens: Record<string, unknown>[]) {
   const ids = (await supabase.from(t).select("id")).data?.map((x) => x.id) ?? [];
   if (ids.length) { const d = await supabase.from(t).delete().in("id", ids); if (d.error) throw d.error; }
   if (itens.length) { const { error } = await supabase.from(t).insert(itens as never); if (error) throw error; }
@@ -525,6 +525,28 @@ export const TIPOS: Def[] = [
       };
     },
   },
+  {
+    id: "carteira", titulo: "Carteira pessoal", aba: "CARTEIRA", chaves: ["ATIVO"], contagem: "ativos",
+    colunas: [["ATIVO", "Nome do ativo (obrigatório)"], ["CLASSE", "RENDA FIXA ou RENDA VARIÁVEL"], ["SUBCATEGORIA", "CDB, LCI, LCA, Tesouro, Ações, FII, Cripto…"], ["INSTITUICAO", "Banco/corretora"], ["QUANTIDADE", "Quantidade"], ["UNIDADE", "cotas, ações, BTC…"], ["VALOR INVESTIDO", "Total aplicado"], ["VALOR ATUAL", "Valor de mercado hoje"], ["DATA APLICACAO", "dd/mm/aaaa (opcional)"]],
+    exportar: (c) => [["ATIVO", "CLASSE", "SUBCATEGORIA", "INSTITUICAO", "QUANTIDADE", "UNIDADE", "VALOR INVESTIDO", "VALOR ATUAL", "DATA APLICACAO"],
+      ...c.carteira.map((a) => [a.nome, a.classe.toUpperCase(), a.subcategoria, a.instituicao ?? "", Number(a.quantidade), a.unidade ?? "", Number(a.valor_investido), Number(a.valor_atual), a.data_aplicacao ? dataBR(a.data_aplicacao + "T12:00:00") : ""])],
+    ler: (rows) => {
+      const h = acharCabecalho(rows, ["ATIVO"]);
+      const cab = (rows[h] ?? []).map(norm);
+      const ci = { nome: col(cab, "ATIVO"), cls: col(cab, "CLASSE"), sub: col(cab, "SUBCAT"), inst: col(cab, "INSTITUI", "CORRETORA"), qtd: col(cab, "QUANT"), un: col(cab, "UNIDADE"), inv: col(cab, "INVESTIDO"), at: col(cab, "ATUAL"), dt: col(cab, "DATA") };
+      const itens: TablesInsert<"carteira">[] = [];
+      for (const r of rows.slice(h + 1)) {
+        const nome = txt(r, ci.nome); if (!nome) continue;
+        const dt = ci.dt >= 0 ? dataISO(r[ci.dt]) : null;
+        itens.push({ nome, classe: norm(txt(r, ci.cls)).includes("VARI") ? "Renda variável" : "Renda fixa", subcategoria: txt(r, ci.sub) || "Outro", instituicao: txt(r, ci.inst) || null, quantidade: num(r, ci.qtd) ?? 0, unidade: txt(r, ci.un) || null, valor_investido: num(r, ci.inv) ?? 0, valor_atual: num(r, ci.at) ?? 0, data_aplicacao: dt ? dt.slice(0, 10) : null, origem: "import" });
+      }
+      return {
+        resumo: `${itens.length} ativos · ${formatarBRL(itens.reduce((s, i) => s + Number(i.valor_atual ?? 0), 0))} atual`, avisos: [],
+        ...amostra(["Ativo", "Classe", "Subcategoria", "Qtd", "Investido", "Atual"], itens.map((i) => [i.nome, i.classe, i.subcategoria, i.quantidade, i.valor_investido, i.valor_atual])),
+        aplicar: async () => { await substituirLista("carteira", itens); return `${itens.length} ativos`; },
+      };
+    },
+  },
 ];
 
 export const defDe = (t: TipoImp) => TIPOS.find((d) => d.id === t)!;
@@ -535,11 +557,11 @@ export async function carregarCtx(): Promise<Ctx> {
   const { data: cfg, error } = await supabase.from("config").select("*").maybeSingle();
   if (error) throw error;
   if (!cfg?.base_data) throw new Error("Defina a base zero antes de importar.");
-  const [entradas, saidas, pessoais, saldos, baixas, investimentos, bens, dividas] = await Promise.all([
+  const [entradas, saidas, pessoais, saldos, baixas, investimentos, bens, dividas, carteira] = await Promise.all([
     q<Entrada>("entradas"), q<Saida>("saidas"), q<EntradaPessoal>("entradas_pessoais"), q<Saldo>("saldos"), q<Baixa>("baixas"),
-    q<Investimento>("investimentos"), q<Bem>("bens"), q<Divida>("dividas"),
+    q<Investimento>("investimentos"), q<Bem>("bens"), q<Divida>("dividas"), q<Tables<"carteira">>("carteira"),
   ]);
-  return { cfg, h: calcularHorizonte(cfg.base_data, cfg.anos_projecao, cfg.incluir_restante), entradas, saidas, pessoais, saldos, baixas, investimentos, bens, dividas };
+  return { cfg, h: calcularHorizonte(cfg.base_data, cfg.anos_projecao, cfg.incluir_restante), entradas, saidas, pessoais, saldos, baixas, investimentos, bens, dividas, carteira };
 }
 
 const nomesAba = (d: Def) => [d.aba, ...(d.aliases ?? [])];
