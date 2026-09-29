@@ -171,7 +171,7 @@ function Carteira() {
                 return (
                   <tr key={a.id} className="border-t">
                     <td className="p-2"><CampoTxt valor={a.nome} onSalvar={(s) => s && up({ nome: s })} className="min-w-36" /></td>
-                    <td className="p-2"><select className={selectCls} value={a.classe} onChange={(e) => up({ classe: e.target.value, subcategoria: SUBS[e.target.value]![0] })}>{CLASSES.map((c) => <option key={c}>{c}</option>)}</select></td>
+                    <td className="p-2"><select className={selectCls} value={a.classe} onChange={(e) => up({ classe: e.target.value, subcategoria: SUBS[e.target.value]?.[0] ?? "Outro" })}>{CLASSES.map((c) => <option key={c}>{c}</option>)}</select></td>
                     <td className="p-2"><select className={selectCls} value={a.subcategoria} onChange={(e) => up({ subcategoria: e.target.value })}>{[...new Set([...(SUBS[a.classe] ?? []), a.subcategoria])].map((s) => <option key={s}>{s}</option>)}</select></td>
                     <td className="p-2"><CampoTxt valor={a.instituicao} onSalvar={(s) => up({ instituicao: s })} className="w-28" /></td>
                     <td className="p-2"><CampoNum valor={Number(a.quantidade)} casas={6} onSalvar={(n) => up({ quantidade: n })} className="w-28" /></td>
