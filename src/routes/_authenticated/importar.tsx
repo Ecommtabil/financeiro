@@ -32,7 +32,7 @@ const COMPORTA: Record<TipoImp, string> = {
   pessoais: "Substitui as importadas e mantém as cadastradas na tela.",
   saldos: "Atualiza o saldo dos bancos listados.",
   baixas: "Soma às baixas existentes (mesma conta e mês é atualizada).",
-  reajustes: "Atualiza as regras listadas; categoria apaga as exceções dos itens dela.",
+  reajustes: "Lista todas as empresas e demais itens cadastrados para ajustar SIM/NÃO e o índice anual.",
   dre: "Atualiza a linha das categorias listadas.",
   investimentos: "Substitui a lista inteira.",
   bens: "Substitui a lista inteira.",

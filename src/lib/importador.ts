@@ -326,35 +326,67 @@ export const TIPOS: Def[] = [
     },
   },
   {
-    id: "reajustes", titulo: "Reajustes", aba: "REAJUSTES", chaves: ["NIVEL", "NOME"], contagem: "reajustes",
-    colunas: [["NIVEL", "PADRAO, CATEGORIA ou ITEM"], ["GRUPO", "ENTRADAS, SAIDAS ESCRITORIO, SAIDAS PESSOAIS ou ENTRADAS PESSOAIS (vazio no PADRAO)"], ["NOME", "Categoria/carteira ou item. No PADRAO: MES REAJUSTE, ENTRADAS ou SAIDAS"], ["SOBE", "SIM ou NAO"], ["INDICE %", "Percentual ao ano (5 = 5%). No MES REAJUSTE: número do mês (1 a 12)"]],
+    id: "reajustes", titulo: "Reajustes", aba: "REAJUSTES", chaves: ["GRUPO", "NOME"], contagem: "reajustes",
+    colunas: [["Configuração (no topo)", "Mês do reajuste e índices padrão de entradas e saídas"], ["GRUPO", "Entradas, Saídas escritório, Saídas pessoais ou Entradas pessoais"], ["CATEGORIA", "Carteira ou categoria do cadastro"], ["NOME", "Empresa, despesa ou entrada pessoal já cadastrada"], ["REAJUSTAR", "SIM ou NÃO"], ["ÍNDICE ANUAL %", "Percentual ao ano (5 = 5%)"]],
     exportar: (c) => {
-      const nomeG = (g: string) => GRUPOS_REAJ.find((x) => x.g === g)!.nome;
-      const linhas: unknown[][] = [
-        ["PADRAO", "", "MES REAJUSTE", "", c.cfg.reajuste_mes],
-        ["PADRAO", "", "ENTRADAS", "", Number(c.cfg.indice_padrao_entradas)],
-        ["PADRAO", "", "SAIDAS", "", Number(c.cfg.indice_padrao_saidas)],
+      const nomeG = (g: string) => GRUPOS_REAJ.find((x) => x.g === g)?.nome ?? g;
+      const linhas = itensReaj(c)
+        .sort((a, b) => nomeG(a.g).localeCompare(nomeG(b.g), "pt-BR") || a.cat.localeCompare(b.cat, "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR"))
+        .map((it) => {
+          const r = regraDo(c.cfg, it.id, it.catKey, it.tipo);
+          return [nomeG(it.g), it.cat, it.nome, r.sobe === false ? "NÃO" : "SIM", Number(r.indice)];
+        });
+      return [
+        ["CONFIGURAÇÃO", "VALOR"],
+        ["MÊS DO REAJUSTE", c.cfg.reajuste_mes],
+        ["ÍNDICE PADRÃO ENTRADAS %", Number(c.cfg.indice_padrao_entradas)],
+        ["ÍNDICE PADRÃO SAÍDAS %", Number(c.cfg.indice_padrao_saidas)],
+        [],
+        ["GRUPO", "CATEGORIA", "NOME", "REAJUSTAR", "ÍNDICE ANUAL %"],
+        ...linhas,
       ];
-      for (const [k, r] of Object.entries((c.cfg.regras_categoria ?? {}) as Record<string, Regra>)) {
-        const cat = catDaChave(k); if (!cat) continue;
-        linhas.push(["CATEGORIA", nomeG(cat.g), cat.nome, r.sobe === false ? "NAO" : "SIM", r.indice ?? ""]);
-      }
-      const its = new Map(itensReaj(c).map((i) => [i.id, i]));
-      for (const [id, r] of Object.entries((c.cfg.regras_item ?? {}) as Record<string, Regra>)) {
-        const it = its.get(id); if (!it) continue;
-        linhas.push(["ITEM", nomeG(it.g), it.nome, r.sobe === false ? "NAO" : "SIM", r.indice ?? ""]);
-      }
-      return [["NIVEL", "GRUPO", "NOME", "SOBE", "INDICE %"], ...linhas];
     },
     ler: (rows, c) => {
-      const h = acharCabecalho(rows, ["NIVEL", "NOME"]);
+      const h = acharCabecalho(rows, ["GRUPO", "NOME"]);
       const cab = (rows[h] ?? []).map(norm);
-      const ci = { niv: col(cab, "NIVEL"), g: col(cab, "GRUPO"), nome: col(cab, "NOME"), sobe: col(cab, "SOBE"), ind: col(cab, "INDICE") };
+      const ci = { niv: col(cab, "NIVEL"), g: col(cab, "GRUPO"), nome: col(cab, "NOME"), sobe: col(cab, "SOBE", "REAJUST"), ind: col(cab, "INDICE") };
       const its = itensReaj(c);
       const rc = { ...((c.cfg.regras_categoria ?? {}) as Record<string, Regra>) }, ri = { ...((c.cfg.regras_item ?? {}) as Record<string, Regra>) };
       const padrao: Partial<Config> = {};
       const nao: string[] = []; const vis: unknown[][] = [];
       let n = 0;
+      if (ci.niv < 0) {
+        for (const r of rows.slice(0, h)) {
+          const nome = norm(r[0]), valor = paraNumero(r[1]);
+          if (valor == null) continue;
+          if (nome.includes("MES") && valor >= 1 && valor <= 12) padrao.reajuste_mes = Math.round(valor);
+          else if (nome.includes("PADRAO") && nome.includes("ENTRADA")) padrao.indice_padrao_entradas = valor;
+          else if (nome.includes("PADRAO") && nome.includes("SAIDA")) padrao.indice_padrao_saidas = valor;
+        }
+        const cfgBase = { ...c.cfg, ...padrao };
+        const regrasCat = (cfgBase.regras_categoria ?? {}) as Record<string, Regra>;
+        const regraSemItem = (it: ItemR): Regra => regrasCat[it.catKey] ?? {
+          sobe: true,
+          indice: it.tipo === "E" ? Number(cfgBase.indice_padrao_entradas) : Number(cfgBase.indice_padrao_saidas),
+        };
+        for (const r of rows.slice(h + 1)) {
+          const g = grupoReajDe(r[ci.g]), nome = txt(r, ci.nome), nn = norm(nome), ind = num(r, ci.ind);
+          if (!g || !nome || ind == null) continue;
+          const it = its.find((i) => i.g === g && norm(i.nome) === nn);
+          if (!it) { nao.push(nome); continue; }
+          const regra: Regra = { sobe: ci.sobe < 0 || !txt(r, ci.sobe) ? true : sim(r[ci.sobe]), indice: ind };
+          const herdada = regraSemItem(it);
+          if (regra.sobe === herdada.sobe && Number(regra.indice) === Number(herdada.indice)) delete ri[it.id];
+          else ri[it.id] = regra;
+          vis.push([GRUPOS_REAJ.find((x) => x.g === g)?.nome ?? g, it.cat, it.nome, regra.sobe ? "SIM" : "NÃO", ind]);
+          n++;
+        }
+        return {
+          resumo: `${n} itens de reajuste`, avisos: nao.length ? [`Não reconhecidos: ${nao.slice(0, 20).join(", ")}`] : [],
+          ...amostra(["Grupo", "Categoria", "Nome", "Reajustar", "Índice anual %"], vis),
+          aplicar: async () => { await salvarConfig({ ...padrao, regras_categoria: rc as Json, regras_item: ri as Json }); return `${n} reajustes`; },
+        };
+      }
       for (const r of rows.slice(h + 1)) {
         const niv = norm(r[ci.niv]), nome = txt(r, ci.nome), nn = norm(nome), ind = num(r, ci.ind);
         if (!niv || !nome) continue;
