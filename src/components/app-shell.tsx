@@ -128,7 +128,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
           <nav className="flex gap-1 overflow-x-auto px-4 lg:px-8">
-            {ABAS.map((a) => (
+            {abasVisiveis.map((a) => (
               <Link
                 key={a.to}
                 to={a.to}
