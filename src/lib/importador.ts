@@ -538,7 +538,7 @@ export const TIPOS: Def[] = [
       for (const r of rows.slice(h + 1)) {
         const nome = txt(r, ci.nome); if (!nome) continue;
         const dt = ci.dt >= 0 ? dataISO(r[ci.dt]) : null;
-        itens.push({ nome, classe: norm(txt(r, ci.cls)).includes("VARI") ? "Renda variável" : "Renda fixa", subcategoria: txt(r, ci.sub) || "Outro", instituicao: txt(r, ci.inst) || null, quantidade: num(r, ci.qtd) ?? 0, unidade: txt(r, ci.un) || null, valor_investido: num(r, ci.inv) ?? 0, valor_atual: num(r, ci.at) ?? 0, data_aplicacao: dt ? dt.slice(0, 10) : null, origem: "import" });
+        itens.push({ nome, classe: ((c) => norm(c).includes("VARI") ? "Renda variável" : !c || norm(c).includes("FIXA") ? "Renda fixa" : c)(txt(r, ci.cls)), subcategoria: txt(r, ci.sub) || "Outro", instituicao: txt(r, ci.inst) || null, quantidade: num(r, ci.qtd) ?? 0, unidade: txt(r, ci.un) || null, valor_investido: num(r, ci.inv) ?? 0, valor_atual: num(r, ci.at) ?? 0, data_aplicacao: dt ? dt.slice(0, 10) : null, origem: "import" });
       }
       return {
         resumo: `${itens.length} ativos · ${formatarBRL(itens.reduce((s, i) => s + Number(i.valor_atual ?? 0), 0))} atual`, avisos: [],

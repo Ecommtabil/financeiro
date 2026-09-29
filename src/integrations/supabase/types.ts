@@ -138,6 +138,7 @@ export type Database = {
         Row: {
           anos_projecao: number
           base_data: string | null
+          carteira_listas: Json
           dre_map: Json
           incluir_restante: boolean
           indice_padrao_entradas: number
@@ -151,6 +152,7 @@ export type Database = {
         Insert: {
           anos_projecao?: number
           base_data?: string | null
+          carteira_listas?: Json
           dre_map?: Json
           incluir_restante?: boolean
           indice_padrao_entradas?: number
@@ -164,6 +166,7 @@ export type Database = {
         Update: {
           anos_projecao?: number
           base_data?: string | null
+          carteira_listas?: Json
           dre_map?: Json
           incluir_restante?: boolean
           indice_padrao_entradas?: number
