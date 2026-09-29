@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -144,12 +144,12 @@ function Carteira() {
               <thead className="bg-muted/50 text-left text-xs text-muted-foreground"><tr><th className="p-2">Grupo</th><th className="p-2 text-right">Investido</th><th className="p-2 text-right">Atual</th><th className="p-2 text-right">Ganho</th><th className="p-2 text-right">Rentab.</th><th className="p-2 text-right">% da carteira</th></tr></thead>
               <tbody>
                 {porClasse.map((c) => (
-                  <>
-                    <tr key={c.nome} className="border-t bg-muted/30 font-semibold"><LinhaComp g={c} total={tot.at} /></tr>
+                  <Fragment key={c.nome}>
+                    <tr className="border-t bg-muted/30 font-semibold"><LinhaComp g={c} total={tot.at} /></tr>
                     {agrupar(lista.filter((a) => a.classe === c.nome), (a) => a.subcategoria).map((s) => (
                       <tr key={c.nome + s.nome} className="border-t"><LinhaComp g={s} total={tot.at} recuo /></tr>
                     ))}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

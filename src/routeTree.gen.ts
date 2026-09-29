@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedBalancoRouteImport } from './routes/_authenticated/balanco'
 import { Route as AuthenticatedCadastroRouteImport } from './routes/_authenticated/cadastro'
+import { Route as AuthenticatedCarteiraRouteImport } from './routes/_authenticated/carteira'
 import { Route as AuthenticatedContasRouteImport } from './routes/_authenticated/contas'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDreRouteImport } from './routes/_authenticated/dre'
@@ -44,6 +45,11 @@ const AuthenticatedBalancoRoute = AuthenticatedBalancoRouteImport.update({
 const AuthenticatedCadastroRoute = AuthenticatedCadastroRouteImport.update({
   id: '/cadastro',
   path: '/cadastro',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCarteiraRoute = AuthenticatedCarteiraRouteImport.update({
+  id: '/carteira',
+  path: '/carteira',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedContasRoute = AuthenticatedContasRouteImport.update({
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/balanco': typeof AuthenticatedBalancoRoute
   '/cadastro': typeof AuthenticatedCadastroRoute
+  '/carteira': typeof AuthenticatedCarteiraRoute
   '/contas': typeof AuthenticatedContasRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dre': typeof AuthenticatedDreRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/balanco': typeof AuthenticatedBalancoRoute
   '/cadastro': typeof AuthenticatedCadastroRoute
+  '/carteira': typeof AuthenticatedCarteiraRoute
   '/contas': typeof AuthenticatedContasRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dre': typeof AuthenticatedDreRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/balanco': typeof AuthenticatedBalancoRoute
   '/_authenticated/cadastro': typeof AuthenticatedCadastroRoute
+  '/_authenticated/carteira': typeof AuthenticatedCarteiraRoute
   '/_authenticated/contas': typeof AuthenticatedContasRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dre': typeof AuthenticatedDreRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/balanco'
     | '/cadastro'
+    | '/carteira'
     | '/contas'
     | '/dashboard'
     | '/dre'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/balanco'
     | '/cadastro'
+    | '/carteira'
     | '/contas'
     | '/dashboard'
     | '/dre'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/balanco'
     | '/_authenticated/cadastro'
+    | '/_authenticated/carteira'
     | '/_authenticated/contas'
     | '/_authenticated/dashboard'
     | '/_authenticated/dre'
@@ -207,6 +219,13 @@ declare module '@tanstack/react-router' {
       path: '/cadastro'
       fullPath: '/cadastro'
       preLoaderRoute: typeof AuthenticatedCadastroRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/carteira': {
+      id: '/_authenticated/carteira'
+      path: '/carteira'
+      fullPath: '/carteira'
+      preLoaderRoute: typeof AuthenticatedCarteiraRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/contas': {
@@ -264,6 +283,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBalancoRoute: typeof AuthenticatedBalancoRoute
   AuthenticatedCadastroRoute: typeof AuthenticatedCadastroRoute
+  AuthenticatedCarteiraRoute: typeof AuthenticatedCarteiraRoute
   AuthenticatedContasRoute: typeof AuthenticatedContasRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDreRoute: typeof AuthenticatedDreRoute
@@ -277,6 +297,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBalancoRoute: AuthenticatedBalancoRoute,
   AuthenticatedCadastroRoute: AuthenticatedCadastroRoute,
+  AuthenticatedCarteiraRoute: AuthenticatedCarteiraRoute,
   AuthenticatedContasRoute: AuthenticatedContasRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDreRoute: AuthenticatedDreRoute,
