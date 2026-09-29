@@ -56,6 +56,21 @@ function Panorama() {
     return { ...c, t, acum: ult ? acumAte.get(chaveMes(ult)) ?? 0 : 0, caixa: ult && caixa ? caixa.get(chaveMes(ult)) ?? null : null };
   });
   const total = { t: somar(cols.map((c) => c.t)), acum: cols[cols.length - 1]?.acum ?? 0, caixa: cols[cols.length - 1]?.caixa ?? null };
+
+  // gastos dentro de cada categoria pessoal (por coluna do período)
+  const itensPorCat = new Map<string, { nome: string; porCol: number[]; tot: number }[]>();
+  if (visao === "P" && cfg) {
+    for (const s of (sai.data ?? []).filter((x) => destinoSaida(x) === "PESSOAL")) {
+      const cat = s.categoria?.trim() || "Sem categoria";
+      const porCol = cols.map((c) => c.meses.reduce((acc, m) => acc + valorSaidaProjetado(s, m, cfg, h), 0));
+      const tot = porCol.reduce((a, b) => a + b, 0);
+      if (!tot) continue;
+      const lista = itensPorCat.get(cat) ?? [];
+      lista.push({ nome: s.descricao, porCol, tot });
+      itensPorCat.set(cat, lista);
+    }
+    for (const lista of itensPorCat.values()) lista.sort((a, b) => b.tot - a.tot);
+  }
   const atual = cols.find((c) => c.chave === sel) ?? cols[0];
   const semDestino = (sai.data ?? []).filter((s) => !s.destino).length;
 
