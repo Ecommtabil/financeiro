@@ -349,7 +349,7 @@ export const TIPOS: Def[] = [
     ler: (rows, c) => {
       const h = acharCabecalho(rows, ["GRUPO", "NOME"]);
       const cab = (rows[h] ?? []).map(norm);
-      const ci = { niv: col(cab, "NIVEL"), g: col(cab, "GRUPO"), nome: col(cab, "NOME"), sobe: col(cab, "SOBE"), ind: col(cab, "INDICE") };
+      const ci = { niv: col(cab, "NIVEL"), g: col(cab, "GRUPO"), nome: col(cab, "NOME"), sobe: col(cab, "SOBE", "REAJUST"), ind: col(cab, "INDICE") };
       const its = itensReaj(c);
       const rc = { ...((c.cfg.regras_categoria ?? {}) as Record<string, Regra>) }, ri = { ...((c.cfg.regras_item ?? {}) as Record<string, Regra>) };
       const padrao: Partial<Config> = {};
