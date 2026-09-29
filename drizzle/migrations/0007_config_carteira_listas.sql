@@ -1,0 +1,1 @@
+ALTER TABLE public.config ADD COLUMN carteira_listas jsonb NOT NULL DEFAULT '{}'::jsonb;
