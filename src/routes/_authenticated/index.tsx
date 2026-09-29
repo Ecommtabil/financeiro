@@ -32,6 +32,7 @@ function Panorama() {
   const saldos = useSaldos(), baixas = useBaixas();
   const visao: "E" | "P" = useArea() === "PESSOAL" ? "P" : "E";
   const [sel, setSel] = useState<string | null>(null);
+  const [abertas, setAbertas] = useState<Set<string>>(new Set());
 
   const porMes = useMemo(() => {
     if (!h || !cfg || !ent.data || !sai.data || !pes.data) return null;
@@ -75,7 +76,7 @@ function Panorama() {
         { rotulo: "+ Entradas pessoais", valor: (t) => t.EP, tipo: "grupo" },
         ...cats((t) => t.porOrigemPessoal).map((k): Linha => ({ rotulo: k, valor: (t) => t.porOrigemPessoal[k] ?? 0, tipo: "sub" })),
         { rotulo: "− Saídas pessoais", valor: (t) => t.SP, tipo: "grupo" },
-        ...cats((t) => t.porCatPessoal).map((k): Linha => ({ rotulo: k, valor: (t) => t.porCatPessoal[k] ?? 0, tipo: "sub" })),
+        ...cats((t) => t.porCatPessoal).map((k): Linha => ({ rotulo: k, valor: (t) => t.porCatPessoal[k] ?? 0, tipo: "sub", cat: k })),
         { rotulo: "= Reserva", valor: (t) => t.R, tipo: "destaque" },
         { rotulo: "Reserva acumulada", valor: (_t, ac) => ac },
         { rotulo: "Caixa projetado", valor: (_t, _a, cx) => cx },
