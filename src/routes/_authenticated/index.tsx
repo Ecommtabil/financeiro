@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { AlertTriangle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useArea, usePeriodo } from "@/components/app-shell";
@@ -154,12 +154,36 @@ function Panorama() {
             {linhas.map((l, i) => {
               const cls = l.tipo === "destaque" ? "bg-primary/10 font-semibold" : l.tipo === "grupo" ? "font-medium border-t" : l.tipo === "sub" ? "text-muted-foreground" : "";
               const tv = l.valor(total.t, total.acum, total.caixa);
+              const expandivel = visao === "P" && l.cat != null;
+              const aberta = expandivel && abertas.has(l.cat!);
+              const itens = aberta ? itensPorCat.get(l.cat!) ?? [] : [];
               return (
-                <tr key={i} className={cls}>
-                  <td className={`sticky left-0 bg-card px-3 py-1.5 ${l.tipo === "sub" ? "pl-7" : ""}`}>{l.rotulo}</td>
+                <Fragment key={i}>
+                <tr className={cls}>
+                  <td className={`sticky left-0 bg-card px-3 py-1.5 ${l.tipo === "sub" ? "pl-7" : ""}`}>
+                    {expandivel ? (
+                      <button
+                        type="button"
+                        onClick={() => setAbertas((ant) => { const novo = new Set(ant); if (novo.has(l.cat!)) novo.delete(l.cat!); else novo.add(l.cat!); return novo; })}
+                        className="inline-flex items-center gap-1 hover:text-foreground"
+                        aria-expanded={aberta}
+                      >
+                        <ChevronRight className={`size-3.5 transition-transform ${aberta ? "rotate-90" : ""}`} />
+                        {l.rotulo}
+                      </button>
+                    ) : l.rotulo}
+                  </td>
                   {cols.map((c) => { const v = l.valor(c.t, c.acum, c.caixa); return <td key={c.chave} className={`num px-3 py-1.5 text-right ${v != null ? cor(v) : ""}`}>{fmt(v, l)}</td>; })}
                   <td className={`num px-3 py-1.5 text-right font-medium ${tv != null ? cor(tv) : ""}`}>{fmt(tv, l)}</td>
                 </tr>
+                {itens.map((it) => (
+                  <tr key={`${i}-${it.nome}`} className="text-xs text-muted-foreground">
+                    <td className="sticky left-0 bg-card px-3 py-1 pl-12">{it.nome}</td>
+                    {it.porCol.map((v, ci) => <td key={ci} className={`num px-3 py-1 text-right ${cor(v)}`}>{v ? formatarNumero(v) : "—"}</td>)}
+                    <td className={`num px-3 py-1 text-right ${cor(it.tot)}`}>{formatarNumero(it.tot)}</td>
+                  </tr>
+                ))}
+                </Fragment>
               );
             })}
           </tbody>
