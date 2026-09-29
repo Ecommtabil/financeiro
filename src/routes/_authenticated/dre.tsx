@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { sugerirDRE } from "@/lib/dre-ia.functions";
-import { usePeriodo } from "@/components/app-shell";
+import { useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig, useSalvarConfig, type Config } from "@/lib/config";
 import { useLista } from "@/lib/dados";
 import { GRUPOS_DRE, chaveCatDRE, chaveMes, grupoDRE, grupoPadraoDRE, somar, totaisHorizonte, type GrupoDRE, type TotaisMes } from "@/lib/calc";
@@ -150,8 +150,7 @@ function DRE() {
         <Ind rotulo="Reserva" v={total.t.R} forte />
       </div>
 
-      {tabela("Resultado do escritório", escritorio)}
-      {tabela("Resultado pessoal", pessoal)}
+      {area === "ESCRITORIO" ? tabela("Resultado do escritório", escritorio) : tabela("Resultado pessoal", pessoal)}
       <p className="text-xs text-muted-foreground">AV% = valor da linha ÷ receita bruta do período. O resultado líquido do escritório é igual ao Lucro do Panorama.</p>
 
       <SugestaoIA cats={[...catsEsc]} cfg={cfg} aplicar={reclassificar} />
