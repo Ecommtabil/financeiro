@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { BotaoExcluir } from "@/components/botao-excluir";
 import { LinkImportar } from "@/components/link-importar";
 import { CampoNum, CampoTxt, Ind, selectCls } from "@/components/patrimonio-ui";
+import { useConfig, useSalvarConfig } from "@/lib/config";
 import { formatarBRL, formatarNumero } from "@/lib/format";
 import { useAtualizarPat, useExcluirPat, useInserirPat, useListaPat } from "@/lib/patrimonio";
 import type { Tables } from "@/integrations/supabase/types";
@@ -26,11 +27,16 @@ export const Route = createFileRoute("/_authenticated/carteira")({
 });
 
 type Ativo = Tables<"carteira">;
-const CLASSES = ["Renda fixa", "Renda variável"];
-const SUBS: Record<string, string[]> = {
-  "Renda fixa": ["CDB", "LCI", "LCA", "Tesouro Direto", "Poupança", "Debênture", "CRI/CRA", "Fundo RF", "Outro"],
-  "Renda variável": ["Ações", "FII", "ETF", "Cripto", "BDR", "Fundo multimercado", "Outro"],
+type Listas = { classes: string[]; subs: Record<string, string[]>; instituicoes: string[] };
+const PADRAO: Listas = {
+  classes: ["Renda fixa", "Renda variável"],
+  subs: {
+    "Renda fixa": ["CDB", "LCI", "LCA", "Tesouro Direto", "Poupança", "Debênture", "CRI/CRA"],
+    "Renda variável": ["Ações", "Stocks", "ETF", "FII", "REITs", "Cripto"],
+  },
+  instituicoes: [],
 };
+const uniq = (a: string[]) => [...new Set(a.filter(Boolean))];
 const CORES = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)", "var(--color-chart-4)", "var(--color-chart-5)"];
 const pct = (n: number) => `${formatarNumero(n, 2)}%`;
 const rent = (inv: number, at: number) => (inv > 0 ? ((at - inv) / inv) * 100 : 0);
@@ -54,6 +60,14 @@ function Carteira() {
   const excluir = useExcluirPat("carteira");
   const [filtro, setFiltro] = useState("todas");
   const [busca, setBusca] = useState("");
+  const { data: cfg } = useConfig();
+  const salvarCfg = useSalvarConfig();
+  const salvas = { ...PADRAO, ...((cfg?.carteira_listas ?? {}) as Partial<Listas>) };
+  const ativos = q.data ?? [];
+  const CLASSES = uniq([...salvas.classes, ...ativos.map((a) => a.classe)]);
+  const SUBS: Record<string, string[]> = Object.fromEntries(CLASSES.map((c) => [c, uniq([...(salvas.subs[c] ?? []), ...ativos.filter((a) => a.classe === c).map((a) => a.subcategoria)])]));
+  const INSTS = uniq([...salvas.instituicoes, ...ativos.map((a) => a.instituicao ?? "")]).sort((a, b) => a.localeCompare(b));
+  const salvarListas = (l: Listas) => salvarCfg.mutate({ carteira_listas: l as never });
 
   const lista = useMemo(() => (q.data ?? []).filter((a) => (filtro === "todas" || a.classe === filtro) && `${a.nome} ${a.subcategoria} ${a.instituicao ?? ""}`.toLowerCase().includes(busca.toLowerCase())), [q.data, filtro, busca]);
   const tot = useMemo(() => {
@@ -173,7 +187,7 @@ function Carteira() {
                     <td className="p-2"><CampoTxt valor={a.nome} onSalvar={(s) => s && up({ nome: s })} className="min-w-36" /></td>
                     <td className="p-2"><select className={selectCls} value={a.classe} onChange={(e) => up({ classe: e.target.value, subcategoria: SUBS[e.target.value]?.[0] ?? "Outro" })}>{CLASSES.map((c) => <option key={c}>{c}</option>)}</select></td>
                     <td className="p-2"><select className={selectCls} value={a.subcategoria} onChange={(e) => up({ subcategoria: e.target.value })}>{[...new Set([...(SUBS[a.classe] ?? []), a.subcategoria])].map((s) => <option key={s}>{s}</option>)}</select></td>
-                    <td className="p-2"><CampoTxt valor={a.instituicao} onSalvar={(s) => up({ instituicao: s })} className="w-28" /></td>
+                    <td className="p-2"><select className={`${selectCls} max-w-36`} value={a.instituicao ?? ""} onChange={(e) => up({ instituicao: e.target.value || null })}><option value="">—</option>{INSTS.map((s) => <option key={s}>{s}</option>)}</select></td>
                     <td className="p-2"><CampoNum valor={Number(a.quantidade)} casas={6} onSalvar={(n) => up({ quantidade: n })} className="w-28" /></td>
                     <td className="p-2"><CampoTxt valor={a.unidade} placeholder="cotas" onSalvar={(s) => up({ unidade: s })} className="w-20" /></td>
                     <td className="p-2"><CampoNum valor={Number(a.valor_investido)} onSalvar={(n) => up({ valor_investido: n })} className="w-32" /></td>
@@ -189,6 +203,8 @@ function Carteira() {
         </div>
         <Button size="sm" variant="outline" onClick={() => inserir.mutate({ nome: "Novo ativo", classe: filtro === "Renda variável" ? "Renda variável" : "Renda fixa", subcategoria: filtro === "Renda variável" ? "Ações" : "CDB" })}><Plus className="size-4" />Adicionar ativo</Button>
       </section>
+
+      <GerenciarListas listas={{ classes: CLASSES, subs: SUBS, instituicoes: INSTS }} usadas={ativos} onSalvar={salvarListas} />
     </div>
   );
 }
@@ -207,5 +223,50 @@ function LinhaComp({ g, total, recuo }: { g: ReturnType<typeof agrupar>[number];
       <td className={`num p-2 text-right ${g.rent < 0 ? "text-negative" : "text-positive"}`}>{pct(g.rent)}</td>
       <td className="num p-2 text-right">{pct(total > 0 ? (g.atual / total) * 100 : 0)}</td>
     </>
+  );
+}
+
+function ListaEditavel({ titulo, itens, emUso, onMudar, placeholder }: { titulo: string; itens: string[]; emUso: Set<string>; onMudar: (l: string[]) => void; placeholder: string }) {
+  const [novo, setNovo] = useState("");
+  const add = () => { const n = novo.trim(); if (n && !itens.some((i) => i.toLowerCase() === n.toLowerCase())) onMudar([...itens, n]); setNovo(""); };
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-semibold text-muted-foreground">{titulo}</div>
+      <div className="flex flex-wrap gap-1.5">
+        {itens.map((i) => (
+          <span key={i} className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2.5 py-0.5 text-xs">
+            {i}
+            {!emUso.has(i) && <button type="button" aria-label={`Remover ${i}`} className="text-muted-foreground hover:text-negative" onClick={() => onMudar(itens.filter((x) => x !== i))}>×</button>}
+          </span>
+        ))}
+        {!itens.length && <span className="text-xs text-muted-foreground">Nenhum item.</span>}
+      </div>
+      <div className="flex gap-1">
+        <Input className="h-8" placeholder={placeholder} value={novo} onChange={(e) => setNovo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
+        <Button size="sm" variant="outline" onClick={add}><Plus className="size-4" /></Button>
+      </div>
+    </div>
+  );
+}
+
+function GerenciarListas({ listas, usadas, onSalvar }: { listas: Listas; usadas: Ativo[]; onSalvar: (l: Listas) => void }) {
+  const [classe, setClasse] = useState(listas.classes[0] ?? "");
+  const cl = listas.classes.includes(classe) ? classe : listas.classes[0] ?? "";
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Listas para preenchimento</h2>
+      <p className="text-xs text-muted-foreground">Itens em uso por algum ativo não podem ser removidos.</p>
+      <div className="grid gap-6 rounded-lg border bg-card p-4 md:grid-cols-3">
+        <ListaEditavel titulo="Classes" itens={listas.classes} emUso={new Set(usadas.map((a) => a.classe))} placeholder="Nova classe"
+          onMudar={(classes) => onSalvar({ ...listas, classes, subs: Object.fromEntries(classes.map((c) => [c, listas.subs[c] ?? []])) })} />
+        <div className="space-y-2">
+          <select className={`${selectCls} w-full`} value={cl} onChange={(e) => setClasse(e.target.value)}>{listas.classes.map((c) => <option key={c}>{c}</option>)}</select>
+          <ListaEditavel titulo={`Subcategorias de ${cl}`} itens={listas.subs[cl] ?? []} emUso={new Set(usadas.filter((a) => a.classe === cl).map((a) => a.subcategoria))} placeholder="Nova subcategoria"
+            onMudar={(l) => onSalvar({ ...listas, subs: { ...listas.subs, [cl]: l } })} />
+        </div>
+        <ListaEditavel titulo="Instituições" itens={listas.instituicoes} emUso={new Set(usadas.map((a) => a.instituicao ?? ""))} placeholder="Nova instituição"
+          onMudar={(instituicoes) => onSalvar({ ...listas, instituicoes })} />
+      </div>
+    </section>
   );
 }
