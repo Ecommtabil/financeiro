@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { usePeriodo } from "@/components/app-shell";
+import { useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig } from "@/lib/config";
 import { useLista } from "@/lib/dados";
 import { caixaProjetado, chaveMes, somar, totaisHorizonte, type TotaisMes } from "@/lib/calc";
@@ -30,7 +30,7 @@ function Panorama() {
   const { data: cfg } = useConfig();
   const ent = useLista("entradas"), sai = useLista("saidas"), pes = useLista("entradas_pessoais");
   const saldos = useSaldos(), baixas = useBaixas();
-  const [visao, setVisao] = useState<"E" | "P">("E");
+  const visao: "E" | "P" = useArea() === "PESSOAL" ? "P" : "E";
   const [sel, setSel] = useState<string | null>(null);
 
   const porMes = useMemo(() => {
@@ -87,14 +87,6 @@ function Panorama() {
   return (
     <div className="space-y-5 px-6 py-6 lg:px-10">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-md border bg-card p-0.5">
-          {(["E", "P"] as const).map((v) => (
-            <button key={v} onClick={() => setVisao(v)}
-              className={`rounded px-3 py-1.5 text-sm font-medium ${visao === v ? (v === "E" ? "bg-office text-office-foreground" : "bg-personal text-personal-foreground") : "text-muted-foreground"}`}>
-              {v === "E" ? "Escritório" : "Pessoal"}
-            </button>
-          ))}
-        </div>
         <select value={atual?.chave} onChange={(e) => setSel(e.target.value)}
           className="rounded-md border bg-card px-3 py-1.5 text-base font-semibold">
           {cols.map((c) => <option key={c.chave} value={c.chave}>{c.rotulo}</option>)}

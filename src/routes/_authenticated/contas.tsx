@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { usePeriodo } from "@/components/app-shell";
+import { useArea, usePeriodo } from "@/components/app-shell";
 import { ChipDestino } from "@/components/valor";
 import { useConfig } from "@/lib/config";
 import { useLista } from "@/lib/dados";
@@ -41,7 +41,7 @@ function Contas() {
   const [lado, setLado] = useState<"receber" | "pagar">("receber");
   const [vista, setVista] = useState<"venc" | "grupo">("venc");
   const [de, setDe] = useState(""), [ate, setAte] = useState("");
-  const [destino, setDestino] = useState<"todos" | "ESCRITORIO" | "PESSOAL">("todos");
+  const destino = useArea();
   const [sit, setSit] = useState<"todas" | SituacaoConta>("todas");
   const [busca, setBusca] = useState("");
 
@@ -73,7 +73,7 @@ function Contas() {
     }
     const q = norm(busca);
     return out
-      .filter((l) => (destino === "todos" || l.destino === destino) && (sit === "todas" || l.situacao === sit))
+      .filter((l) => l.destino === destino && (sit === "todas" || l.situacao === sit))
       .filter((l) => !q || norm(`${l.nome} ${l.detalhe} ${l.grupoNome} ${l.banco ?? ""}`).includes(q))
       .sort((a, b) => a.mes.localeCompare(b.mes) || (a.dia ?? 99) - (b.dia ?? 99) || a.nome.localeCompare(b.nome));
   }, [h, cfg, ent.data, sai.data, pes.data, baixas.data, de, ate, lado, destino, sit, busca]);
@@ -109,9 +109,6 @@ function Contas() {
           <select className={sel} value={de} onChange={(e) => setDe(e.target.value)}>{chaves.map((k) => <option key={k} value={k}>{rotMes(k)}</option>)}</select></label>
         <label className="text-xs text-muted-foreground">Até<br />
           <select className={sel} value={ate} onChange={(e) => setAte(e.target.value)}>{chaves.filter((k) => k >= de).map((k) => <option key={k} value={k}>{rotMes(k)}</option>)}</select></label>
-        <label className="text-xs text-muted-foreground">Destino<br />
-          <select className={sel} value={destino} onChange={(e) => setDestino(e.target.value as typeof destino)}>
-            <option value="todos">Todos</option><option value="ESCRITORIO">Escritório</option><option value="PESSOAL">Pessoal</option></select></label>
         <label className="text-xs text-muted-foreground">Situação<br />
           <select className={sel} value={sit} onChange={(e) => setSit(e.target.value as typeof sit)}>
             <option value="todas">Todas</option><option value="Em aberto">Em aberto</option><option value="Vencido">Vencidas</option><option value="Baixado">Baixadas</option></select></label>
