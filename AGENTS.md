@@ -22,3 +22,4 @@
 - Investimentos, bens e dívidas (tabelas `investimentos`, `bens`, `dividas`) são lidos/gravados/importados por `src/lib/patrimonio.ts`; evolução do investimento e saldo devedor vêm só de `src/lib/calc.ts` (`evolucaoInvestimento`, `evolucaoDivida`), para Investimentos e Balanço baterem.
 - Toda importação/exportação por planilha (10 tipos, modelo preenchido, backup completo) mora em `src/lib/importador.ts` e na tela `/importar?tipo=…`; os botões das abas só apontam para lá, para o que o modelo exporta voltar igual pela importação.
 - A base cromática de `src/styles.css` segue os tokens claros/escuros do SAGA Finance Insights; papéis positivos, negativos e alertas financeiros continuam semânticos para manter a leitura dos valores.
+- Carteira pessoal (tabela carteira, aba /carteira só na área Pessoal, importável tipo "carteira") é lida/gravada por useListaPat em src/lib/patrimonio.ts.

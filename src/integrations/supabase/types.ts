@@ -86,6 +86,54 @@ export type Database = {
         }
         Relationships: []
       }
+      carteira: {
+        Row: {
+          classe: string
+          created_at: string
+          data_aplicacao: string | null
+          id: string
+          instituicao: string | null
+          nome: string
+          origem: string
+          quantidade: number
+          subcategoria: string
+          unidade: string | null
+          user_id: string
+          valor_atual: number
+          valor_investido: number
+        }
+        Insert: {
+          classe?: string
+          created_at?: string
+          data_aplicacao?: string | null
+          id?: string
+          instituicao?: string | null
+          nome: string
+          origem?: string
+          quantidade?: number
+          subcategoria?: string
+          unidade?: string | null
+          user_id?: string
+          valor_atual?: number
+          valor_investido?: number
+        }
+        Update: {
+          classe?: string
+          created_at?: string
+          data_aplicacao?: string | null
+          id?: string
+          instituicao?: string | null
+          nome?: string
+          origem?: string
+          quantidade?: number
+          subcategoria?: string
+          unidade?: string | null
+          user_id?: string
+          valor_atual?: number
+          valor_investido?: number
+        }
+        Relationships: []
+      }
       config: {
         Row: {
           anos_projecao: number

@@ -13,6 +13,7 @@ import { ModalBaseZero } from "./modal-base-zero";
 const ABAS = [
   { to: "/", label: "Panorama", periodo: true, pessoal: true },
   { to: "/dashboard", label: "Dashboard", periodo: true, pessoal: true },
+  { to: "/carteira", label: "Carteira", periodo: false, pessoal: true, soPessoal: true },
   { to: "/dre", label: "DRE", periodo: true },
   { to: "/situacao", label: "Situação atual", periodo: false },
   { to: "/contas", label: "Contas a pagar e receber", periodo: true },
@@ -62,9 +63,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const colunas = horizonte ? colunasDo(horizonte, periodo) : [];
   const abaAtual = ABAS.find((a) => (a.to === "/" ? pathname === "/" : pathname.startsWith(a.to)));
   // Na área Pessoal, só Panorama e Dashboard ficam visíveis; as outras abas voltam ao Panorama.
-  const abasVisiveis = area === "PESSOAL" ? ABAS.filter((a) => "pessoal" in a && a.pessoal) : ABAS;
+  const abasVisiveis = area === "PESSOAL" ? ABAS.filter((a) => "pessoal" in a && a.pessoal) : ABAS.filter((a) => !("soPessoal" in a));
   useEffect(() => {
-    if (area !== "PESSOAL") return;
+    if (area !== "PESSOAL") { if (abaAtual && "soPessoal" in abaAtual) navigate({ to: "/", replace: true }); return; }
     if (abaAtual && !("pessoal" in abaAtual && abaAtual.pessoal)) navigate({ to: "/", replace: true });
   }, [area, abaAtual, navigate]);
   const obrigatorio = !isLoading && !config?.base_data;
