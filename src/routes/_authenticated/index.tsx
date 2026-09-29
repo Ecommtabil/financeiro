@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig } from "@/lib/config";
 import { useLista } from "@/lib/dados";
-import { caixaProjetado, chaveMes, somar, totaisHorizonte, type TotaisMes } from "@/lib/calc";
+import { caixaProjetado, chaveMes, destinoSaida, somar, totaisHorizonte, valorSaidaProjetado, type TotaisMes } from "@/lib/calc";
 import { useBaixas, useSaldos } from "@/lib/situacao";
 import { formatarBRL, formatarNumero } from "@/lib/format";
 
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/")({
   component: Panorama,
 });
 
-type Linha = { rotulo: string; valor: (t: TotaisMes, acum: number, caixa: number | null) => number | null; tipo?: "grupo" | "sub" | "destaque" | "pct" };
+type Linha = { rotulo: string; valor: (t: TotaisMes, acum: number, caixa: number | null) => number | null; tipo?: "grupo" | "sub" | "destaque" | "pct"; cat?: string };
 
 function Panorama() {
   const { horizonte: h, colunas } = usePeriodo();
