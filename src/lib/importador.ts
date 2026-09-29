@@ -1,7 +1,7 @@
 /** Sistema único de importação/exportação por planilha: 10 tipos, modelo preenchido com os dados atuais e backup completo. */
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
-import type { Json, TablesInsert } from "@/integrations/supabase/types";
+import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import type { Config } from "./config";
 import type { Entrada, EntradaPessoal, Saida } from "./dados";
 import { calcularHorizonte, type Horizonte } from "./horizonte";
