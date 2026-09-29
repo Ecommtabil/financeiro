@@ -11,8 +11,8 @@ import { formatarMes } from "@/lib/format";
 import { ModalBaseZero } from "./modal-base-zero";
 
 const ABAS = [
-  { to: "/", label: "Panorama", periodo: true },
-  { to: "/dashboard", label: "Dashboard", periodo: true },
+  { to: "/", label: "Panorama", periodo: true, pessoal: true },
+  { to: "/dashboard", label: "Dashboard", periodo: true, pessoal: true },
   { to: "/dre", label: "DRE", periodo: true },
   { to: "/situacao", label: "Situação atual", periodo: false },
   { to: "/contas", label: "Contas a pagar e receber", periodo: true },
