@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { AlertTriangle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig } from "@/lib/config";
 import { useLista } from "@/lib/dados";
-import { caixaProjetado, chaveMes, somar, totaisHorizonte, type TotaisMes } from "@/lib/calc";
+import { caixaProjetado, chaveMes, destinoSaida, somar, totaisHorizonte, valorSaidaProjetado, type TotaisMes } from "@/lib/calc";
 import { useBaixas, useSaldos } from "@/lib/situacao";
 import { formatarBRL, formatarNumero } from "@/lib/format";
 
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/")({
   component: Panorama,
 });
 
-type Linha = { rotulo: string; valor: (t: TotaisMes, acum: number, caixa: number | null) => number | null; tipo?: "grupo" | "sub" | "destaque" | "pct" };
+type Linha = { rotulo: string; valor: (t: TotaisMes, acum: number, caixa: number | null) => number | null; tipo?: "grupo" | "sub" | "destaque" | "pct"; cat?: string };
 
 function Panorama() {
   const { horizonte: h, colunas } = usePeriodo();
@@ -32,6 +32,7 @@ function Panorama() {
   const saldos = useSaldos(), baixas = useBaixas();
   const visao: "E" | "P" = useArea() === "PESSOAL" ? "P" : "E";
   const [sel, setSel] = useState<string | null>(null);
+  const [abertas, setAbertas] = useState<Set<string>>(new Set());
 
   const porMes = useMemo(() => {
     if (!h || !cfg || !ent.data || !sai.data || !pes.data) return null;
@@ -55,6 +56,21 @@ function Panorama() {
     return { ...c, t, acum: ult ? acumAte.get(chaveMes(ult)) ?? 0 : 0, caixa: ult && caixa ? caixa.get(chaveMes(ult)) ?? null : null };
   });
   const total = { t: somar(cols.map((c) => c.t)), acum: cols[cols.length - 1]?.acum ?? 0, caixa: cols[cols.length - 1]?.caixa ?? null };
+
+  // gastos dentro de cada categoria pessoal (por coluna do período)
+  const itensPorCat = new Map<string, { nome: string; porCol: number[]; tot: number }[]>();
+  if (visao === "P" && cfg) {
+    for (const s of (sai.data ?? []).filter((x) => destinoSaida(x) === "PESSOAL")) {
+      const cat = s.categoria?.trim() || "Sem categoria";
+      const porCol = cols.map((c) => c.meses.reduce((acc, m) => acc + valorSaidaProjetado(s, m, cfg, h), 0));
+      const tot = porCol.reduce((a, b) => a + b, 0);
+      if (!tot) continue;
+      const lista = itensPorCat.get(cat) ?? [];
+      lista.push({ nome: s.descricao, porCol, tot });
+      itensPorCat.set(cat, lista);
+    }
+    for (const lista of itensPorCat.values()) lista.sort((a, b) => b.tot - a.tot);
+  }
   const atual = cols.find((c) => c.chave === sel) ?? cols[0];
   const semDestino = (sai.data ?? []).filter((s) => !s.destino).length;
 
@@ -75,7 +91,7 @@ function Panorama() {
         { rotulo: "+ Entradas pessoais", valor: (t) => t.EP, tipo: "grupo" },
         ...cats((t) => t.porOrigemPessoal).map((k): Linha => ({ rotulo: k, valor: (t) => t.porOrigemPessoal[k] ?? 0, tipo: "sub" })),
         { rotulo: "− Saídas pessoais", valor: (t) => t.SP, tipo: "grupo" },
-        ...cats((t) => t.porCatPessoal).map((k): Linha => ({ rotulo: k, valor: (t) => t.porCatPessoal[k] ?? 0, tipo: "sub" })),
+        ...cats((t) => t.porCatPessoal).map((k): Linha => ({ rotulo: k, valor: (t) => t.porCatPessoal[k] ?? 0, tipo: "sub", cat: k })),
         { rotulo: "= Reserva", valor: (t) => t.R, tipo: "destaque" },
         { rotulo: "Reserva acumulada", valor: (_t, ac) => ac },
         { rotulo: "Caixa projetado", valor: (_t, _a, cx) => cx },
@@ -138,12 +154,36 @@ function Panorama() {
             {linhas.map((l, i) => {
               const cls = l.tipo === "destaque" ? "bg-primary/10 font-semibold" : l.tipo === "grupo" ? "font-medium border-t" : l.tipo === "sub" ? "text-muted-foreground" : "";
               const tv = l.valor(total.t, total.acum, total.caixa);
+              const expandivel = visao === "P" && l.cat != null;
+              const aberta = expandivel && abertas.has(l.cat!);
+              const itens = aberta ? itensPorCat.get(l.cat!) ?? [] : [];
               return (
-                <tr key={i} className={cls}>
-                  <td className={`sticky left-0 bg-card px-3 py-1.5 ${l.tipo === "sub" ? "pl-7" : ""}`}>{l.rotulo}</td>
+                <Fragment key={i}>
+                <tr className={cls}>
+                  <td className={`sticky left-0 bg-card px-3 py-1.5 ${l.tipo === "sub" ? "pl-7" : ""}`}>
+                    {expandivel ? (
+                      <button
+                        type="button"
+                        onClick={() => setAbertas((ant) => { const novo = new Set(ant); if (novo.has(l.cat!)) novo.delete(l.cat!); else novo.add(l.cat!); return novo; })}
+                        className="inline-flex items-center gap-1 hover:text-foreground"
+                        aria-expanded={aberta}
+                      >
+                        <ChevronRight className={`size-3.5 transition-transform ${aberta ? "rotate-90" : ""}`} />
+                        {l.rotulo}
+                      </button>
+                    ) : l.rotulo}
+                  </td>
                   {cols.map((c) => { const v = l.valor(c.t, c.acum, c.caixa); return <td key={c.chave} className={`num px-3 py-1.5 text-right ${v != null ? cor(v) : ""}`}>{fmt(v, l)}</td>; })}
                   <td className={`num px-3 py-1.5 text-right font-medium ${tv != null ? cor(tv) : ""}`}>{fmt(tv, l)}</td>
                 </tr>
+                {itens.map((it) => (
+                  <tr key={`${i}-${it.nome}`} className="text-xs text-muted-foreground">
+                    <td className="sticky left-0 bg-card px-3 py-1 pl-12">{it.nome}</td>
+                    {it.porCol.map((v, ci) => <td key={ci} className={`num px-3 py-1 text-right ${cor(v)}`}>{v ? formatarNumero(v) : "—"}</td>)}
+                    <td className={`num px-3 py-1 text-right ${cor(it.tot)}`}>{formatarNumero(it.tot)}</td>
+                  </tr>
+                ))}
+                </Fragment>
               );
             })}
           </tbody>
