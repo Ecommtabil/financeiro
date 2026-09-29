@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { AlertTriangle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BotaoExcluir } from "@/components/botao-excluir";
-import { usePeriodo } from "@/components/app-shell";
+import { daArea, useArea, usePeriodo } from "@/components/app-shell";
 import { BotaoImportarPat, CampoNum, CampoTxt, Ind, Op, selectCls } from "@/components/patrimonio-ui";
 import { useConfig } from "@/lib/config";
 import { useLista } from "@/lib/dados";
@@ -31,7 +31,9 @@ function Investimentos() {
   const { horizonte: h, colunas, periodo } = usePeriodo();
   const { data: cfg } = useConfig();
   const sai = useLista("saidas");
-  const inv = useListaPat("investimentos");
+  const area = useArea();
+  const inv0 = useListaPat("investimentos");
+  const inv = useMemo(() => ({ data: inv0.data?.filter((x) => daArea(x.destino, area)) }), [inv0.data, area]);
   const inserir = useInserirPat("investimentos");
   const atualizar = useAtualizarPat("investimentos");
   const excluir = useExcluirPat("investimentos");
@@ -52,9 +54,10 @@ function Investimentos() {
     const aportes = inv.data.reduce((t, i) => t + colunas.reduce((s, c) => s + somaCol(i, c, "aporte"), 0), 0);
     const rend = inv.data.reduce((t, i) => t + colunas.reduce((s, c) => s + somaCol(i, c, "rendimento"), 0), 0);
     const ligadas = new Set(inv.data.map((i) => i.saida_id).filter(Boolean));
-    const semCadastro = sai.data.filter((s) => saidaDeInvestimento(s) && !ligadas.has(s.id));
+    const ligTodas = new Set((inv0.data ?? []).map((i) => i.saida_id).filter(Boolean));
+    const semCadastro = sai.data.filter((s) => saidaDeInvestimento(s) && daArea(s.destino, area) && !ligTodas.has(s.id));
     return { saldoEm, somaCol, ultimaDe, inicio, fim, fimK, aportes, rend, semCadastro };
-  }, [h, cfg, sai.data, inv.data, colunas]);
+  }, [h, cfg, sai.data, inv.data, inv0.data, area, colunas]);
 
   if (!h || !calc || !inv.data || !sai.data) return <div className="px-6 py-8 text-muted-foreground lg:px-10">Carregando…</div>;
   const saidasOrd = [...sai.data].sort((a, b) => a.descricao.localeCompare(b.descricao));

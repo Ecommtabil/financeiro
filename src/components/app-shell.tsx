@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient, useIsMutating } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Check, FileSpreadsheet, LogOut, Loader2 } from "lucide-react";
+import { Building2, Check, FileSpreadsheet, House, LogOut, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,8 +25,12 @@ const ABAS = [
 export type Periodo = number | "todos";
 export type Coluna = { chave: string; rotulo: string; meses: MesRef[] };
 
-type Ctx = { horizonte: Horizonte | null; periodo: Periodo; colunas: Coluna[] };
-const PeriodoCtx = createContext<Ctx>({ horizonte: null, periodo: "todos", colunas: [] });
+export type Area = "ESCRITORIO" | "PESSOAL";
+type Ctx = { horizonte: Horizonte | null; periodo: Periodo; colunas: Coluna[]; area: Area };
+const PeriodoCtx = createContext<Ctx>({ horizonte: null, periodo: "todos", colunas: [], area: "ESCRITORIO" });
+/** Área escolhida no topo (Escritório | Pessoal). Destino vazio conta como Escritório. */
+export const useArea = () => useContext(PeriodoCtx).area;
+export const daArea = (destino: string | null | undefined, area: Area) => (destino === "PESSOAL" ? "PESSOAL" : "ESCRITORIO") === area;
 export const usePeriodo = () => useContext(PeriodoCtx);
 
 function colunasDo(h: Horizonte, p: Periodo): Coluna[] {
@@ -40,6 +44,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const salvando = useIsMutating() > 0;
   const [modal, setModal] = useState(false);
   const [periodo, setPeriodo] = useState<Periodo>("todos");
+  const [area, setAreaSt] = useState<Area>("ESCRITORIO");
+  useEffect(() => { if (localStorage.getItem("fluxo-area") === "PESSOAL") setAreaSt("PESSOAL"); }, []);
+  const setArea = (a: Area) => { setAreaSt(a); localStorage.setItem("fluxo-area", a); };
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -64,7 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <PeriodoCtx.Provider value={{ horizonte, periodo, colunas }}>
+    <PeriodoCtx.Provider value={{ horizonte, periodo, colunas, area }}>
       <div className="min-h-screen">
         <header className="sticky top-0 z-30 border-b border-border bg-card">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-6 py-3 lg:px-10">
@@ -78,6 +85,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                   Entradas − Saídas = Lucro · Lucro − Saídas pessoais = Reserva
                 </p>
               </div>
+            </div>
+            <div className="inline-flex rounded-md border bg-background p-0.5">
+              {(["ESCRITORIO", "PESSOAL"] as const).map((a) => (
+                <button key={a} onClick={() => setArea(a)}
+                  className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium ${area === a ? (a === "ESCRITORIO" ? "bg-office text-office-foreground" : "bg-personal text-personal-foreground") : "text-muted-foreground hover:text-foreground"}`}>
+                  {a === "ESCRITORIO" ? <><Building2 className="size-4" />Escritório</> : <><House className="size-4" />Pessoal</>}
+                </button>
+              ))}
             </div>
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <span className="flex items-center gap-1 text-xs text-muted-foreground">

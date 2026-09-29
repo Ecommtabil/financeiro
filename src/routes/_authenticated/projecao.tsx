@@ -6,7 +6,7 @@ import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { usePeriodo } from "@/components/app-shell";
+import { useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig, useSalvarConfig, type Config } from "@/lib/config";
 import { useLista } from "@/lib/dados";
 import { formatarBRL, formatarMes, formatarNumero } from "@/lib/format";
@@ -51,6 +51,8 @@ function Projecao() {
   const ent = useLista("entradas"), sai = useLista("saidas"), pes = useLista("entradas_pessoais");
   const [anoSel, setAnoSel] = useState<number | null>(null);
   const [grupoF, setGrupoF] = useState("todos");
+  const area = useArea();
+  const gruposArea = area === "PESSOAL" ? ["SP", "EP"] : ["E", "SE"];
   const [busca, setBusca] = useState("");
 
   const dados = useMemo(() => (ent.data && sai.data && pes.data ? { entradas: ent.data, saidas: sai.data, pessoais: pes.data } : null), [ent.data, sai.data, pes.data]);
@@ -108,7 +110,7 @@ function Projecao() {
   const usarCat = (id: string) => { const ri = { ...regrasItem }; delete ri[id]; salvar.mutate({ regras_item: ri }, ok); };
 
   const q = norm(busca);
-  const visiveis = calc.linhas.filter((l) => (grupoF === "todos" || l.g === grupoF) && (!q || norm(`${l.nome} ${l.cat}`).includes(q)));
+  const visiveis = calc.linhas.filter((l) => gruposArea.includes(l.g) && (grupoF === "todos" || l.g === grupoF) && (!q || norm(`${l.nome} ${l.cat}`).includes(q)));
   const com = calc.doAno(ano, "com"), sem = calc.doAno(ano, "sem");
   const ultimo = h.anos[h.anos.length - 1]!.ano;
   const sel = "rounded-md border bg-card px-2 py-1.5 text-sm";
@@ -163,7 +165,7 @@ function Projecao() {
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-lg font-semibold">O que sobe</h2>
           <select className={sel} value={grupoF} onChange={(e) => setGrupoF(e.target.value)}>
-            <option value="todos">Todos os grupos</option>{GRUPOS.map((g) => <option key={g.g} value={g.g}>{g.nome}</option>)}</select>
+            <option value="todos">Todos os grupos</option>{GRUPOS.filter((g) => gruposArea.includes(g.g)).map((g) => <option key={g.g} value={g.g}>{g.nome}</option>)}</select>
           <div className="relative min-w-60 flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8" placeholder="Buscar item ou categoria" value={busca} onChange={(e) => setBusca(e.target.value)} />
@@ -179,7 +181,7 @@ function Projecao() {
               </tr>
             </thead>
             <tbody>
-              {GRUPOS.map((G) => {
+              {GRUPOS.filter((G) => gruposArea.includes(G.g)).map((G) => {
                 const doG = visiveis.filter((l) => l.g === G.g);
                 if (!doG.length) return null;
                 const cats = [...new Set(doG.map((l) => l.catKey))];

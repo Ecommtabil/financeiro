@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BotaoConfirmar } from "@/components/botao-confirmar";
-import { usePeriodo } from "@/components/app-shell";
+import { daArea, useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig } from "@/lib/config";
 import { useLista } from "@/lib/dados";
 import { formatarBRL, formatarMes, formatarNumero, normalizarBanco } from "@/lib/format";
@@ -37,6 +37,7 @@ function Situacao() {
   const hoje = new Date();
   const kHoje = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
   const [mesSel, setMesSel] = useState<string | null>(null);
+  const area = useArea();
 
   const dados = useMemo(() => (ent.data && sai.data && pes.data ? { entradas: ent.data, saidas: sai.data, pessoais: pes.data } : null), [ent.data, sai.data, pes.data]);
   const mb = useMemo(() => mapaBaixas(baixas.data ?? []), [baixas.data]);
@@ -45,12 +46,17 @@ function Situacao() {
     if (!h || !cfg || !dados || !saldos.data || !baixas.data) return null;
     const chaves = h.meses.map(chaveMes);
     const mes = mesSel && chaves.includes(mesSel) ? mesSel : chaves.includes(kHoje) ? kHoje : chaves[0]!;
+    const destS = new Map(dados.saidas.map((s) => [s.id, s.destino]));
     let abertoR = 0, abertoP = 0;
     let doMes = { receber: [] as Conta[], pagar: [] as Conta[] };
     for (const m of h.meses) {
       const k = chaveMes(m);
       if (k > mes) break;
-      const c = contasDoMes(m, dados, cfg, h);
+      const c0 = contasDoMes(m, dados, cfg, h);
+      const c = {
+        receber: c0.receber.filter((x) => (x.tipo === "pessoal") === (area === "PESSOAL")),
+        pagar: c0.pagar.filter((x) => daArea(destS.get(x.id), area)),
+      };
       if (k === mes) doMes = c;
       for (const x of c.receber) if (!mb.has(chaveBaixa(x.tipo, x.id, x.mes))) abertoR += x.valor;
       for (const x of c.pagar) if (!mb.has(chaveBaixa(x.tipo, x.id, x.mes))) abertoP += x.valor;
@@ -61,7 +67,7 @@ function Situacao() {
     const saldoTotal = [...sa.values()].reduce((t, x) => t + x.atual, 0);
     const pago = (l: Conta[]) => l.reduce((t, c) => t + Number(mb.get(chaveBaixa(c.tipo, c.id, c.mes))?.valor ?? 0), 0);
     return { mes, chaves, doMes, abertoR, abertoP, sa, bancos: [...bancos].sort(), saldoTotal, recebido: pago(doMes.receber), pagoMes: pago(doMes.pagar) };
-  }, [h, cfg, dados, saldos.data, baixas.data, mb, mesSel, kHoje]);
+  }, [h, cfg, dados, saldos.data, baixas.data, mb, mesSel, kHoje, area]);
 
   if (!h || !calc || !dados) return <div className="px-6 py-8 text-muted-foreground lg:px-10">Carregando…</div>;
   const [ano, mm] = calc.mes.split("-").map(Number);

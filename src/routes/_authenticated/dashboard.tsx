@@ -7,7 +7,7 @@ import {
 import { Building2, CalendarDays, House, Landmark, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { usePeriodo } from "@/components/app-shell";
+import { useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig } from "@/lib/config";
 import { useLista, type Saida } from "@/lib/dados";
 import { useBaixas, useSaldos } from "@/lib/situacao";
@@ -50,7 +50,7 @@ function DashboardPage() {
   const pessoais = useLista("entradas_pessoais");
   const saldos = useSaldos();
   const baixas = useBaixas();
-  const [visao, setVisao] = useState<"escritorio" | "pessoal">("escritorio");
+  const visao = useArea() === "PESSOAL" ? "pessoal" : "escritorio";
   const mesesDisponiveis = useMemo(() => {
     if (!horizonte) return [];
     return periodo === "todos" ? horizonte.meses : horizonte.meses.filter((m) => m.ano === periodo);
@@ -95,10 +95,6 @@ function DashboardPage() {
           <h1 className="mt-1 text-2xl font-semibold">Dashboard</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-md border bg-card p-1">
-            <Button size="sm" variant={visao === "escritorio" ? "default" : "ghost"} onClick={() => setVisao("escritorio")}><Building2 />Escritório</Button>
-            <Button size="sm" variant={visao === "pessoal" ? "default" : "ghost"} onClick={() => setVisao("pessoal")}><House />Pessoal</Button>
-          </div>
           <Select value={chaveMes(mes)} onValueChange={setMesKey}>
             <SelectTrigger className="w-36 bg-card"><CalendarDays className="size-4" /><SelectValue /></SelectTrigger>
             <SelectContent>{mesesDisponiveis.map((m) => <SelectItem key={chaveMes(m)} value={chaveMes(m)}>{formatarMes(m.ano, m.mes)}</SelectItem>)}</SelectContent>

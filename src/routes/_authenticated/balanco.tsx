@@ -3,7 +3,7 @@ import { useMemo, type ReactNode } from "react";
 import { AlertTriangle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BotaoExcluir } from "@/components/botao-excluir";
-import { usePeriodo } from "@/components/app-shell";
+import { daArea, useArea, usePeriodo } from "@/components/app-shell";
 import { BotaoImportarPat, CampoNum, CampoTxt, Ind, Op, selectCls } from "@/components/patrimonio-ui";
 import { useConfig } from "@/lib/config";
 import { useLista } from "@/lib/dados";
@@ -33,24 +33,26 @@ function Balanco() {
   const { data: cfg } = useConfig();
   const ent = useLista("entradas"), sai = useLista("saidas"), pes = useLista("entradas_pessoais");
   const saldos = useSaldos(), baixas = useBaixas();
+  const area = useArea();
   const inv = useListaPat("investimentos"), bens = useListaPat("bens"), div = useListaPat("dividas");
 
   const calc = useMemo(() => {
     if (!h || !cfg || !ent.data || !sai.data || !pes.data || !saldos.data || !baixas.data || !inv.data || !bens.data || !div.data || !colunas.length) return null;
+    const invD = inv.data.filter((x) => daArea(x.destino, area)), bensD = bens.data.filter((x) => daArea(x.destino, area)), divD = div.data.filter((x) => daArea(x.destino, area));
     const d = { entradas: ent.data, saidas: sai.data, pessoais: pes.data };
     const caixa = caixaProjetado(d, cfg, h, saldos.data, baixas.data);
     const caixa0 = [...saldosAtuais(saldos.data, baixas.data).values()].reduce((t, x) => t + x.atual, 0);
     const fins = colunas.map((c) => chaveMes(c.meses[c.meses.length - 1]!));
     const rotulos = ["Base zero", ...colunas.map((c) => (c.meses.length === 1 ? `Fim ${c.rotulo}` : `Fim ${c.rotulo}`))];
 
-    const tipos = [...new Set(inv.data.map((i) => i.tipo))].sort();
-    const evoI = inv.data.map((i) => ({ i, e: evolucaoInvestimento(i, sai.data, cfg, h) }));
+    const tipos = [...new Set(invD.map((i) => i.tipo))].sort();
+    const evoI = invD.map((i) => ({ i, e: evolucaoInvestimento(i, sai.data, cfg, h) }));
     const invTipo = tipos.map((t) => {
       const l = evoI.filter((x) => x.i.tipo === t);
       return { rotulo: t, vals: [l.reduce((s, x) => s + Number(x.i.saldo_inicial), 0), ...fins.map((k) => l.reduce((s, x) => s + (x.e.get(k)?.saldo ?? 0), 0))] };
     });
-    const bensV = bens.data.reduce((t, b) => t + Number(b.valor), 0);
-    const dividas = div.data.map((x) => { const e = evolucaoDivida(x, sai.data, cfg, h); return { rotulo: x.nome, vals: [Number(x.saldo), ...fins.map((k) => e.get(k) ?? 0)] }; });
+    const bensV = bensD.reduce((t, b) => t + Number(b.valor), 0);
+    const dividas = divD.map((x) => { const e = evolucaoDivida(x, sai.data, cfg, h); return { rotulo: x.nome, vals: [Number(x.saldo), ...fins.map((k) => e.get(k) ?? 0)] }; });
 
     const n = fins.length + 1;
     const soma = (ls: { vals: number[] }[]) => Array.from({ length: n }, (_, j) => ls.reduce((t, l) => t + l.vals[j]!, 0));
@@ -73,10 +75,10 @@ function Balanco() {
       { rotulo: "PASSIVO", vals: passivo, nivel: 0, forte: true, neg: true },
       ...dividas.map((x) => ({ rotulo: x.rotulo, vals: x.vals, nivel: 2 as const, neg: true })),
     ];
-    const ligadas = new Set(div.data.map((x) => x.saida_id).filter(Boolean));
+    const ligadas = new Set(divD.map((x) => x.saida_id).filter(Boolean));
     const parcelas = sai.data.filter((s) => pareceDivida(s) && !ligadas.has(s.id));
     return { rotulos, linhas, pl, variacao, ativo, passivo, parcelas, semSaldo: saldos.data.length === 0 };
-  }, [h, cfg, ent.data, sai.data, pes.data, saldos.data, baixas.data, inv.data, bens.data, div.data, colunas]);
+  }, [h, cfg, ent.data, sai.data, pes.data, saldos.data, baixas.data, inv.data, bens.data, div.data, colunas, area]);
 
   if (!h || !calc || !sai.data) return <div className="px-6 py-8 text-muted-foreground lg:px-10">Carregando…</div>;
   const ult = calc.pl.length - 1;
@@ -144,7 +146,9 @@ function Aviso({ children, acao }: { children: ReactNode; acao?: ReactNode }) {
 }
 
 function TabelaBens() {
-  const bens = useListaPat("bens"), ins = useInserirPat("bens"), up = useAtualizarPat("bens"), del = useExcluirPat("bens");
+  const bens0 = useListaPat("bens"), ins = useInserirPat("bens"), up = useAtualizarPat("bens"), del = useExcluirPat("bens");
+  const area = useArea();
+  const bens = { data: bens0.data?.filter((x) => daArea(x.destino, area)) };
   return (
     <section className="space-y-3">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Bens</h2>
@@ -164,20 +168,22 @@ function TabelaBens() {
           </tbody>
         </table>
       </div>
-      <Button size="sm" variant="outline" onClick={() => ins.mutate({ nome: "Novo bem" })}><Plus className="size-4" />Adicionar bem</Button>
+      <Button size="sm" variant="outline" onClick={() => ins.mutate({ nome: "Novo bem", destino: area })}><Plus className="size-4" />Adicionar bem</Button>
     </section>
   );
 }
 
 function TabelaDividas({ parcelas }: { parcelas: { id: string; descricao: string; banco: string | null }[] }) {
-  const div = useListaPat("dividas"), ins = useInserirPat("dividas"), up = useAtualizarPat("dividas"), del = useExcluirPat("dividas");
+  const div0 = useListaPat("dividas"), ins = useInserirPat("dividas"), up = useAtualizarPat("dividas"), del = useExcluirPat("dividas");
+  const area = useArea();
+  const div = { data: div0.data?.filter((x) => daArea(x.destino, area)) };
   const sai = useLista("saidas");
   const saidasOrd = [...(sai.data ?? [])].sort((a, b) => a.descricao.localeCompare(b.descricao));
   return (
     <section className="space-y-3">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Dívidas</h2>
       {parcelas.length > 0 && (
-        <Aviso acao={<Button size="sm" disabled={ins.isPending} onClick={() => ins.mutate(parcelas.map((s) => ({ nome: s.descricao, credor: s.banco, saida_id: s.id })))}>Criar dívidas a partir delas</Button>}>
+        <Aviso acao={<Button size="sm" disabled={ins.isPending} onClick={() => ins.mutate(parcelas.map((s) => ({ nome: s.descricao, credor: s.banco, saida_id: s.id, destino: area })))}>Criar dívidas a partir delas</Button>}>
           {parcelas.length} saídas parecem parcelas de empréstimo: {parcelas.slice(0, 3).map((s) => s.descricao).join(", ")}{parcelas.length > 3 ? "…" : ""}
         </Aviso>
       )}
