@@ -61,6 +61,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const colunas = horizonte ? colunasDo(horizonte, periodo) : [];
   const abaAtual = ABAS.find((a) => (a.to === "/" ? pathname === "/" : pathname.startsWith(a.to)));
+  // Na área Pessoal, só Panorama e Dashboard ficam visíveis; as outras abas voltam ao Panorama.
+  const abasVisiveis = area === "PESSOAL" ? ABAS.filter((a) => "pessoal" in a && a.pessoal) : ABAS;
+  useEffect(() => {
+    if (area !== "PESSOAL") return;
+    if (abaAtual && !("pessoal" in abaAtual && abaAtual.pessoal)) navigate({ to: "/", replace: true });
+  }, [area, abaAtual, navigate]);
   const obrigatorio = !isLoading && !config?.base_data;
 
   async function sair() {
