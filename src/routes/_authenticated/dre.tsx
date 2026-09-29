@@ -42,6 +42,7 @@ function calcular(t: TotaisMes, cfg: Config): Res {
 type Linha = { id: string; rotulo: string; v: (r: Res) => number; tipo?: "total" | "destaque" | "sub" | "grupo"; abre?: string; pai?: string };
 
 function DRE() {
+  const area = useArea();
   const { horizonte: h, colunas } = usePeriodo();
   const { data: cfg } = useConfig();
   const salvar = useSalvarConfig();
@@ -153,6 +154,7 @@ function DRE() {
       {area === "ESCRITORIO" ? tabela("Resultado do escritório", escritorio) : tabela("Resultado pessoal", pessoal)}
       <p className="text-xs text-muted-foreground">AV% = valor da linha ÷ receita bruta do período. O resultado líquido do escritório é igual ao Lucro do Panorama.</p>
 
+      {area === "ESCRITORIO" && <>
       <SugestaoIA cats={[...catsEsc]} cfg={cfg} aplicar={reclassificar} />
 
       <div className="rounded-lg border bg-card">
@@ -181,6 +183,7 @@ function DRE() {
           </tbody>
         </table>
       </div>
+      </>}
     </div>
   );
 }
