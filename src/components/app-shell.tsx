@@ -46,7 +46,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [modal, setModal] = useState(false);
   const [periodo, setPeriodo] = useState<Periodo>("todos");
   const [area, setAreaSt] = useState<Area>("ESCRITORIO");
-  useEffect(() => { if (localStorage.getItem("fluxo-area") === "PESSOAL") setAreaSt("PESSOAL"); }, []);
+  const [areaPronta, setAreaPronta] = useState(false);
+  useEffect(() => { if (localStorage.getItem("fluxo-area") === "PESSOAL") setAreaSt("PESSOAL"); setAreaPronta(true); }, []);
   const setArea = (a: Area) => { setAreaSt(a); localStorage.setItem("fluxo-area", a); };
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
@@ -65,9 +66,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Na área Pessoal, só Panorama e Dashboard ficam visíveis; as outras abas voltam ao Panorama.
   const abasVisiveis = area === "PESSOAL" ? ABAS.filter((a) => "pessoal" in a && a.pessoal) : ABAS.filter((a) => !("soPessoal" in a));
   useEffect(() => {
+    if (!areaPronta) return;
     if (area !== "PESSOAL") { if (abaAtual && "soPessoal" in abaAtual) navigate({ to: "/", replace: true }); return; }
     if (abaAtual && !("pessoal" in abaAtual && abaAtual.pessoal)) navigate({ to: "/", replace: true });
-  }, [area, abaAtual, navigate]);
+  }, [area, areaPronta, abaAtual, navigate]);
   const obrigatorio = !isLoading && !config?.base_data;
 
   async function sair() {
