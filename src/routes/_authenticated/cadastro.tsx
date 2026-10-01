@@ -304,14 +304,16 @@ function Entradas({ busca }: { busca: string }) {
   const atualizar = useAtualizar("entradas");
   const excluir = useExcluir("entradas");
   const inserir = useInserir("entradas");
-  const vazio = { codigo: "", empresa: "", carteira: "", grupo: "", regime: "", dia: "", valor: "", inicio: "", fim: "" };
+  const vazio = { codigo: "", empresa: "", carteira: "", grupo: "", setor: "", regime: "", dia: "", valor: "", inicio: "", fim: "" };
   const [f, setF] = useState(vazio);
   const [ordem, setOrdem] = useState<Ordenacao>("az");
   const [grupo, setGrupo] = useState("");
   const [carteira, setCarteira] = useState("");
+  const [setor, setSetor] = useState("");
   const grupos = useMemo(() => opcoesDe(data, (e) => e.grupo), [data]);
   const carteiras = useMemo(() => opcoesDe(data, (e) => e.carteira), [data]);
-  const listaBase = data.filter((e) => (!grupo || chaveFiltro(e.grupo) === grupo) && (!carteira || chaveFiltro(e.carteira) === carteira) && contem(busca, e.codigo, e.empresa, e.carteira, e.grupo, e.regime));
+  const setores = useMemo(() => opcoesDe(data, (e) => e.setor), [data]);
+  const listaBase = data.filter((e) => (!grupo || chaveFiltro(e.grupo) === grupo) && (!carteira || chaveFiltro(e.carteira) === carteira) && (!setor || chaveFiltro(e.setor) === setor) && contem(busca, e.codigo, e.empresa, e.carteira, e.grupo, e.setor, e.regime));
   const lista = ordenar(listaBase, ordem, (e) => e.empresa, (e) => Number(e.valor), (e) => e.dia);
   const ativos = lista.filter((e) => e.ativo);
 
@@ -323,13 +325,14 @@ function Entradas({ busca }: { busca: string }) {
       <Form onSubmit={() => {
         const valor = paraNumero(f.valor);
         if (!f.empresa.trim() || valor == null) return;
-        inserir.mutate({ codigo: f.codigo || null, empresa: f.empresa.trim(), carteira: f.carteira || null, grupo: f.grupo || null, regime: f.regime || null, dia: Number(f.dia) || null, valor, inicio: f.inicio || null, fim: f.fim || null, origem: "manual" });
+        inserir.mutate({ codigo: f.codigo || null, empresa: f.empresa.trim(), carteira: f.carteira || null, grupo: f.grupo || null, setor: f.setor || null, regime: f.regime || null, dia: Number(f.dia) || null, valor, inicio: f.inicio || null, fim: f.fim || null, origem: "manual" });
         setF(vazio);
       }}>
         <F l="Código"><Input className="h-8 w-20" value={f.codigo} onChange={(e) => setF({ ...f, codigo: e.target.value })} /></F>
         <F l="Empresa"><Input className="h-8 w-56" value={f.empresa} onChange={(e) => setF({ ...f, empresa: e.target.value })} /></F>
         <F l="Carteira"><Input className="h-8 w-32" value={f.carteira} onChange={(e) => setF({ ...f, carteira: e.target.value })} /></F>
         <F l="Grupo"><Input className="h-8 w-32" value={f.grupo} onChange={(e) => setF({ ...f, grupo: e.target.value })} /></F>
+        <F l="Setor"><Input className="h-8 w-32" value={f.setor} onChange={(e) => setF({ ...f, setor: e.target.value })} /></F>
         <F l="Regime"><Input className="h-8 w-36" value={f.regime} onChange={(e) => setF({ ...f, regime: e.target.value })} /></F>
         <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
@@ -343,6 +346,7 @@ function Entradas({ busca }: { busca: string }) {
             <CabecalhoFiltro titulo="Empresa" ordem={ordem} ordens={["az", "za"]} onOrdem={setOrdem} />
             <CabecalhoFiltro titulo="Carteira" filtro={carteira} opcoes={carteiras} onFiltro={setCarteira} />
             <CabecalhoFiltro titulo="Grupo" filtro={grupo} opcoes={grupos} onFiltro={setGrupo} />
+            <CabecalhoFiltro titulo="Setor" filtro={setor} opcoes={setores} onFiltro={setSetor} />
             <th className={th}>Regime</th>
             <CabecalhoFiltro titulo="Dia" ordem={ordem} ordens={["dia"]} onOrdem={setOrdem} />
             <th className={th}>Ativo</th>
@@ -356,6 +360,7 @@ function Entradas({ busca }: { busca: string }) {
                 <td className={td}>{e.empresa}</td>
                 <td className={td}>{e.carteira}</td>
                 <td className={td}>{e.grupo}</td>
+                <td className={td}><Input className="h-7 w-32" defaultValue={e.setor ?? ""} onBlur={(ev) => { const v = ev.target.value.trim() || null; if (v !== e.setor) atualizar.mutate({ id: e.id, v: { setor: v } }); }} /></td>
                 <td className={td}>{e.regime}</td>
                 <td className={`${td} num`}>{e.dia}</td>
                 <td className={td}><Checkbox checked={e.ativo} onCheckedChange={(v) => atualizar.mutate({ id: e.id, v: { ativo: !!v } })} /></td>
@@ -365,7 +370,7 @@ function Entradas({ busca }: { busca: string }) {
                 <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
               </tr>
             ))}
-            {!lista.length ? <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Nenhuma entrada.</td></tr> : null}
+            {!lista.length ? <tr><td colSpan={12} className="p-6 text-center text-muted-foreground">Nenhuma entrada.</td></tr> : null}
           </tbody>
         </table>
       </div>
