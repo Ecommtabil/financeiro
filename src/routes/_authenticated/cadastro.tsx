@@ -304,14 +304,16 @@ function Entradas({ busca }: { busca: string }) {
   const atualizar = useAtualizar("entradas");
   const excluir = useExcluir("entradas");
   const inserir = useInserir("entradas");
-  const vazio = { codigo: "", empresa: "", carteira: "", grupo: "", regime: "", dia: "", valor: "", inicio: "", fim: "" };
+  const vazio = { codigo: "", empresa: "", carteira: "", grupo: "", setor: "", regime: "", dia: "", valor: "", inicio: "", fim: "" };
   const [f, setF] = useState(vazio);
   const [ordem, setOrdem] = useState<Ordenacao>("az");
   const [grupo, setGrupo] = useState("");
   const [carteira, setCarteira] = useState("");
+  const [setor, setSetor] = useState("");
   const grupos = useMemo(() => opcoesDe(data, (e) => e.grupo), [data]);
   const carteiras = useMemo(() => opcoesDe(data, (e) => e.carteira), [data]);
-  const listaBase = data.filter((e) => (!grupo || chaveFiltro(e.grupo) === grupo) && (!carteira || chaveFiltro(e.carteira) === carteira) && contem(busca, e.codigo, e.empresa, e.carteira, e.grupo, e.regime));
+  const setores = useMemo(() => opcoesDe(data, (e) => e.setor), [data]);
+  const listaBase = data.filter((e) => (!grupo || chaveFiltro(e.grupo) === grupo) && (!carteira || chaveFiltro(e.carteira) === carteira) && (!setor || chaveFiltro(e.setor) === setor) && contem(busca, e.codigo, e.empresa, e.carteira, e.grupo, e.setor, e.regime));
   const lista = ordenar(listaBase, ordem, (e) => e.empresa, (e) => Number(e.valor), (e) => e.dia);
   const ativos = lista.filter((e) => e.ativo);
 
@@ -323,7 +325,7 @@ function Entradas({ busca }: { busca: string }) {
       <Form onSubmit={() => {
         const valor = paraNumero(f.valor);
         if (!f.empresa.trim() || valor == null) return;
-        inserir.mutate({ codigo: f.codigo || null, empresa: f.empresa.trim(), carteira: f.carteira || null, grupo: f.grupo || null, regime: f.regime || null, dia: Number(f.dia) || null, valor, inicio: f.inicio || null, fim: f.fim || null, origem: "manual" });
+        inserir.mutate({ codigo: f.codigo || null, empresa: f.empresa.trim(), carteira: f.carteira || null, grupo: f.grupo || null, setor: f.setor || null, regime: f.regime || null, dia: Number(f.dia) || null, valor, inicio: f.inicio || null, fim: f.fim || null, origem: "manual" });
         setF(vazio);
       }}>
         <F l="Código"><Input className="h-8 w-20" value={f.codigo} onChange={(e) => setF({ ...f, codigo: e.target.value })} /></F>
