@@ -119,7 +119,7 @@ type PainelProps = {
 
 function Escritorio(p: PainelProps) {
   const { dados, cfg, horizonte, mes, mesesAno, atual, totais, receber, pagar, mapa } = p;
-  const grupos: Record<string, number> = {}, setores: Record<string, number> = {};
+  const grupos: Record<string, number> = {}, setores: Record<string, number> = {}, clientesSetor: Record<string, number> = {};
   for (const e of dados.entradas) {
     const c = contasDoMes(mes, { entradas: [e], saidas: [], pessoais: [] }, cfg, horizonte).receber[0];
     if (!c) continue;
@@ -129,11 +129,13 @@ function Escritorio(p: PainelProps) {
     grupos[existente] = (grupos[existente] ?? 0) + c.valor;
     const setor = e.setor?.trim() || "Sem setor";
     setores[setor] = (setores[setor] ?? 0) + c.valor;
+    clientesSetor[setor] = (clientesSetor[setor] ?? 0) + 1;
   }
   const maior = top(grupos, 1)[0];
   const folha = Object.entries(atual.porCatEscritorio).filter(([c]) => /FUNCIONARIO|SOCIO|TERCE?IRISTA/.test(norm(c))).reduce((t, [, v]) => t + v, 0);
   const serieLucro = mesesAno.map((m) => ({ nome: formatarMes(m.ano, m.mes), valor: totais.get(chaveMes(m))?.L ?? 0 }));
   const setoresTop = topComOutros(setores, 10);
+  const clientesPorSetor = topComOutros(clientesSetor, 10);
   const medReceber = faixas(receber, mapa), medPagar = faixas(pagar, mapa);
   const vencimentos = porDia(receber, pagar);
   const terminam = despesasQueTerminam(dados.saidas.filter((s) => destinoSaida(s) === "ESCRITORIO"), cfg, horizonte);
