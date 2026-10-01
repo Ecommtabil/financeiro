@@ -119,7 +119,7 @@ type PainelProps = {
 
 function Escritorio(p: PainelProps) {
   const { dados, cfg, horizonte, mes, mesesAno, atual, totais, receber, pagar, mapa } = p;
-  const grupos: Record<string, number> = {}, setores: Record<string, number> = {};
+  const grupos: Record<string, number> = {}, setores: Record<string, number> = {}, clientesSetor: Record<string, number> = {};
   for (const e of dados.entradas) {
     const c = contasDoMes(mes, { entradas: [e], saidas: [], pessoais: [] }, cfg, horizonte).receber[0];
     if (!c) continue;
@@ -129,11 +129,13 @@ function Escritorio(p: PainelProps) {
     grupos[existente] = (grupos[existente] ?? 0) + c.valor;
     const setor = e.setor?.trim() || "Sem setor";
     setores[setor] = (setores[setor] ?? 0) + c.valor;
+    clientesSetor[setor] = (clientesSetor[setor] ?? 0) + 1;
   }
   const maior = top(grupos, 1)[0];
   const folha = Object.entries(atual.porCatEscritorio).filter(([c]) => /FUNCIONARIO|SOCIO|TERCE?IRISTA/.test(norm(c))).reduce((t, [, v]) => t + v, 0);
   const serieLucro = mesesAno.map((m) => ({ nome: formatarMes(m.ano, m.mes), valor: totais.get(chaveMes(m))?.L ?? 0 }));
   const setoresTop = topComOutros(setores, 10);
+  const clientesPorSetor = topComOutros(clientesSetor, 10);
   const medReceber = faixas(receber, mapa), medPagar = faixas(pagar, mapa);
   const vencimentos = porDia(receber, pagar);
   const terminam = despesasQueTerminam(dados.saidas.filter((s) => destinoSaida(s) === "ESCRITORIO"), cfg, horizonte);
@@ -152,8 +154,9 @@ function Escritorio(p: PainelProps) {
       <Secao titulo="Vencimentos por dia"><TabelaDias linhas={vencimentos} /></Secao>
       <Secao titulo={`Lucro do escritório · ${mes.ano}`}><GraficoVertical dados={serieLucro} /></Secao>
     </div>
-    <div className="grid gap-4 xl:grid-cols-3">
+    <div className="grid gap-4 xl:grid-cols-4">
       <Secao titulo="10 maiores grupos de clientes"><GraficoHorizontal dados={top(grupos, 10).map(([nome, valor]) => ({ nome, valor }))} /></Secao>
+      <Secao titulo="Clientes por setor"><GraficoHorizontal dados={clientesPorSetor} inteiro /></Secao>
       <Secao titulo="Receita por setor"><GraficoHorizontal dados={setoresTop} /></Secao>
       <Secao titulo="Custos por categoria"><GraficoHorizontal dados={top(atual.porCatEscritorio).map(([nome, valor]) => ({ nome, valor }))} /></Secao>
     </div>
@@ -228,6 +231,7 @@ function TabelaDias({ linhas }: { linhas: ReturnType<typeof porDia> }) {
 }
 
 const tooltipBrl = (v: number | string | Array<number | string>) => formatarBRL(Number(Array.isArray(v) ? v[0] : v));
+const tooltipInteiro = (v: number | string | Array<number | string>) => new Intl.NumberFormat("pt-BR").format(Number(Array.isArray(v) ? v[0] : v));
 function GraficoVertical({ dados }: { dados: Serie[] }) {
   if (!dados.some((x) => x.valor)) return <Vazio />;
   return <div className="h-72 w-full"><ResponsiveContainer><BarChart data={dados} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}><CartesianGrid vertical={false} stroke="var(--color-border)" /><XAxis dataKey="nome" tickLine={false} axisLine={false} fontSize={11} /><YAxis tickFormatter={brlCurto} tickLine={false} axisLine={false} width={72} fontSize={11} /><Tooltip formatter={tooltipBrl} cursor={{ fill: "var(--color-muted)" }} contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6 }} /><ReferenceLine y={0} stroke="var(--color-border)" /><Bar dataKey="valor" name="Valor" radius={[3,3,0,0]}>{dados.map((x) => <Cell key={x.nome} fill={x.valor < 0 ? "var(--color-negative)" : "var(--color-primary)"} />)}</Bar></BarChart></ResponsiveContainer></div>;
@@ -236,10 +240,10 @@ function GraficoLinha({ dados }: { dados: Serie[] }) {
   if (!dados.some((x) => x.acumulado)) return <Vazio />;
   return <div className="h-72 w-full"><ResponsiveContainer><LineChart data={dados} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}><CartesianGrid vertical={false} stroke="var(--color-border)" /><XAxis dataKey="nome" tickLine={false} axisLine={false} fontSize={11} /><YAxis tickFormatter={brlCurto} tickLine={false} axisLine={false} width={72} fontSize={11} /><Tooltip formatter={tooltipBrl} contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6 }} /><ReferenceLine y={0} stroke="var(--color-border)" /><Line type="monotone" dataKey="acumulado" name="Reserva acumulada" stroke="var(--color-primary)" strokeWidth={2.5} dot={{ fill: "var(--color-primary)", r: 3 }} /></LineChart></ResponsiveContainer></div>;
 }
-function GraficoHorizontal({ dados }: { dados: Serie[] }) {
+function GraficoHorizontal({ dados, inteiro }: { dados: Serie[]; inteiro?: boolean }) {
   if (!dados.some((x) => x.valor)) return <Vazio />;
   const altura = Math.max(220, dados.length * 35);
-  return <div className="w-full" style={{ height: altura }}><ResponsiveContainer><BarChart data={dados} layout="vertical" margin={{ top: 2, right: 18, left: 4, bottom: 0 }}><CartesianGrid horizontal={false} stroke="var(--color-border)" /><XAxis type="number" tickFormatter={brlCurto} tickLine={false} axisLine={false} fontSize={10} /><YAxis dataKey="nome" type="category" width={115} tickLine={false} axisLine={false} fontSize={10} tickFormatter={(v) => String(v).length > 18 ? `${String(v).slice(0, 17)}…` : String(v)} /><Tooltip formatter={tooltipBrl} cursor={{ fill: "var(--color-muted)" }} contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6 }} /><Bar dataKey="valor" name="Valor" fill="var(--color-primary)" radius={[0,3,3,0]} /></BarChart></ResponsiveContainer></div>;
+  return <div className="w-full" style={{ height: altura }}><ResponsiveContainer><BarChart data={dados} layout="vertical" margin={{ top: 2, right: 18, left: 4, bottom: 0 }}><CartesianGrid horizontal={false} stroke="var(--color-border)" /><XAxis type="number" tickFormatter={inteiro ? (v: number) => String(v) : brlCurto} tickLine={false} axisLine={false} fontSize={10} allowDecimals={!inteiro} /><YAxis dataKey="nome" type="category" width={115} tickLine={false} axisLine={false} fontSize={10} tickFormatter={(v) => String(v).length > 18 ? `${String(v).slice(0, 17)}…` : String(v)} /><Tooltip formatter={inteiro ? tooltipInteiro : tooltipBrl} cursor={{ fill: "var(--color-muted)" }} contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6 }} /><Bar dataKey="valor" name={inteiro ? "Clientes" : "Valor"} fill="var(--color-primary)" radius={[0,3,3,0]} /></BarChart></ResponsiveContainer></div>;
 }
 function Vazio() { return <div className="grid h-40 place-items-center text-sm text-muted-foreground">Sem valores neste período.</div>; }
 
