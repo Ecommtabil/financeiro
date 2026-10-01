@@ -172,7 +172,7 @@ function CabecalhoFiltro({
   opcoes?: { v: string; l: string }[];
   onFiltro?: (v: string) => void;
 }) {
-  const ativo = !!filtro || (!!ordem && ordem !== "az");
+  const ativo = !!filtro || (!!ordem && ordens.includes(ordem) && ordem !== "az");
   return (
     <th className={`${th} p-0`}>
       <DropdownMenu>
