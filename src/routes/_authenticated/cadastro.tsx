@@ -1,12 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LinkImportar } from "@/components/link-importar";
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowUpDown, Download, FileSpreadsheet, Plus, Search } from "lucide-react";
+import { Check, ChevronDown, Download, FileSpreadsheet, ListFilter, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { BotaoExcluir } from "@/components/botao-excluir";
 import { daArea, useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig } from "@/lib/config";
@@ -106,8 +116,8 @@ function contem(busca: string, ...campos: (string | null | undefined)[]) {
 
 /* ---------------- ordenação e filtros ---------------- */
 const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const chaveFiltro = (s?: string | null) => norm(s).replace(/\s+/g, "");
 const cmpTexto = (a: string, b: string) => semAcento(a).localeCompare(semAcento(b), "pt-BR", { sensitivity: "base" });
-const selFiltro = "h-8 rounded-md border border-input bg-background px-2 text-sm";
 
 type Ordenacao = "az" | "za" | "maior" | "menor" | "dia";
 const ORDENS: { v: Ordenacao; l: string }[] = [
@@ -135,7 +145,7 @@ function opcoesDe<T>(itens: T[], pega: (i: T) => string | null | undefined) {
   for (const it of itens) {
     const bruto = (pega(it) ?? "").trim();
     if (!bruto) continue;
-    const k = norm(bruto);
+    const k = chaveFiltro(bruto);
     const cont = mapa.get(k) ?? new Map<string, number>();
     cont.set(bruto, (cont.get(bruto) ?? 0) + 1);
     mapa.set(k, cont);
@@ -145,40 +155,57 @@ function opcoesDe<T>(itens: T[], pega: (i: T) => string | null | undefined) {
     .sort((a, b) => cmpTexto(a.l, b.l));
 }
 
-function FiltroLista({ l, vazio, valor, opcoes, onChange }: { l: string; vazio: string; valor: string; opcoes: { v: string; l: string }[]; onChange: (v: string) => void }) {
+function CabecalhoFiltro({
+  titulo,
+  ordem,
+  ordens = [],
+  onOrdem,
+  filtro,
+  opcoes = [],
+  onFiltro,
+}: {
+  titulo: string;
+  ordem?: Ordenacao;
+  ordens?: Ordenacao[];
+  onOrdem?: (v: Ordenacao) => void;
+  filtro?: string;
+  opcoes?: { v: string; l: string }[];
+  onFiltro?: (v: string) => void;
+}) {
+  const ativo = !!filtro || (!!ordem && ordens.includes(ordem) && ordem !== "az");
   return (
-    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      {l}
-      <select className={selFiltro} value={valor} onChange={(e) => onChange(e.target.value)}>
-        <option value="">{vazio}</option>
-        {opcoes.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
-      </select>
-    </label>
-  );
-}
-
-function FiltroOrdem({ valor, onChange }: { valor: Ordenacao; onChange: (v: Ordenacao) => void }) {
-  return (
-    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <ArrowUpDown className="size-3.5" />
-      Ordenar
-      <select className={selFiltro} value={valor} onChange={(e) => onChange(e.target.value as Ordenacao)}>
-        {ORDENS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
-      </select>
-    </label>
-  );
-}
-
-function BarraFiltros({ children, onLimpar }: { children: ReactNode; onLimpar?: (() => void) | undefined }) {
-  return (
-    <div className="surface-card mt-3 flex flex-wrap items-center gap-3 p-2">
-      {children}
-      {onLimpar && (
-        <button type="button" onClick={onLimpar} className="ml-auto text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
-          Limpar filtros
-        </button>
-      )}
-    </div>
+    <th className={`${th} p-0`}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className={`h-8 gap-1 px-2 text-xs font-medium ${ativo ? "text-primary" : "text-muted-foreground"}`}>
+            {titulo}
+            {ativo ? <ListFilter className="size-3.5" /> : <ChevronDown className="size-3.5 opacity-60" />}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="min-w-52">
+          {onOrdem && ordens.length ? (
+            <>
+              <DropdownMenuLabel>Ordenar</DropdownMenuLabel>
+              {ORDENS.filter((o) => ordens.includes(o.v)).map((o) => (
+                <DropdownMenuItem key={o.v} onSelect={() => onOrdem(o.v)}>
+                  <Check className={`size-4 ${ordem === o.v ? "opacity-100" : "opacity-0"}`} />{o.l}
+                </DropdownMenuItem>
+              ))}
+            </>
+          ) : null}
+          {onFiltro ? (
+            <>
+              {onOrdem && ordens.length ? <DropdownMenuSeparator /> : null}
+              <DropdownMenuLabel>Filtrar</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={filtro ?? ""} onValueChange={onFiltro}>
+                <DropdownMenuRadioItem value="">Todos</DropdownMenuRadioItem>
+                {opcoes.map((o) => <DropdownMenuRadioItem key={o.v} value={o.v}>{o.l}</DropdownMenuRadioItem>)}
+              </DropdownMenuRadioGroup>
+            </>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </th>
   );
 }
 
@@ -198,7 +225,7 @@ function Saidas({ busca }: { busca: string }) {
   const [f, setF] = useState(vazio);
   const categorias = useMemo(() => opcoesDe(data, (s) => s.categoria), [data]);
   const area = useArea();
-  const listaBase = data.filter((s) => daArea(s.destino, area) && (!semDestino || !s.destino) && (!cat || norm(s.categoria ?? "") === cat) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
+  const listaBase = data.filter((s) => daArea(s.destino, area) && (!semDestino || !s.destino) && (!cat || chaveFiltro(s.categoria) === cat) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
   const lista = ordenar(listaBase, ordem, (s) => s.descricao, (s) => valorSaidaNoMes(s, k1), (s) => s.dia);
 
   function editarValor(s: Saida, n: number) {
@@ -212,10 +239,6 @@ function Saidas({ busca }: { busca: string }) {
         <label className="flex items-center gap-2 text-sm"><Checkbox checked={semDestino} onCheckedChange={(v) => setSemDestino(!!v)} />Mostrar só as sem destino</label>
         <Importar tipo="saidas" rotulo="saídas" />
       </Barra>
-      <BarraFiltros onLimpar={cat || semDestino ? () => { setCat(""); setSemDestino(false); } : undefined}>
-        <FiltroOrdem valor={ordem} onChange={setOrdem} />
-        <FiltroLista l="Categoria" vazio="Todas as categorias" valor={cat} opcoes={categorias} onChange={setCat} />
-      </BarraFiltros>
       <Form onSubmit={() => {
         const valor = paraNumero(f.valor);
         if (!f.descricao.trim() || valor == null) return;
@@ -234,7 +257,15 @@ function Saidas({ busca }: { busca: string }) {
       </Form>
       <div className="surface-card mt-4 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead><tr className="border-b border-border">{["Descrição", "Categoria", "Pagamento", "Banco", "Dia", "Destino", `Valor ${mesDeChave(k1)}`, "Vigência", ""].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+          <thead><tr className="border-b border-border">
+            <CabecalhoFiltro titulo="Descrição" ordem={ordem} ordens={["az", "za"]} onOrdem={setOrdem} />
+            <CabecalhoFiltro titulo="Categoria" filtro={cat} opcoes={categorias} onFiltro={setCat} />
+            <th className={th}>Pagamento</th><th className={th}>Banco</th>
+            <CabecalhoFiltro titulo="Dia" ordem={ordem} ordens={["dia"]} onOrdem={setOrdem} />
+            <th className={th}>Destino</th>
+            <CabecalhoFiltro titulo={`Valor ${mesDeChave(k1)}`} ordem={ordem} ordens={["maior", "menor"]} onOrdem={setOrdem} />
+            <th className={th}>Vigência</th><th className={th}></th>
+          </tr></thead>
           <tbody>
             {lista.map((s) => (
               <tr key={s.id} className="border-b border-border/60">
@@ -280,7 +311,7 @@ function Entradas({ busca }: { busca: string }) {
   const [carteira, setCarteira] = useState("");
   const grupos = useMemo(() => opcoesDe(data, (e) => e.grupo), [data]);
   const carteiras = useMemo(() => opcoesDe(data, (e) => e.carteira), [data]);
-  const listaBase = data.filter((e) => (!grupo || norm(e.grupo ?? "") === grupo) && (!carteira || norm(e.carteira ?? "") === carteira) && contem(busca, e.codigo, e.empresa, e.carteira, e.grupo, e.regime));
+  const listaBase = data.filter((e) => (!grupo || chaveFiltro(e.grupo) === grupo) && (!carteira || chaveFiltro(e.carteira) === carteira) && contem(busca, e.codigo, e.empresa, e.carteira, e.grupo, e.regime));
   const lista = ordenar(listaBase, ordem, (e) => e.empresa, (e) => Number(e.valor), (e) => e.dia);
   const ativos = lista.filter((e) => e.ativo);
 
@@ -289,11 +320,6 @@ function Entradas({ busca }: { busca: string }) {
       <Barra total={`${lista.length} contratos · ${formatarBRL(ativos.reduce((t, e) => t + Number(e.valor), 0))}/mês (ativos)`}>
         <Importar tipo="entradas" rotulo="entradas" />
       </Barra>
-      <BarraFiltros onLimpar={grupo || carteira ? () => { setGrupo(""); setCarteira(""); } : undefined}>
-        <FiltroOrdem valor={ordem} onChange={setOrdem} />
-        <FiltroLista l="Grupo" vazio="Todos os grupos" valor={grupo} opcoes={grupos} onChange={setGrupo} />
-        <FiltroLista l="Carteira" vazio="Todas as carteiras" valor={carteira} opcoes={carteiras} onChange={setCarteira} />
-      </BarraFiltros>
       <Form onSubmit={() => {
         const valor = paraNumero(f.valor);
         if (!f.empresa.trim() || valor == null) return;
@@ -312,7 +338,17 @@ function Entradas({ busca }: { busca: string }) {
       </Form>
       <div className="surface-card mt-4 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead><tr className="border-b border-border">{["Código", "Empresa", "Carteira", "Grupo", "Regime", "Dia", "Ativo", "Valor/mês", "Início", "Fim", ""].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+          <thead><tr className="border-b border-border">
+            <th className={th}>Código</th>
+            <CabecalhoFiltro titulo="Empresa" ordem={ordem} ordens={["az", "za"]} onOrdem={setOrdem} />
+            <CabecalhoFiltro titulo="Carteira" filtro={carteira} opcoes={carteiras} onFiltro={setCarteira} />
+            <CabecalhoFiltro titulo="Grupo" filtro={grupo} opcoes={grupos} onFiltro={setGrupo} />
+            <th className={th}>Regime</th>
+            <CabecalhoFiltro titulo="Dia" ordem={ordem} ordens={["dia"]} onOrdem={setOrdem} />
+            <th className={th}>Ativo</th>
+            <CabecalhoFiltro titulo="Valor/mês" ordem={ordem} ordens={["maior", "menor"]} onOrdem={setOrdem} />
+            <th className={th}>Início</th><th className={th}>Fim</th><th className={th}></th>
+          </tr></thead>
           <tbody>
             {lista.map((e) => (
               <tr key={e.id} className={`border-b border-border/60 ${e.ativo ? "" : "opacity-50"}`}>
@@ -350,7 +386,7 @@ function Pessoais({ busca }: { busca: string }) {
   const [ordem, setOrdem] = useState<Ordenacao>("az");
   const [banco, setBanco] = useState("");
   const bancos = useMemo(() => opcoesDe(data, (e) => e.banco), [data]);
-  const listaBase = data.filter((e) => (!banco || norm(e.banco ?? "") === banco) && contem(busca, e.descricao, e.banco));
+  const listaBase = data.filter((e) => (!banco || chaveFiltro(e.banco) === banco) && contem(busca, e.descricao, e.banco));
   const lista = ordenar(listaBase, ordem, (e) => e.descricao, (e) => Number(e.valor), (e) => e.dia);
 
   return (
@@ -358,10 +394,6 @@ function Pessoais({ busca }: { busca: string }) {
       <Barra total={`${lista.length} entradas pessoais · ${formatarBRL(lista.reduce((t, e) => t + Number(e.valor), 0))}/mês`}>
         <Importar tipo="entradas_pessoais" rotulo="entradas pessoais" />
       </Barra>
-      <BarraFiltros onLimpar={banco ? () => setBanco("") : undefined}>
-        <FiltroOrdem valor={ordem} onChange={setOrdem} />
-        <FiltroLista l="Banco" vazio="Todos os bancos" valor={banco} opcoes={bancos} onChange={setBanco} />
-      </BarraFiltros>
       <Form onSubmit={() => {
         const valor = paraNumero(f.valor);
         if (!f.descricao.trim() || valor == null) return;
@@ -377,7 +409,14 @@ function Pessoais({ busca }: { busca: string }) {
       </Form>
       <div className="surface-card mt-4 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead><tr className="border-b border-border">{["Origem", "Dia", "Banco", "Início", "Fim", "Valor/mês", ""].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+          <thead><tr className="border-b border-border">
+            <CabecalhoFiltro titulo="Origem" ordem={ordem} ordens={["az", "za"]} onOrdem={setOrdem} />
+            <CabecalhoFiltro titulo="Dia" ordem={ordem} ordens={["dia"]} onOrdem={setOrdem} />
+            <CabecalhoFiltro titulo="Banco" filtro={banco} opcoes={bancos} onFiltro={setBanco} />
+            <th className={th}>Início</th><th className={th}>Fim</th>
+            <CabecalhoFiltro titulo="Valor/mês" ordem={ordem} ordens={["maior", "menor"]} onOrdem={setOrdem} />
+            <th className={th}></th>
+          </tr></thead>
           <tbody>
             {lista.map((e) => (
               <tr key={e.id} className="border-b border-border/60">
