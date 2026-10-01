@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Fragment, useMemo, useState } from "react";
-import { AlertTriangle, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronRight, FileDown } from "lucide-react";
+import { gerarRelatorioEscritorio } from "@/lib/relatorio-pdf";
 import { Button } from "@/components/ui/button";
 import { useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig } from "@/lib/config";
@@ -107,6 +108,14 @@ function Panorama() {
           className="rounded-md border bg-card px-3 py-1.5 text-base font-semibold">
           {cols.map((c) => <option key={c.chave} value={c.chave}>{c.rotulo}</option>)}
         </select>
+        {visao === "E" && atual && cfg && (
+          <Button size="sm" variant="outline" className="ml-auto" onClick={() => void gerarRelatorioEscritorio({
+            rotulo: atual.rotulo, meses: atual.meses, entradas: ent.data ?? [], saidas: sai.data ?? [], pessoais: pes.data ?? [],
+            baixas: baixas.data ?? [], cfg, h,
+          })}>
+            <FileDown className="size-4" /> Relatório PDF
+          </Button>
+        )}
       </div>
 
       {semDestino > 0 && (
