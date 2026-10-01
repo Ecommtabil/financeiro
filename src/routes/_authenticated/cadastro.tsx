@@ -332,6 +332,7 @@ function Entradas({ busca }: { busca: string }) {
         <F l="Empresa"><Input className="h-8 w-56" value={f.empresa} onChange={(e) => setF({ ...f, empresa: e.target.value })} /></F>
         <F l="Carteira"><Input className="h-8 w-32" value={f.carteira} onChange={(e) => setF({ ...f, carteira: e.target.value })} /></F>
         <F l="Grupo"><Input className="h-8 w-32" value={f.grupo} onChange={(e) => setF({ ...f, grupo: e.target.value })} /></F>
+        <F l="Setor"><Input className="h-8 w-32" value={f.setor} onChange={(e) => setF({ ...f, setor: e.target.value })} /></F>
         <F l="Regime"><Input className="h-8 w-36" value={f.regime} onChange={(e) => setF({ ...f, regime: e.target.value })} /></F>
         <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
@@ -345,6 +346,7 @@ function Entradas({ busca }: { busca: string }) {
             <CabecalhoFiltro titulo="Empresa" ordem={ordem} ordens={["az", "za"]} onOrdem={setOrdem} />
             <CabecalhoFiltro titulo="Carteira" filtro={carteira} opcoes={carteiras} onFiltro={setCarteira} />
             <CabecalhoFiltro titulo="Grupo" filtro={grupo} opcoes={grupos} onFiltro={setGrupo} />
+            <CabecalhoFiltro titulo="Setor" filtro={setor} opcoes={setores} onFiltro={setSetor} />
             <th className={th}>Regime</th>
             <CabecalhoFiltro titulo="Dia" ordem={ordem} ordens={["dia"]} onOrdem={setOrdem} />
             <th className={th}>Ativo</th>
@@ -358,6 +360,7 @@ function Entradas({ busca }: { busca: string }) {
                 <td className={td}>{e.empresa}</td>
                 <td className={td}>{e.carteira}</td>
                 <td className={td}>{e.grupo}</td>
+                <td className={td}><Input className="h-7 w-32" defaultValue={e.setor ?? ""} onBlur={(ev) => { const v = ev.target.value.trim() || null; if (v !== e.setor) atualizar.mutate({ id: e.id, v: { setor: v } }); }} /></td>
                 <td className={td}>{e.regime}</td>
                 <td className={`${td} num`}>{e.dia}</td>
                 <td className={td}><Checkbox checked={e.ativo} onCheckedChange={(v) => atualizar.mutate({ id: e.id, v: { ativo: !!v } })} /></td>
