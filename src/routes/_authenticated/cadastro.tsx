@@ -370,7 +370,7 @@ function Entradas({ busca }: { busca: string }) {
                 <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
               </tr>
             ))}
-            {!lista.length ? <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Nenhuma entrada.</td></tr> : null}
+            {!lista.length ? <tr><td colSpan={12} className="p-6 text-center text-muted-foreground">Nenhuma entrada.</td></tr> : null}
           </tbody>
         </table>
       </div>
