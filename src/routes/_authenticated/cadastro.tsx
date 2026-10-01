@@ -169,7 +169,7 @@ function FiltroOrdem({ valor, onChange }: { valor: Ordenacao; onChange: (v: Orde
   );
 }
 
-function BarraFiltros({ children, onLimpar }: { children: ReactNode; onLimpar?: () => void }) {
+function BarraFiltros({ children, onLimpar }: { children: ReactNode; onLimpar?: (() => void) | undefined }) {
   return (
     <div className="surface-card mt-3 flex flex-wrap items-center gap-3 p-2">
       {children}
@@ -224,7 +224,7 @@ function Saidas({ busca }: { busca: string }) {
       }}>
         <F l="Descrição"><Input className="h-8 w-56" value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} /></F>
         <F l="Categoria"><Input className="h-8 w-40" list="cats" value={f.categoria} onChange={(e) => setF({ ...f, categoria: e.target.value })} /></F>
-        <datalist id="cats">{categorias.map((c) => <option key={c} value={c} />)}</datalist>
+        <datalist id="cats">{categorias.map((c) => <option key={c.v} value={c.l} />)}</datalist>
         <F l="Banco"><Input className="h-8 w-32" value={f.banco} onChange={(e) => setF({ ...f, banco: e.target.value })} /></F>
         <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
         <F l="Destino"><SelDestino value={f.destino} onChange={(v) => setF({ ...f, destino: v })} /></F>
