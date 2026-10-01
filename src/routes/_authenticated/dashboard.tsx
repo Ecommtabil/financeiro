@@ -154,8 +154,9 @@ function Escritorio(p: PainelProps) {
       <Secao titulo="Vencimentos por dia"><TabelaDias linhas={vencimentos} /></Secao>
       <Secao titulo={`Lucro do escritório · ${mes.ano}`}><GraficoVertical dados={serieLucro} /></Secao>
     </div>
-    <div className="grid gap-4 xl:grid-cols-3">
+    <div className="grid gap-4 xl:grid-cols-4">
       <Secao titulo="10 maiores grupos de clientes"><GraficoHorizontal dados={top(grupos, 10).map(([nome, valor]) => ({ nome, valor }))} /></Secao>
+      <Secao titulo="Clientes por setor"><GraficoHorizontal dados={clientesPorSetor} inteiro /></Secao>
       <Secao titulo="Receita por setor"><GraficoHorizontal dados={setoresTop} /></Secao>
       <Secao titulo="Custos por categoria"><GraficoHorizontal dados={top(atual.porCatEscritorio).map(([nome, valor]) => ({ nome, valor }))} /></Secao>
     </div>
