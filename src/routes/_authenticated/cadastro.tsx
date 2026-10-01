@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LinkImportar } from "@/components/link-importar";
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { Download, FileSpreadsheet, Plus, Search } from "lucide-react";
+import { ArrowUpDown, Download, FileSpreadsheet, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -104,6 +104,84 @@ function contem(busca: string, ...campos: (string | null | undefined)[]) {
   return !b || campos.some((c) => norm(c).includes(b));
 }
 
+/* ---------------- ordenação e filtros ---------------- */
+const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const cmpTexto = (a: string, b: string) => semAcento(a).localeCompare(semAcento(b), "pt-BR", { sensitivity: "base" });
+const selFiltro = "h-8 rounded-md border border-input bg-background px-2 text-sm";
+
+type Ordenacao = "az" | "za" | "maior" | "menor" | "dia";
+const ORDENS: { v: Ordenacao; l: string }[] = [
+  { v: "az", l: "A → Z" },
+  { v: "za", l: "Z → A" },
+  { v: "maior", l: "Maior valor" },
+  { v: "menor", l: "Menor valor" },
+  { v: "dia", l: "Por dia de vencimento" },
+];
+
+function ordenar<T>(lista: T[], ordem: Ordenacao, texto: (i: T) => string, valor: (i: T) => number, dia: (i: T) => number | null) {
+  const arr = [...lista];
+  const t = (a: T, b: T) => cmpTexto(texto(a), texto(b));
+  if (ordem === "az") arr.sort(t);
+  else if (ordem === "za") arr.sort((a, b) => t(b, a));
+  else if (ordem === "maior") arr.sort((a, b) => valor(b) - valor(a) || t(a, b));
+  else if (ordem === "menor") arr.sort((a, b) => valor(a) - valor(b) || t(a, b));
+  else arr.sort((a, b) => (dia(a) ?? 99) - (dia(b) ?? 99) || t(a, b));
+  return arr;
+}
+
+/** Opções de um campo agrupadas pelo nome normalizado ("VilaSul" = "Vila Sul"), com o nome mais usado como rótulo. */
+function opcoesDe<T>(itens: T[], pega: (i: T) => string | null | undefined) {
+  const mapa = new Map<string, Map<string, number>>();
+  for (const it of itens) {
+    const bruto = (pega(it) ?? "").trim();
+    if (!bruto) continue;
+    const k = norm(bruto);
+    const cont = mapa.get(k) ?? new Map<string, number>();
+    cont.set(bruto, (cont.get(bruto) ?? 0) + 1);
+    mapa.set(k, cont);
+  }
+  return [...mapa.entries()]
+    .map(([v, cont]) => ({ v, l: [...cont.entries()].sort((a, b) => b[1] - a[1] || cmpTexto(a[0], b[0]))[0]![0] }))
+    .sort((a, b) => cmpTexto(a.l, b.l));
+}
+
+function FiltroLista({ l, vazio, valor, opcoes, onChange }: { l: string; vazio: string; valor: string; opcoes: { v: string; l: string }[]; onChange: (v: string) => void }) {
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      {l}
+      <select className={selFiltro} value={valor} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{vazio}</option>
+        {opcoes.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function FiltroOrdem({ valor, onChange }: { valor: Ordenacao; onChange: (v: Ordenacao) => void }) {
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <ArrowUpDown className="size-3.5" />
+      Ordenar
+      <select className={selFiltro} value={valor} onChange={(e) => onChange(e.target.value as Ordenacao)}>
+        {ORDENS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function BarraFiltros({ children, onLimpar }: { children: ReactNode; onLimpar?: (() => void) | undefined }) {
+  return (
+    <div className="surface-card mt-3 flex flex-wrap items-center gap-3 p-2">
+      {children}
+      {onLimpar && (
+        <button type="button" onClick={onLimpar} className="ml-auto text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
+          Limpar filtros
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- Saídas ---------------- */
 function Saidas({ busca }: { busca: string }) {
   const { data = [] } = useLista("saidas");
@@ -112,13 +190,16 @@ function Saidas({ busca }: { busca: string }) {
   const excluir = useExcluir("saidas");
   const inserir = useInserir("saidas");
   const [semDestino, setSemDestino] = useState(false);
+  const [ordem, setOrdem] = useState<Ordenacao>("az");
+  const [cat, setCat] = useState("");
   const p = horizonte?.primeiro;
   const k1 = p ? chaveMes(p.ano, p.mes) : "";
   const vazio = { descricao: "", categoria: "", banco: "", dia: "", destino: useArea() as string, valor: "", ri: k1, rf: "" };
   const [f, setF] = useState(vazio);
-  const categorias = useMemo(() => [...new Set(data.map((s) => s.categoria).filter(Boolean))].sort() as string[], [data]);
+  const categorias = useMemo(() => opcoesDe(data, (s) => s.categoria), [data]);
   const area = useArea();
-  const lista = data.filter((s) => daArea(s.destino, area) && (!semDestino || !s.destino) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
+  const listaBase = data.filter((s) => daArea(s.destino, area) && (!semDestino || !s.destino) && (!cat || norm(s.categoria ?? "") === cat) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
+  const lista = ordenar(listaBase, ordem, (s) => s.descricao, (s) => valorSaidaNoMes(s, k1), (s) => s.dia);
 
   function editarValor(s: Saida, n: number) {
     if (s.valor_fixo != null) atualizar.mutate({ id: s.id, v: { valor_fixo: n } });
@@ -131,6 +212,10 @@ function Saidas({ busca }: { busca: string }) {
         <label className="flex items-center gap-2 text-sm"><Checkbox checked={semDestino} onCheckedChange={(v) => setSemDestino(!!v)} />Mostrar só as sem destino</label>
         <Importar tipo="saidas" rotulo="saídas" />
       </Barra>
+      <BarraFiltros onLimpar={cat || semDestino ? () => { setCat(""); setSemDestino(false); } : undefined}>
+        <FiltroOrdem valor={ordem} onChange={setOrdem} />
+        <FiltroLista l="Categoria" vazio="Todas as categorias" valor={cat} opcoes={categorias} onChange={setCat} />
+      </BarraFiltros>
       <Form onSubmit={() => {
         const valor = paraNumero(f.valor);
         if (!f.descricao.trim() || valor == null) return;
@@ -139,7 +224,7 @@ function Saidas({ busca }: { busca: string }) {
       }}>
         <F l="Descrição"><Input className="h-8 w-56" value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} /></F>
         <F l="Categoria"><Input className="h-8 w-40" list="cats" value={f.categoria} onChange={(e) => setF({ ...f, categoria: e.target.value })} /></F>
-        <datalist id="cats">{categorias.map((c) => <option key={c} value={c} />)}</datalist>
+        <datalist id="cats">{categorias.map((c) => <option key={c.v} value={c.l} />)}</datalist>
         <F l="Banco"><Input className="h-8 w-32" value={f.banco} onChange={(e) => setF({ ...f, banco: e.target.value })} /></F>
         <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
         <F l="Destino"><SelDestino value={f.destino} onChange={(v) => setF({ ...f, destino: v })} /></F>
@@ -190,7 +275,13 @@ function Entradas({ busca }: { busca: string }) {
   const inserir = useInserir("entradas");
   const vazio = { codigo: "", empresa: "", carteira: "", grupo: "", regime: "", dia: "", valor: "", inicio: "", fim: "" };
   const [f, setF] = useState(vazio);
-  const lista = data.filter((e) => contem(busca, e.codigo, e.empresa, e.carteira, e.grupo, e.regime));
+  const [ordem, setOrdem] = useState<Ordenacao>("az");
+  const [grupo, setGrupo] = useState("");
+  const [carteira, setCarteira] = useState("");
+  const grupos = useMemo(() => opcoesDe(data, (e) => e.grupo), [data]);
+  const carteiras = useMemo(() => opcoesDe(data, (e) => e.carteira), [data]);
+  const listaBase = data.filter((e) => (!grupo || norm(e.grupo ?? "") === grupo) && (!carteira || norm(e.carteira ?? "") === carteira) && contem(busca, e.codigo, e.empresa, e.carteira, e.grupo, e.regime));
+  const lista = ordenar(listaBase, ordem, (e) => e.empresa, (e) => Number(e.valor), (e) => e.dia);
   const ativos = lista.filter((e) => e.ativo);
 
   return (
@@ -198,6 +289,11 @@ function Entradas({ busca }: { busca: string }) {
       <Barra total={`${lista.length} contratos · ${formatarBRL(ativos.reduce((t, e) => t + Number(e.valor), 0))}/mês (ativos)`}>
         <Importar tipo="entradas" rotulo="entradas" />
       </Barra>
+      <BarraFiltros onLimpar={grupo || carteira ? () => { setGrupo(""); setCarteira(""); } : undefined}>
+        <FiltroOrdem valor={ordem} onChange={setOrdem} />
+        <FiltroLista l="Grupo" vazio="Todos os grupos" valor={grupo} opcoes={grupos} onChange={setGrupo} />
+        <FiltroLista l="Carteira" vazio="Todas as carteiras" valor={carteira} opcoes={carteiras} onChange={setCarteira} />
+      </BarraFiltros>
       <Form onSubmit={() => {
         const valor = paraNumero(f.valor);
         if (!f.empresa.trim() || valor == null) return;
@@ -251,13 +347,21 @@ function Pessoais({ busca }: { busca: string }) {
   const k1 = horizonte ? chaveMes(horizonte.primeiro.ano, horizonte.primeiro.mes) : "";
   const vazio = { descricao: "", dia: "", banco: "", inicio: k1, fim: "", valor: "" };
   const [f, setF] = useState(vazio);
-  const lista = data.filter((e) => contem(busca, e.descricao, e.banco));
+  const [ordem, setOrdem] = useState<Ordenacao>("az");
+  const [banco, setBanco] = useState("");
+  const bancos = useMemo(() => opcoesDe(data, (e) => e.banco), [data]);
+  const listaBase = data.filter((e) => (!banco || norm(e.banco ?? "") === banco) && contem(busca, e.descricao, e.banco));
+  const lista = ordenar(listaBase, ordem, (e) => e.descricao, (e) => Number(e.valor), (e) => e.dia);
 
   return (
     <>
       <Barra total={`${lista.length} entradas pessoais · ${formatarBRL(lista.reduce((t, e) => t + Number(e.valor), 0))}/mês`}>
         <Importar tipo="entradas_pessoais" rotulo="entradas pessoais" />
       </Barra>
+      <BarraFiltros onLimpar={banco ? () => setBanco("") : undefined}>
+        <FiltroOrdem valor={ordem} onChange={setOrdem} />
+        <FiltroLista l="Banco" vazio="Todos os bancos" valor={banco} opcoes={bancos} onChange={setBanco} />
+      </BarraFiltros>
       <Form onSubmit={() => {
         const valor = paraNumero(f.valor);
         if (!f.descricao.trim() || valor == null) return;
