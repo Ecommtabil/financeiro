@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { LinkImportar } from "@/components/link-importar";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Download, FileSpreadsheet, ListFilter, Plus, Search } from "lucide-react";
@@ -241,9 +242,9 @@ function Saidas({ busca }: { busca: string }) {
       </Barra>
       <Form onSubmit={() => {
         const valor = paraNumero(f.valor);
-        if (!f.descricao.trim() || valor == null) return;
-        inserir.mutate({ descricao: f.descricao.trim(), categoria: f.categoria.trim().toUpperCase() || null, banco: f.banco ? normalizarBanco(f.banco) : null, dia: Number(f.dia) || null, destino: (f.destino || null) as Saida["destino"], valor_fixo: valor, ri: f.ri || k1, rf: f.rf || null, origem: "manual" });
-        setF(vazio);
+        if (!f.descricao.trim()) return void toast.error("Preencha a descrição.");
+        if (valor == null) return void toast.error("Preencha o valor (ex.: 1.234,56).");
+        inserir.mutate({ descricao: f.descricao.trim(), categoria: f.categoria.trim().toUpperCase() || null, banco: f.banco ? normalizarBanco(f.banco) : null, dia: Number(f.dia) || null, destino: (f.destino || null) as Saida["destino"], valor_fixo: valor, ri: f.ri || k1, rf: f.rf || null, origem: "manual" }, { onSuccess: () => { toast.success("Adicionado."); setF(vazio); }, onError: (e) => toast.error(`Não foi possível adicionar: ${e.message}`) });
       }}>
         <F l="Descrição"><Input className="h-8 w-56" value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} /></F>
         <F l="Categoria"><Input className="h-8 w-40" list="cats" value={f.categoria} onChange={(e) => setF({ ...f, categoria: e.target.value })} /></F>
@@ -324,9 +325,9 @@ function Entradas({ busca }: { busca: string }) {
       </Barra>
       <Form onSubmit={() => {
         const valor = paraNumero(f.valor);
-        if (!f.empresa.trim() || valor == null) return;
-        inserir.mutate({ codigo: f.codigo || null, empresa: f.empresa.trim(), carteira: f.carteira || null, grupo: f.grupo || null, setor: f.setor || null, regime: f.regime || null, dia: Number(f.dia) || null, valor, inicio: f.inicio || null, fim: f.fim || null, origem: "manual" });
-        setF(vazio);
+        if (!f.empresa.trim()) return void toast.error("Preencha a empresa.");
+        if (valor == null) return void toast.error("Preencha o valor (ex.: 1.234,56).");
+        inserir.mutate({ codigo: f.codigo || null, empresa: f.empresa.trim(), carteira: f.carteira || null, grupo: f.grupo || null, setor: f.setor || null, regime: f.regime || null, dia: Number(f.dia) || null, valor, inicio: f.inicio || null, fim: f.fim || null, origem: "manual" }, { onSuccess: () => { toast.success("Adicionado."); setF(vazio); }, onError: (e) => toast.error(`Não foi possível adicionar: ${e.message}`) });
       }}>
         <F l="Código"><Input className="h-8 w-20" value={f.codigo} onChange={(e) => setF({ ...f, codigo: e.target.value })} /></F>
         <F l="Empresa"><Input className="h-8 w-56" value={f.empresa} onChange={(e) => setF({ ...f, empresa: e.target.value })} /></F>
@@ -401,9 +402,9 @@ function Pessoais({ busca }: { busca: string }) {
       </Barra>
       <Form onSubmit={() => {
         const valor = paraNumero(f.valor);
-        if (!f.descricao.trim() || valor == null) return;
-        inserir.mutate({ descricao: f.descricao.trim(), dia: Number(f.dia) || null, banco: f.banco ? normalizarBanco(f.banco) : null, inicio: f.inicio || k1 || null, fim: f.fim || null, valor, origem: "manual" });
-        setF(vazio);
+        if (!f.descricao.trim()) return void toast.error("Preencha a descrição.");
+        if (valor == null) return void toast.error("Preencha o valor (ex.: 1.234,56).");
+        inserir.mutate({ descricao: f.descricao.trim(), dia: Number(f.dia) || null, banco: f.banco ? normalizarBanco(f.banco) : null, inicio: f.inicio || k1 || null, fim: f.fim || null, valor, origem: "manual" }, { onSuccess: () => { toast.success("Adicionado."); setF(vazio); }, onError: (e) => toast.error(`Não foi possível adicionar: ${e.message}`) });
       }}>
         <F l="Origem"><Input className="h-8 w-56" value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} /></F>
         <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
