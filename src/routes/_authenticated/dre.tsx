@@ -48,6 +48,8 @@ function DRE() {
   const salvar = useSalvarConfig();
   const ent = useLista("entradas"), sai = useLista("saidas"), pes = useLista("entradas_pessoais");
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
+  const [detalhe, setDetalhe] = useState<"sintetico" | "analitico">("sintetico");
+  const [vista, setVista] = useState<"mes" | "ano">("mes");
 
   const porMes = useMemo(() => {
     if (!h || !cfg || !ent.data || !sai.data || !pes.data) return null;
@@ -56,7 +58,8 @@ function DRE() {
 
   if (!h || !cfg || !porMes) return <div className="px-6 py-8 text-muted-foreground lg:px-10">Carregando…</div>;
 
-  const cols = colunas.map((c) => ({ ...c, r: calcular(somar(c.meses.map((m) => porMes.get(chaveMes(m))!)), cfg) }));
+  const base = vista === "ano" ? h.anos.map((a) => ({ chave: `A${a.ano}`, rotulo: a.rotulo, meses: a.meses })) : colunas;
+  const cols = base.map((c) => ({ ...c, r: calcular(somar(c.meses.map((m) => porMes.get(chaveMes(m))!)), cfg) }));
   const total = calcular(somar(cols.map((c) => c.r.t)), cfg);
 
   // categorias do escritório (todas do cadastro + as com valor)
