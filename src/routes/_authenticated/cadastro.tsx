@@ -262,7 +262,7 @@ function EdicaoLote({ tabela, s, campos }: { tabela: "entradas" | "saidas" | "en
     const r = apagar ? { ok: true as const, v: null } : converter();
     if (!r.ok) return void toast.error(r.msg);
     const v: Record<string, unknown> = { [c.k]: r.v };
-    if (tabela === "saidas" && c.k === "valor_fixo") v.valores_mes = {};
+    if (tabela === "saidas" && c.k === "valor_fixo") v["valores_mes"] = {};
     setSalvando(true);
     const { error } = await supabase.from(tabela).update(v as never).in("id", s.ids);
     setSalvando(false);
@@ -283,7 +283,7 @@ function EdicaoLote({ tabela, s, campos }: { tabela: "entradas" | "saidas" | "en
     c.t === "destino" ? <SelDestino value={valor} onChange={setValor} /> :
     c.t === "ativo" ? <select className={sel} value={valor || "sim"} onChange={(e) => setValor(e.target.value)}><option value="sim">Ativa</option><option value="nao">Inativa</option></select> :
     c.t === "mes" ? <Input className="h-8 w-40" type="month" value={valor} onChange={(e) => setValor(e.target.value)} /> :
-    <Input className={`h-8 ${c.t === "numero" || c.t === "dia" ? "num w-28" : "w-48"}`} value={valor} onChange={(e) => setValor(e.target.value)} placeholder={c.t === "numero" ? "0,00" : c.t === "mes" ? "" : "novo valor"} />;
+    <Input className={`h-8 ${c.t === "numero" || c.t === "dia" ? "num w-28" : "w-48"}`} value={valor} onChange={(e) => setValor(e.target.value)} placeholder={c.t === "numero" ? "0,00" : "novo valor"} />;
   const podeApagar = c.t !== "numero" && c.t !== "ativo";
 
   return (
