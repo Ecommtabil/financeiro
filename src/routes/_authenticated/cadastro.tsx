@@ -19,6 +19,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BotaoExcluir } from "@/components/botao-excluir";
+import { BotaoConfirmar } from "@/components/botao-confirmar";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { daArea, useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig } from "@/lib/config";
 import { formatarBRL, formatarMes, formatarNumero, normalizarBanco } from "@/lib/format";
@@ -55,11 +58,11 @@ function Cadastro() {
     <div key={area} className="px-6 py-8 lg:px-10">
       <h1 className="text-2xl font-semibold">Cadastro</h1>
       <p className="mt-1 text-sm text-muted-foreground">Cadastre na tela ou importe por planilha. Reimportar substitui só o que veio de planilha.</p>
-      <Tabs defaultValue="saidas" className="mt-6">
+      <Tabs defaultValue={area === "ESCRITORIO" ? "entradas" : "pessoais"} className="mt-6">
         <div className="flex flex-wrap items-center gap-3">
           <TabsList>
-            <TabsTrigger value="saidas">Saídas</TabsTrigger>
             {area === "ESCRITORIO" ? <TabsTrigger value="entradas">Entradas</TabsTrigger> : <TabsTrigger value="pessoais">Entradas pessoais</TabsTrigger>}
+            <TabsTrigger value="saidas">Saídas</TabsTrigger>
           </TabsList>
           <div className="relative ml-auto w-72">
             <Search className="absolute top-2 left-2 size-4 text-muted-foreground" />
@@ -210,6 +213,98 @@ function CabecalhoFiltro({
   );
 }
 
+/* ---------------- seleção e edição em lote ---------------- */
+type TipoCampo = "texto" | "maiusc" | "banco" | "numero" | "dia" | "mes" | "destino" | "ativo";
+type CampoLote = { k: string; l: string; t: TipoCampo };
+
+function useSelecao(visiveis: string[]) {
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const ids = visiveis.filter((id) => sel.has(id));
+  const todos = visiveis.length > 0 && ids.length === visiveis.length;
+  return {
+    ids,
+    tem: (id: string) => sel.has(id),
+    alternar: (id: string) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; }),
+    todos,
+    alternarTodos: () => setSel(todos ? new Set() : new Set(visiveis)),
+    limpar: () => setSel(new Set()),
+  };
+}
+
+function CaixaTodos({ s }: { s: ReturnType<typeof useSelecao> }) {
+  return <th className={`${th} w-8`}><Checkbox aria-label="Selecionar todas" checked={s.todos ? true : s.ids.length ? "indeterminate" : false} onCheckedChange={s.alternarTodos} /></th>;
+}
+function CaixaLinha({ s, id }: { s: ReturnType<typeof useSelecao>; id: string }) {
+  return <td className={`${td} w-8`}><Checkbox aria-label="Selecionar linha" checked={s.tem(id)} onCheckedChange={() => s.alternar(id)} /></td>;
+}
+
+function EdicaoLote({ tabela, s, campos }: { tabela: "entradas" | "saidas" | "entradas_pessoais"; s: ReturnType<typeof useSelecao>; campos: CampoLote[] }) {
+  const qc = useQueryClient();
+  const [campo, setCampo] = useState(campos[0]!.k);
+  const [valor, setValor] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  if (!s.ids.length) return null;
+  const c = campos.find((x) => x.k === campo)!;
+
+  function converter(): { ok: true; v: unknown } | { ok: false; msg: string } {
+    const t = valor.trim();
+    switch (c.t) {
+      case "numero": { const n = paraNumero(t); return n == null ? { ok: false, msg: "Informe um valor (ex.: 1.234,56)." } : { ok: true, v: n }; }
+      case "dia": { if (!t) return { ok: true, v: null }; const n = Number(t); return n >= 1 && n <= 31 ? { ok: true, v: n } : { ok: false, msg: "Dia entre 1 e 31." }; }
+      case "ativo": return { ok: true, v: t !== "nao" };
+      case "maiusc": return { ok: true, v: t ? t.toUpperCase() : null };
+      case "banco": return { ok: true, v: t ? normalizarBanco(t) : null };
+      default: return { ok: true, v: t || null };
+    }
+  }
+
+  async function aplicar(apagar = false) {
+    const r = apagar ? { ok: true as const, v: null } : converter();
+    if (!r.ok) return void toast.error(r.msg);
+    const v: Record<string, unknown> = { [c.k]: r.v };
+    if (tabela === "saidas" && c.k === "valor_fixo") v.valores_mes = {};
+    setSalvando(true);
+    const { error } = await supabase.from(tabela).update(v as never).in("id", s.ids);
+    setSalvando(false);
+    if (error) return void toast.error(`Não foi possível salvar: ${error.message}`);
+    await qc.invalidateQueries({ queryKey: [tabela] });
+    toast.success(`${s.ids.length} item(ns) atualizado(s).`);
+    setValor("");
+  }
+  async function excluirTodos() {
+    const { error } = await supabase.from(tabela).delete().in("id", s.ids);
+    if (error) return void toast.error(`Não foi possível excluir: ${error.message}`);
+    await qc.invalidateQueries({ queryKey: [tabela] });
+    toast.success(`${s.ids.length} item(ns) excluído(s).`);
+    s.limpar();
+  }
+
+  const entrada =
+    c.t === "destino" ? <SelDestino value={valor} onChange={setValor} /> :
+    c.t === "ativo" ? <select className={sel} value={valor || "sim"} onChange={(e) => setValor(e.target.value)}><option value="sim">Ativa</option><option value="nao">Inativa</option></select> :
+    c.t === "mes" ? <Input className="h-8 w-40" type="month" value={valor} onChange={(e) => setValor(e.target.value)} /> :
+    <Input className={`h-8 ${c.t === "numero" || c.t === "dia" ? "num w-28" : "w-48"}`} value={valor} onChange={(e) => setValor(e.target.value)} placeholder={c.t === "numero" ? "0,00" : c.t === "mes" ? "" : "novo valor"} />;
+  const podeApagar = c.t !== "numero" && c.t !== "ativo";
+
+  return (
+    <div className="sticky bottom-3 z-20 mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-card p-3 shadow-lg">
+      <span className="text-sm font-medium">{s.ids.length} selecionada(s)</span>
+      <span className="text-sm text-muted-foreground">· Alterar</span>
+      <select className={sel} value={campo} onChange={(e) => { setCampo(e.target.value); setValor(""); }}>
+        {campos.map((x) => <option key={x.k} value={x.k}>{x.l}</option>)}
+      </select>
+      <span className="text-sm text-muted-foreground">para</span>
+      {entrada}
+      <Button size="sm" disabled={salvando} onClick={() => aplicar()}>Aplicar</Button>
+      {podeApagar ? <Button size="sm" variant="ghost" disabled={salvando} onClick={() => aplicar(true)}>Deixar vazio</Button> : null}
+      <div className="ml-auto flex items-center gap-2">
+        <BotaoConfirmar onConfirmar={excluirTodos}>Excluir selecionadas</BotaoConfirmar>
+        <Button size="sm" variant="ghost" onClick={s.limpar}>Limpar seleção</Button>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- Saídas ---------------- */
 function Saidas({ busca }: { busca: string }) {
   const { data = [] } = useLista("saidas");
@@ -228,6 +323,7 @@ function Saidas({ busca }: { busca: string }) {
   const area = useArea();
   const listaBase = data.filter((s) => daArea(s.destino, area) && (!semDestino || !s.destino) && (!cat || chaveFiltro(s.categoria) === cat) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
   const lista = ordenar(listaBase, ordem, (s) => s.descricao, (s) => valorSaidaNoMes(s, k1), (s) => s.dia);
+  const selS = useSelecao(lista.map((x) => x.id));
 
   function editarValor(s: Saida, n: number) {
     if (s.valor_fixo != null) atualizar.mutate({ id: s.id, v: { valor_fixo: n } });
@@ -259,6 +355,7 @@ function Saidas({ busca }: { busca: string }) {
       <div className="surface-card mt-4 overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="border-b border-border">
+            <CaixaTodos s={selS} />
             <CabecalhoFiltro titulo="Descrição" ordem={ordem} ordens={["az", "za"]} onOrdem={setOrdem} />
             <CabecalhoFiltro titulo="Categoria" filtro={cat} opcoes={categorias} onFiltro={setCat} />
             <th className={th}>Pagamento</th><th className={th}>Banco</th>
@@ -270,6 +367,7 @@ function Saidas({ busca }: { busca: string }) {
           <tbody>
             {lista.map((s) => (
               <tr key={s.id} className="border-b border-border/60">
+                <CaixaLinha s={selS} id={s.id} />
                 <td className={td}>{s.descricao}</td>
                 <td className={td}>{s.categoria}</td>
                 <td className={td}>{s.pgto}</td>
@@ -282,10 +380,15 @@ function Saidas({ busca }: { busca: string }) {
                 <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(s.id)} /></td>
               </tr>
             ))}
-            {!lista.length ? <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">Nenhuma saída.</td></tr> : null}
+            {!lista.length ? <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Nenhuma saída.</td></tr> : null}
           </tbody>
         </table>
       </div>
+      <EdicaoLote tabela="saidas" s={selS} campos={[
+        { k: "destino", l: "Destino", t: "destino" }, { k: "categoria", l: "Categoria", t: "maiusc" }, { k: "pgto", l: "Pagamento", t: "texto" },
+        { k: "banco", l: "Banco", t: "banco" }, { k: "dia", l: "Dia", t: "dia" }, { k: "valor_fixo", l: "Valor/mês (fixo)", t: "numero" },
+        { k: "ri", l: "Início", t: "mes" }, { k: "rf", l: "Fim", t: "mes" },
+      ]} />
     </>
   );
 }
@@ -318,6 +421,7 @@ function Entradas({ busca }: { busca: string }) {
   const listaBase = data.filter((e) => (!grupo || chaveFiltro(e.grupo) === grupo) && (!carteira || chaveFiltro(e.carteira) === carteira) && (!setor || chaveFiltro(e.setor) === setor) && contem(busca, e.codigo, e.empresa, e.carteira, e.grupo, e.setor, e.regime));
   const lista = ordenar(listaBase, ordem, (e) => e.empresa, (e) => Number(e.valor), (e) => e.dia);
   const ativos = lista.filter((e) => e.ativo);
+  const selE = useSelecao(lista.map((x) => x.id));
 
   return (
     <>
@@ -344,6 +448,7 @@ function Entradas({ busca }: { busca: string }) {
       <div className="surface-card mt-4 overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="border-b border-border">
+            <CaixaTodos s={selE} />
             <th className={th}>Código</th>
             <CabecalhoFiltro titulo="Empresa" ordem={ordem} ordens={["az", "za"]} onOrdem={setOrdem} />
             <CabecalhoFiltro titulo="Carteira" filtro={carteira} opcoes={carteiras} onFiltro={setCarteira} />
@@ -358,6 +463,7 @@ function Entradas({ busca }: { busca: string }) {
           <tbody>
             {lista.map((e) => (
               <tr key={e.id} className={`border-b border-border/60 ${e.ativo ? "" : "opacity-50"}`}>
+                <CaixaLinha s={selE} id={e.id} />
                 <td className={`${td} num`}>{e.codigo}</td>
                 <td className={td}>{e.empresa}</td>
                 <td className={td}>{e.carteira}</td>
@@ -372,10 +478,16 @@ function Entradas({ busca }: { busca: string }) {
                 <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
               </tr>
             ))}
-            {!lista.length ? <tr><td colSpan={12} className="p-6 text-center text-muted-foreground">Nenhuma entrada.</td></tr> : null}
+            {!lista.length ? <tr><td colSpan={13} className="p-6 text-center text-muted-foreground">Nenhuma entrada.</td></tr> : null}
           </tbody>
         </table>
       </div>
+      <EdicaoLote tabela="entradas" s={selE} campos={[
+        { k: "carteira", l: "Carteira", t: "texto" }, { k: "grupo", l: "Grupo", t: "texto" }, { k: "setor", l: "Setor", t: "texto" },
+        { k: "regime", l: "Regime", t: "texto" }, { k: "banco", l: "Banco", t: "banco" }, { k: "dia", l: "Dia", t: "dia" },
+        { k: "ativo", l: "Ativo", t: "ativo" }, { k: "valor", l: "Valor/mês", t: "numero" },
+        { k: "inicio", l: "Início", t: "mes" }, { k: "fim", l: "Fim", t: "mes" },
+      ]} />
     </>
   );
 }
@@ -395,6 +507,7 @@ function Pessoais({ busca }: { busca: string }) {
   const bancos = useMemo(() => opcoesDe(data, (e) => e.banco), [data]);
   const listaBase = data.filter((e) => (!banco || chaveFiltro(e.banco) === banco) && contem(busca, e.descricao, e.banco));
   const lista = ordenar(listaBase, ordem, (e) => e.descricao, (e) => Number(e.valor), (e) => e.dia);
+  const selP = useSelecao(lista.map((x) => x.id));
 
   return (
     <>
@@ -417,6 +530,7 @@ function Pessoais({ busca }: { busca: string }) {
       <div className="surface-card mt-4 overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="border-b border-border">
+            <CaixaTodos s={selP} />
             <CabecalhoFiltro titulo="Origem" ordem={ordem} ordens={["az", "za"]} onOrdem={setOrdem} />
             <CabecalhoFiltro titulo="Dia" ordem={ordem} ordens={["dia"]} onOrdem={setOrdem} />
             <CabecalhoFiltro titulo="Banco" filtro={banco} opcoes={bancos} onFiltro={setBanco} />
@@ -427,6 +541,7 @@ function Pessoais({ busca }: { busca: string }) {
           <tbody>
             {lista.map((e) => (
               <tr key={e.id} className="border-b border-border/60">
+                <CaixaLinha s={selP} id={e.id} />
                 <td className={td}>{e.descricao}</td>
                 <td className={`${td} num`}>{e.dia}</td>
                 <td className={td}>{e.banco}</td>
@@ -436,10 +551,14 @@ function Pessoais({ busca }: { busca: string }) {
                 <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
               </tr>
             ))}
-            {!lista.length ? <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Nenhuma entrada pessoal.</td></tr> : null}
+            {!lista.length ? <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Nenhuma entrada pessoal.</td></tr> : null}
           </tbody>
         </table>
       </div>
+      <EdicaoLote tabela="entradas_pessoais" s={selP} campos={[
+        { k: "banco", l: "Banco", t: "banco" }, { k: "dia", l: "Dia", t: "dia" }, { k: "valor", l: "Valor/mês", t: "numero" },
+        { k: "inicio", l: "Início", t: "mes" }, { k: "fim", l: "Fim", t: "mes" },
+      ]} />
     </>
   );
 }
