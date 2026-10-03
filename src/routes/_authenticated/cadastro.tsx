@@ -265,7 +265,7 @@ function Saidas({ busca }: { busca: string }) {
             <CabecalhoFiltro titulo="Dia" ordem={ordem} ordens={["dia"]} onOrdem={setOrdem} />
             <th className={th}>Destino</th>
             <CabecalhoFiltro titulo={`Valor ${mesDeChave(k1)}`} ordem={ordem} ordens={["maior", "menor"]} onOrdem={setOrdem} />
-            <th className={th}>Vigência</th><th className={th}></th>
+            <th className={th}>Início</th><th className={th}>Fim</th><th className={th}></th>
           </tr></thead>
           <tbody>
             {lista.map((s) => (
@@ -277,11 +277,12 @@ function Saidas({ busca }: { busca: string }) {
                 <td className={`${td} num`}>{s.dia}</td>
                 <td className={td}><SelDestino value={s.destino ?? ""} onChange={(v) => atualizar.mutate({ id: s.id, v: { destino: (v || null) as Saida["destino"] } })} /></td>
                 <td className={td}><CampoValor valor={valorSaidaNoMes(s, k1)} onSalvar={(n) => editarValor(s, n)} /></td>
-                <td className={`${td} text-muted-foreground`}>{s.rf ? `até ${mesDeChave(s.rf)}` : "contínua"}</td>
+                <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={s.ri ?? ""} title="Vazio = desde o início do horizonte" onBlur={(ev) => { const v = ev.target.value || null; if (v !== s.ri) atualizar.mutate({ id: s.id, v: { ri: v } }); }} /></td>
+                <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={s.rf ?? ""} title="Vazio = contínua" onBlur={(ev) => { const v = ev.target.value || null; if (v !== s.rf) atualizar.mutate({ id: s.id, v: { rf: v } }); }} /></td>
                 <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(s.id)} /></td>
               </tr>
             ))}
-            {!lista.length ? <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Nenhuma saída.</td></tr> : null}
+            {!lista.length ? <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">Nenhuma saída.</td></tr> : null}
           </tbody>
         </table>
       </div>
@@ -429,8 +430,8 @@ function Pessoais({ busca }: { busca: string }) {
                 <td className={td}>{e.descricao}</td>
                 <td className={`${td} num`}>{e.dia}</td>
                 <td className={td}>{e.banco}</td>
-                <td className={`${td} num`}>{mesDeChave(e.inicio)}</td>
-                <td className={`${td} num`}>{e.fim ? mesDeChave(e.fim) : "contínua"}</td>
+                <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={e.inicio ?? ""} title="Vazio = desde sempre" onBlur={(ev) => { const v = ev.target.value || null; if (v !== e.inicio) atualizar.mutate({ id: e.id, v: { inicio: v } }); }} /></td>
+                <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={e.fim ?? ""} title="Vazio = contínua" onBlur={(ev) => { const v = ev.target.value || null; if (v !== e.fim) atualizar.mutate({ id: e.id, v: { fim: v } }); }} /></td>
                 <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
                 <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
               </tr>
