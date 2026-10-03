@@ -108,7 +108,7 @@ function DRE() {
           </tr>
         </thead>
         <tbody>
-          {linhas.filter((l) => !l.pai || abertos.has(l.pai)).map((l) => {
+          {linhas.filter((l) => !l.pai || (detalhe === "analitico" ? true : abertos.has(l.pai))).map((l) => {
             const tem = l.abre && linhas.some((x) => x.pai === l.abre);
             const cls = l.tipo === "destaque" ? "bg-primary/10 font-semibold" : l.tipo === "total" ? "border-t font-semibold" : l.tipo === "grupo" ? "border-t font-medium" : "text-muted-foreground";
             const tv = l.v(total);
@@ -143,7 +143,21 @@ function DRE() {
     <div className="space-y-5 px-6 py-6 lg:px-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">DRE</h1>
-        <BotaoImportar cfg={cfg} cats={[...catsEsc]} salvar={(v) => salvar.mutateAsync(v)} />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-md border">
+            {([["sintetico", "Sintético"], ["analitico", "Analítico"]] as const).map(([v, r]) => (
+              <button key={v} onClick={() => setDetalhe(v)}
+                className={`px-3 py-1.5 text-sm ${detalhe === v ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{r}</button>
+            ))}
+          </div>
+          <div className="flex rounded-md border">
+            {([["mes", "Mês a mês"], ["ano", "Por ano"]] as const).map(([v, r]) => (
+              <button key={v} onClick={() => setVista(v)}
+                className={`px-3 py-1.5 text-sm ${vista === v ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{r}</button>
+            ))}
+          </div>
+          <BotaoImportar cfg={cfg} cats={[...catsEsc]} salvar={(v) => salvar.mutateAsync(v)} />
+        </div>
       </div>
 
       <div className="surface-card grid gap-4 rounded-lg border bg-card px-5 py-4 sm:grid-cols-3 lg:grid-cols-5">
