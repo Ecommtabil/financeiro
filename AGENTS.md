@@ -24,3 +24,4 @@
 - A base cromática de `src/styles.css` segue os tokens claros/escuros do SAGA Finance Insights; papéis positivos, negativos e alertas financeiros continuam semânticos para manter a leitura dos valores.
 - Carteira pessoal (tabela carteira, aba /carteira só na área Pessoal, importável tipo "carteira") é lida/gravada por useListaPat em src/lib/patrimonio.ts.
 - Valores do mês partem de meses-base = meses projetados do ano da base zero (`horizonte.mesesBase`/`fimBase`; entradas e pessoais em `valores_base`, saídas em `valores_mes`); `fator` em `src/lib/calc.ts` só conta reajustes depois de `fimBase` (dezembro do ano da base), para toda tela aplicar a mesma regra.
+- Do 2º reajuste em diante, o `fator` de `src/lib/calc.ts` usa `config.premissas` (% por ano, entradas/saídas, padrão = índice padrão); o 1º reajuste usa a regra do item/categoria, para a Projeção e todas as abas baterem.
