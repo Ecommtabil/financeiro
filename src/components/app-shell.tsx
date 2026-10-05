@@ -65,13 +65,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
   const fases = horizonte ? (["base", "ano1", "projecao"] as Fase[]).filter((f) => anosDaFase(horizonte, f).length) : [];
   const faseEf: Fase = fases.includes(fase) ? fase : (fases[0] ?? "ano1");
-  const anosPeriodo = horizonte ? anosDaFase(horizonte, faseEf) : [];
+  const anosPeriodo = useMemo(() => (horizonte ? anosDaFase(horizonte, faseEf) : []), [horizonte, faseEf]);
   const periodo: Periodo = faseEf === "projecao"
     ? (anoProj !== "todos" && anosPeriodo.some((a) => a.ano === anoProj) ? anoProj : "todos")
     : (anosPeriodo[0]?.ano ?? "todos");
   const setFase = (f: Fase) => { setFaseSt(f); setAnoProj("todos"); };
-  const colunas = horizonte ? colunasDo(horizonte, periodo, anosPeriodo) : [];
-  const mesesPeriodo = colunas.flatMap((c) => c.meses);
+  const colunas = useMemo(() => (horizonte ? colunasDo(horizonte, periodo, anosDaFase(horizonte, faseEf)) : []), [horizonte, periodo, faseEf]);
+  const mesesPeriodo = useMemo(() => colunas.flatMap((c) => c.meses), [colunas]);
   const ROT_FASE: Record<Fase, string> = { base: "Período base zero", ano1: "Período 1 ano", projecao: "Período projeção" };
   const abaAtual = ABAS.find((a) => (a.to === "/" ? pathname === "/" : pathname.startsWith(a.to)));
   // Na área Pessoal, só Dashboard e Carteira ficam visíveis; as outras abas voltam ao Dashboard.
