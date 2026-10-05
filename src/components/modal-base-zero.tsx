@@ -30,7 +30,7 @@ export function ModalBaseZero({
     setRestante(config?.incluir_restante ?? true);
   }, [aberto, config]);
 
-  const anosValidos = Math.min(30, Math.max(5, anos || 5));
+  const anosValidos = Math.min(30, Math.max(1, anos || 1));
   const dataValida = /^\d{4}-\d{2}-\d{2}$/.test(data);
   const previa = dataValida ? descreverHorizonte(calcularHorizonte(data, anosValidos, restante)) : "Informe a data.";
 
@@ -57,7 +57,7 @@ export function ModalBaseZero({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="bz-anos">Anos a projetar (5 a 30)</Label>
-            <Input id="bz-anos" type="number" min={5} max={30} value={anos} onChange={(e) => setAnos(Number(e.target.value))} className="num" />
+            <Input id="bz-anos" type="number" min={1} max={30} value={anos} onChange={(e) => setAnos(Number(e.target.value))} className="num" />
           </div>
           <label className="flex items-start gap-2 text-sm">
             <Checkbox checked={restante} onCheckedChange={(v) => setRestante(v === true)} className="mt-0.5" />
