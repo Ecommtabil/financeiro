@@ -14,7 +14,7 @@
 - Cadastro é um módulo comum (botão no cabeçalho, fora das abas e sem filtro de área), para servir Escritório e Pessoal.
 - Cabeçalho + abas (`src/components/app-shell.tsx`) é renderizado pelo layout `_authenticated`, não pelo `__root`, para a tela de login ficar sem o layout do app.
 - Horizonte da projeção vem só de `calcularHorizonte` em `src/lib/horizonte.ts`, para toda tela usar a mesma regra de meses/anos/Y0.
-- Período escolhido no cabeçalho é lido via `usePeriodo()` (colunas mês a mês ou por ano), para as abas não reimplementarem o seletor.
+- Período do cabeçalho tem 3 fases (base zero = ano da base, 1 ano = Y0, projeção = depois de Y0) via `anosDaFase`; abas leem `usePeriodo()` (`colunas`, `anosPeriodo`, `mesesPeriodo`), para todas obedecerem ao mesmo recorte.
 - Área Escritório | Pessoal escolhida no topo vem só de `useArea()`/`daArea()` em `app-shell.tsx` (destino vazio = Escritório), para todas as abas filtrarem igual.
 - Configuração do usuário (tabela `config`, 1 linha por usuário) é lida/salva por `useConfig`/`useSalvarConfig` em `src/lib/config.ts`.
 - Todo valor do mês, reajuste e total (E, SE, SP, EP, L, R) vem de `src/lib/calc.ts`, para as telas nunca divergirem nos números.
