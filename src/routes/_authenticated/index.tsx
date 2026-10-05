@@ -191,7 +191,7 @@ function Pessoal(p: PainelProps & { saldoBancos: number }) {
     <div className="grid gap-4 xl:grid-cols-2"><Medidor titulo="Pagamentos pessoais" dados={medPagar} /><Medidor titulo="Entradas pessoais" dados={medReceber} /></div>
     <div className="grid gap-4 xl:grid-cols-2">
       <Secao titulo={`Reserva mês a mês · ${mes.ano}`}><GraficoVertical dados={serie} /></Secao>
-      <Secao titulo={`Reserva acumulada · ${mes.ano}`}><GraficoLinha dados={serie} /></Secao>
+      <Secao titulo="Evolução das reservas · horizonte completo"><GraficoLinha dados={serieHorizonte} /></Secao>
     </div>
     <div className="grid gap-4 xl:grid-cols-2">
       <Secao titulo="Saídas pessoais por categoria"><GraficoHorizontal dados={top(atual.porCatPessoal).map(([nome, valor]) => ({ nome, valor }))} /></Secao>
