@@ -127,21 +127,37 @@ function Contas() {
         ))}
       </div>
 
+      {vistaEf === "venc" && selLinhas.length > 0 && (
+        <div className="surface-card flex flex-wrap items-center gap-3 p-3">
+          <span className="text-sm font-medium">{selLinhas.length} selecionada(s) · <span className="num">{formatarBRL(selLinhas.reduce((t, l) => t + l.exibido, 0))}</span></span>
+          <BotaoConfirmar disabled={!abertas.length || baixar.isPending} onConfirmar={() => baixar.mutate(abertas, { onSuccess: () => { toast.success(`${abertas.length} conta(s) baixada(s)`); setSelecao(new Set()); }, onError: (e) => toast.error(e.message) })}>
+            {lado === "receber" ? "Receber" : "Pagar"} selecionadas ({abertas.length})
+          </BotaoConfirmar>
+          <BotaoConfirmar disabled={!baixadas.length || estornar.isPending} onConfirmar={() => estornar.mutate(baixadas, { onSuccess: () => { toast.success(`${baixadas.length} baixa(s) estornada(s)`); setSelecao(new Set()); }, onError: (e) => toast.error(e.message) })}>
+            Estornar selecionadas ({baixadas.length})
+          </BotaoConfirmar>
+          <Button size="sm" variant="ghost" onClick={() => setSelecao(new Set())}>Limpar seleção</Button>
+        </div>
+      )}
+
       {linhas.length === 0 ? (
         <div className="surface-card p-8 text-center text-muted-foreground">Nenhuma conta neste período com esses filtros.</div>
-      ) : vistaEf === "venc" ? <PorVencimento linhas={linhas} lado={lado} /> : <PorGrupo linhas={linhas} />}
+      ) : vistaEf === "venc" ? <PorVencimento linhas={linhas} lado={lado} selecao={selecao} setSelecao={setSelecao} /> : <PorGrupo linhas={linhas} />}
     </div>
   );
 }
 
-function PorVencimento({ linhas, lado }: { linhas: Linha[]; lado: "receber" | "pagar" }) {
+function PorVencimento({ linhas, lado, selecao, setSelecao }: { linhas: Linha[]; lado: "receber" | "pagar"; selecao: Set<string>; setSelecao: (s: Set<string>) => void }) {
   const meses = [...new Set(linhas.map((l) => l.mes))];
   const total = linhas.reduce((t, l) => t + l.exibido, 0);
+  const marcar = (ks: string[], on: boolean) => { const n = new Set(selecao); ks.forEach((k) => (on ? n.add(k) : n.delete(k))); setSelecao(n); };
+  const todas = linhas.map(chaveLinha);
   return (
     <div className="surface-card overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="text-left text-xs text-muted-foreground">
           <tr className="border-b">
+            <th className="w-8 px-3 py-2"><input type="checkbox" aria-label="Selecionar todas" checked={todas.length > 0 && todas.every((k) => selecao.has(k))} onChange={(e) => marcar(todas, e.target.checked)} /></th>
             <th className="px-3 py-2">Venc.</th><th className="px-3 py-2">{lado === "receber" ? "Cliente" : "Despesa"}</th>
             <th className="px-3 py-2">{lado === "receber" ? "Carteira · grupo" : "Categoria · pagamento"}</th>
             <th className="px-3 py-2">Banco</th><th className="px-3 py-2">Destino</th><th className="px-3 py-2">Situação</th><th className="px-3 py-2 text-right">Valor</th>
@@ -150,15 +166,20 @@ function PorVencimento({ linhas, lado }: { linhas: Linha[]; lado: "receber" | "p
         <tbody>
           {meses.map((k) => {
             const doMes = linhas.filter((l) => l.mes === k);
+            const ksMes = doMes.map(chaveLinha);
             const m = k.split("-")[1];
             let diaAnt: number | null | undefined;
             return (
               <Fragment key={k}>
-                <tr className="bg-muted/50"><td colSpan={7} className="px-3 py-2 font-semibold">{rotMes(k)}</td></tr>
+                <tr className="bg-muted/50">
+                  <td className="px-3 py-2"><input type="checkbox" aria-label={`Selecionar ${rotMes(k)}`} checked={ksMes.every((x) => selecao.has(x))} onChange={(e) => marcar(ksMes, e.target.checked)} /></td>
+                  <td colSpan={7} className="px-3 py-2 font-semibold">{rotMes(k)}</td></tr>
                 {doMes.map((l) => {
                   const novoDia = l.dia !== diaAnt; diaAnt = l.dia;
+                  const ck = chaveLinha(l);
                   return (
-                    <tr key={`${l.tipo}${l.id}${l.mes}`} className={cn("border-b last:border-0", novoDia && "border-t")}>
+                    <tr key={ck} className={cn("border-b last:border-0", novoDia && "border-t", selecao.has(ck) && "bg-primary/5")}>
+                      <td className="px-3 py-1.5"><input type="checkbox" checked={selecao.has(ck)} onChange={(e) => marcar([ck], e.target.checked)} /></td>
                       <td className="num px-3 py-1.5">{novoDia ? (l.dia ? `${String(l.dia).padStart(2, "0")}/${m}` : "—") : ""}</td>
                       <td className="px-3 py-1.5">{l.nome}</td>
                       <td className="px-3 py-1.5 text-muted-foreground">{l.detalhe || "—"}</td>
