@@ -141,7 +141,7 @@ function Projecao() {
           <CampoIndice valor={Number(cfg.indice_padrao_saidas)} salvar={(v) => salvar.mutate({ indice_padrao_saidas: v }, ok)} className="w-24" /></label>
       </div>
 
-      {area !== "PESSOAL" && anosPremissa.length > 0 && (
+      {anosPremissa.length > 0 && (
         <section className="surface-card space-y-3 p-4">
           <div>
             <h2 className="text-sm font-semibold">Premissas de crescimento</h2>
