@@ -11,8 +11,7 @@ import { formatarMes } from "@/lib/format";
 import { ModalBaseZero } from "./modal-base-zero";
 
 const ABAS = [
-  { to: "/", label: "Panorama", periodo: true, pessoal: true },
-  { to: "/dashboard", label: "Dashboard", periodo: true, pessoal: true },
+  { to: "/", label: "Dashboard", periodo: true, pessoal: true },
   { to: "/carteira", label: "Carteira", periodo: false, pessoal: true, soPessoal: true },
   { to: "/dre", label: "DRE", periodo: true, pessoal: true },
   { to: "/situacao", label: "Situação atual", periodo: false },
@@ -63,7 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const colunas = horizonte ? colunasDo(horizonte, periodo) : [];
   const abaAtual = ABAS.find((a) => (a.to === "/" ? pathname === "/" : pathname.startsWith(a.to)));
-  // Na área Pessoal, só Panorama e Dashboard ficam visíveis; as outras abas voltam ao Panorama.
+  // Na área Pessoal, só Dashboard e Carteira ficam visíveis; as outras abas voltam ao Dashboard.
   const abasVisiveis = area === "PESSOAL" ? ABAS.filter((a) => "pessoal" in a && a.pessoal) : ABAS.filter((a) => !("soPessoal" in a));
   useEffect(() => {
     if (!areaPronta) return;
