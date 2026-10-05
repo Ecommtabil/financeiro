@@ -327,6 +327,7 @@ function EdicaoLote({ tabela, s, campos }: { tabela: "entradas" | "saidas" | "en
     switch (c.t) {
       case "numero": { const n = paraNumero(t); return n == null ? { ok: false, msg: "Informe um valor (ex.: 1.234,56)." } : { ok: true, v: n }; }
       case "dia": { if (!t) return { ok: true, v: null }; const n = Number(t); return n >= 1 && n <= 31 ? { ok: true, v: n } : { ok: false, msg: "Dia entre 1 e 31." }; }
+      case "mes": { const v = lerMes(t); return v === undefined ? { ok: false, msg: "Use o formato mm/aaaa (ex.: 03/2027)." } : { ok: true, v }; }
       case "ativo": return { ok: true, v: t !== "nao" };
       case "maiusc": return { ok: true, v: t ? t.toUpperCase() : null };
       case "banco": return { ok: true, v: t ? normalizarBanco(t) : null };
