@@ -151,7 +151,7 @@ function Projecao() {
           </div>
           <div className="overflow-x-auto">
             <table className="text-sm">
-              <thead><tr className="text-xs text-muted-foreground"><th className="pr-4 text-left font-medium">Ano</th><th className="pr-4 text-left font-medium">Entradas %</th><th className="text-left font-medium">Saídas %</th></tr></thead>
+              <thead><tr className="text-xs text-muted-foreground"><th className="pr-4 text-left font-medium">Ano</th><th className="pr-4 text-left font-medium">{area === "PESSOAL" ? "Entradas pessoais %" : "Entradas %"}</th><th className="text-left font-medium">{area === "PESSOAL" ? "Saídas pessoais %" : "Saídas %"}</th></tr></thead>
               <tbody>
                 {anosPremissa.map((a) => (
                   <tr key={a}>
