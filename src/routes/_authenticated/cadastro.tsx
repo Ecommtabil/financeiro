@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BotaoExcluir } from "@/components/botao-excluir";
+import { BotaoListas, SelDia, SelLista } from "@/components/listas-cadastro";
 import { valorBase, valorSaida } from "@/lib/calc";
 import { CalendarRange } from "lucide-react";
 import { BotaoConfirmar } from "@/components/botao-confirmar";
@@ -66,7 +67,8 @@ function Cadastro() {
             <TabsTrigger value="saidas">Saídas</TabsTrigger>
             <TabsTrigger value="pessoais">Entradas pessoais</TabsTrigger>
           </TabsList>
-          <div className="relative ml-auto w-72">
+          <div className="ml-auto"><BotaoListas /></div>
+          <div className="relative w-72">
             <Search className="absolute top-2 left-2 size-4 text-muted-foreground" />
             <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar…" className="h-8 pl-8" />
           </div>
@@ -403,7 +405,7 @@ function Saidas({ busca }: { busca: string }) {
   const [cat, setCat] = useState("");
   const p = horizonte?.primeiro;
   const k1 = p ? chaveMes(p.ano, p.mes) : "";
-  const vazio = { descricao: "", categoria: "", banco: "", dia: "", destino: "", valor: "", ri: k1, rf: "" };
+  const vazio = { descricao: "", categoria: "", pgto: "", banco: "", dia: "", destino: "", valor: "", ri: k1, rf: "" };
   const [f, setF] = useState(vazio);
   const categorias = useMemo(() => opcoesDe(data, (s) => s.categoria), [data]);
   const listaBase = data.filter((s) => (!semDestino || !s.destino) && (!cat || chaveFiltro(s.categoria) === cat) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
@@ -425,13 +427,13 @@ function Saidas({ busca }: { busca: string }) {
         const valor = paraNumero(f.valor);
         if (!f.descricao.trim()) return void toast.error("Preencha a descrição.");
         if (valor == null) return void toast.error("Preencha o valor (ex.: 1.234,56).");
-        inserir.mutate({ descricao: f.descricao.trim(), categoria: f.categoria.trim().toUpperCase() || null, banco: f.banco ? normalizarBanco(f.banco) : null, dia: Number(f.dia) || null, destino: (f.destino || null) as Saida["destino"], valor_fixo: valor, ri: f.ri || k1, rf: f.rf || null, origem: "manual" }, { onSuccess: () => { toast.success("Adicionado."); setF(vazio); }, onError: (e) => toast.error(`Não foi possível adicionar: ${e.message}`) });
+        inserir.mutate({ descricao: f.descricao.trim(), categoria: f.categoria.trim().toUpperCase() || null, pgto: f.pgto || null, banco: f.banco ? normalizarBanco(f.banco) : null, dia: Number(f.dia) || null, destino: (f.destino || null) as Saida["destino"], valor_fixo: valor, ri: f.ri || k1, rf: f.rf || null, origem: "manual" }, { onSuccess: () => { toast.success("Adicionado."); setF(vazio); }, onError: (e) => toast.error(`Não foi possível adicionar: ${e.message}`) });
       }}>
         <F l="Descrição"><Input className="h-8 w-56" value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} /></F>
-        <F l="Categoria"><Input className="h-8 w-40" list="cats" value={f.categoria} onChange={(e) => setF({ ...f, categoria: e.target.value })} /></F>
-        <datalist id="cats">{categorias.map((c) => <option key={c.v} value={c.l} />)}</datalist>
-        <F l="Banco"><Input className="h-8 w-32" value={f.banco} onChange={(e) => setF({ ...f, banco: e.target.value })} /></F>
-        <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
+        <F l="Categoria"><SelLista lista="cad_categorias" value={f.categoria} onChange={(v) => setF({ ...f, categoria: v ?? "" })} /></F>
+        <F l="Pagamento"><SelLista lista="cad_pgtos" value={f.pgto} onChange={(v) => setF({ ...f, pgto: v ?? "" })} /></F>
+        <F l="Banco"><SelLista lista="cad_bancos" value={f.banco} onChange={(v) => setF({ ...f, banco: v ?? "" })} /></F>
+        <F l="Dia"><SelDia value={Number(f.dia) || null} onChange={(v) => setF({ ...f, dia: v ? String(v) : "" })} /></F>
         <F l="Destino"><SelDestino value={f.destino} onChange={(v) => setF({ ...f, destino: v })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
         <F l="Início"><CampoMesForm valor={f.ri} onChange={(v) => setF({ ...f, ri: v })} /></F>
@@ -454,10 +456,10 @@ function Saidas({ busca }: { busca: string }) {
               <tr key={s.id} className="border-b border-border/60">
                 <CaixaLinha s={selS} id={s.id} />
                 <td className={td}><CampoTexto valor={s.descricao} onSalvar={(v) => atualizar.mutate({ id: s.id, v: { descricao: v } })} /></td>
-                <td className={td}>{s.categoria}</td>
-                <td className={td}>{s.pgto}</td>
-                <td className={td}>{s.banco}</td>
-                <td className={`${td} num`}>{s.dia}</td>
+                <td className={td}><SelLista lista="cad_categorias" value={s.categoria} onChange={(v) => atualizar.mutate({ id: s.id, v: { categoria: v } })} /></td>
+                <td className={td}><SelLista lista="cad_pgtos" value={s.pgto} onChange={(v) => atualizar.mutate({ id: s.id, v: { pgto: v } })} /></td>
+                <td className={td}><SelLista lista="cad_bancos" value={s.banco} onChange={(v) => atualizar.mutate({ id: s.id, v: { banco: v } })} /></td>
+                <td className={td}><SelDia value={s.dia} onChange={(v) => atualizar.mutate({ id: s.id, v: { dia: v } })} /></td>
                 <td className={td}><SelDestino value={s.destino ?? ""} onChange={(v) => atualizar.mutate({ id: s.id, v: { destino: (v || null) as Saida["destino"] } })} /></td>
                 <td className={td}><CampoValor valor={valorSaidaNoMes(s, k1)} onSalvar={(n) => editarValor(s, n)} /></td>
                 <td className={td}><CampoMes valor={s.ri} title="Vazio = desde o início do horizonte" onSalvar={(v) => atualizar.mutate({ id: s.id, v: { ri: v } })} /></td>
@@ -539,7 +541,7 @@ function Entradas({ busca }: { busca: string }) {
         <F l="Grupo"><Input className="h-8 w-32" value={f.grupo} onChange={(e) => setF({ ...f, grupo: e.target.value })} /></F>
         <F l="Setor"><Input className="h-8 w-32" value={f.setor} onChange={(e) => setF({ ...f, setor: e.target.value })} /></F>
         <F l="Regime"><Input className="h-8 w-36" value={f.regime} onChange={(e) => setF({ ...f, regime: e.target.value })} /></F>
-        <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
+        <F l="Dia"><SelDia value={Number(f.dia) || null} onChange={(v) => setF({ ...f, dia: v ? String(v) : "" })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
         <F l="Início (opcional)"><CampoMesForm valor={f.inicio} onChange={(v) => setF({ ...f, inicio: v })} /></F>
         <F l="Fim (opcional)"><CampoMesForm valor={f.fim} onChange={(v) => setF({ ...f, fim: v })} /></F>
@@ -569,7 +571,7 @@ function Entradas({ busca }: { busca: string }) {
                 <td className={td}>{e.grupo}</td>
                 <td className={td}><Input className="h-7 w-32" defaultValue={e.setor ?? ""} onBlur={(ev) => { const v = ev.target.value.trim() || null; if (v !== e.setor) atualizar.mutate({ id: e.id, v: { setor: v } }); }} /></td>
                 <td className={td}>{e.regime}</td>
-                <td className={`${td} num`}>{e.dia}</td>
+                <td className={td}><SelDia value={e.dia} onChange={(v) => atualizar.mutate({ id: e.id, v: { dia: v } })} /></td>
                 <td className={td}><Checkbox checked={e.ativo} onCheckedChange={(v) => atualizar.mutate({ id: e.id, v: { ativo: !!v } })} /></td>
                 <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
                 <td className={td}><CampoMes valor={e.inicio} title="Vazio = desde sempre" onSalvar={(v) => atualizar.mutate({ id: e.id, v: { inicio: v } })} /></td>
@@ -620,8 +622,8 @@ function Pessoais({ busca }: { busca: string }) {
         inserir.mutate({ descricao: f.descricao.trim(), dia: Number(f.dia) || null, banco: f.banco ? normalizarBanco(f.banco) : null, inicio: f.inicio || k1 || null, fim: f.fim || null, valor, origem: "manual" }, { onSuccess: () => { toast.success("Adicionado."); setF(vazio); }, onError: (e) => toast.error(`Não foi possível adicionar: ${e.message}`) });
       }}>
         <F l="Origem"><Input className="h-8 w-56" value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} /></F>
-        <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
-        <F l="Banco"><Input className="h-8 w-32" value={f.banco} onChange={(e) => setF({ ...f, banco: e.target.value })} /></F>
+        <F l="Dia"><SelDia value={Number(f.dia) || null} onChange={(v) => setF({ ...f, dia: v ? String(v) : "" })} /></F>
+        <F l="Banco"><SelLista lista="cad_bancos" value={f.banco} onChange={(v) => setF({ ...f, banco: v ?? "" })} /></F>
         <F l="Início"><CampoMesForm valor={f.inicio} onChange={(v) => setF({ ...f, inicio: v })} /></F>
         <F l="Fim (opcional)"><CampoMesForm valor={f.fim} onChange={(v) => setF({ ...f, fim: v })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
@@ -642,8 +644,8 @@ function Pessoais({ busca }: { busca: string }) {
               <tr key={e.id} className="border-b border-border/60">
                 <CaixaLinha s={selP} id={e.id} />
                 <td className={td}><CampoTexto valor={e.descricao} onSalvar={(v) => atualizar.mutate({ id: e.id, v: { descricao: v } })} /></td>
-                <td className={`${td} num`}>{e.dia}</td>
-                <td className={td}>{e.banco}</td>
+                <td className={td}><SelDia value={e.dia} onChange={(v) => atualizar.mutate({ id: e.id, v: { dia: v } })} /></td>
+                <td className={td}><SelLista lista="cad_bancos" value={e.banco} onChange={(v) => atualizar.mutate({ id: e.id, v: { banco: v } })} /></td>
                 <td className={td}><CampoMes valor={e.inicio} title="Vazio = desde sempre" onSalvar={(v) => atualizar.mutate({ id: e.id, v: { inicio: v } })} /></td>
                 <td className={td}><CampoMes valor={e.fim} title="Vazio = contínua" onSalvar={(v) => atualizar.mutate({ id: e.id, v: { fim: v } })} /></td>
                 <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
