@@ -258,6 +258,50 @@ function CabecalhoFiltro({
 type TipoCampo = "texto" | "maiusc" | "banco" | "numero" | "dia" | "mes" | "destino" | "ativo";
 type CampoLote = { k: string; l: string; t: TipoCampo };
 
+/** "2026-10" -> "10/2026" */
+function exibirMes(v: string | null): string {
+  return v ? `${v.slice(5, 7)}/${v.slice(0, 4)}` : "";
+}
+/** "10/2026" -> "2026-10"; null = vazio; undefined = inválido */
+function lerMes(t: string): string | null | undefined {
+  const limpo = t.trim();
+  if (!limpo) return null;
+  const m = limpo.match(/^(\d{1,2})\s*\/\s*(\d{4})$/);
+  if (!m || Number(m[1]) < 1 || Number(m[1]) > 12) return undefined;
+  return `${m[2]}-${m[1]!.padStart(2, "0")}`;
+}
+
+/** Campo de vigência com data numérica (mm/aaaa), sem seletor de calendário. */
+function CampoMes({ valor, onSalvar, title }: { valor: string | null; onSalvar: (v: string | null) => void; title?: string }) {
+  return (
+    <Input key={valor ?? "x"} className="num h-7 w-24" defaultValue={exibirMes(valor)} placeholder="mm/aaaa" title={title}
+      onBlur={(ev) => {
+        const v = lerMes(ev.target.value);
+        if (v === undefined) { toast.error("Use o formato mm/aaaa (ex.: 03/2027)."); ev.target.value = exibirMes(valor); return; }
+        if (v !== valor) onSalvar(v);
+      }}
+      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+  );
+}
+
+/** Campo de mês numérico para formulários: digita mm/aaaa, devolve "aaaa-mm". */
+function CampoMesForm({ valor, onChange }: { valor: string; onChange: (v: string) => void }) {
+  const [txt, setTxt] = useState(exibirMes(valor || null));
+  return (
+    <Input className="num h-8 w-28" value={txt} placeholder="mm/aaaa"
+      onChange={(e) => { setTxt(e.target.value); const v = lerMes(e.target.value); if (v !== undefined) onChange(v ?? ""); }} />
+  );
+}
+
+/** Texto editável em linha (descrição, empresa etc.). */
+function CampoTexto({ valor, onSalvar, className = "w-56" }: { valor: string; onSalvar: (v: string) => void; className?: string }) {
+  return (
+    <Input key={valor} className={`h-7 ${className}`} defaultValue={valor}
+      onBlur={(ev) => { const v = ev.target.value.trim(); if (v && v !== valor) onSalvar(v); else if (!v) ev.target.value = valor; }}
+      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+  );
+}
+
 function useSelecao(visiveis: string[]) {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const ids = visiveis.filter((id) => sel.has(id));
@@ -292,6 +336,7 @@ function EdicaoLote({ tabela, s, campos }: { tabela: "entradas" | "saidas" | "en
     switch (c.t) {
       case "numero": { const n = paraNumero(t); return n == null ? { ok: false, msg: "Informe um valor (ex.: 1.234,56)." } : { ok: true, v: n }; }
       case "dia": { if (!t) return { ok: true, v: null }; const n = Number(t); return n >= 1 && n <= 31 ? { ok: true, v: n } : { ok: false, msg: "Dia entre 1 e 31." }; }
+      case "mes": { const v = lerMes(t); return v === undefined ? { ok: false, msg: "Use o formato mm/aaaa (ex.: 03/2027)." } : { ok: true, v }; }
       case "ativo": return { ok: true, v: t !== "nao" };
       case "maiusc": return { ok: true, v: t ? t.toUpperCase() : null };
       case "banco": return { ok: true, v: t ? normalizarBanco(t) : null };
@@ -323,7 +368,7 @@ function EdicaoLote({ tabela, s, campos }: { tabela: "entradas" | "saidas" | "en
   const entrada =
     c.t === "destino" ? <SelDestino value={valor} onChange={setValor} /> :
     c.t === "ativo" ? <select className={sel} value={valor || "sim"} onChange={(e) => setValor(e.target.value)}><option value="sim">Ativa</option><option value="nao">Inativa</option></select> :
-    c.t === "mes" ? <Input className="h-8 w-40" type="month" value={valor} onChange={(e) => setValor(e.target.value)} /> :
+    c.t === "mes" ? <Input className="num h-8 w-28" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="mm/aaaa" /> :
     <Input className={`h-8 ${c.t === "numero" || c.t === "dia" ? "num w-28" : "w-48"}`} value={valor} onChange={(e) => setValor(e.target.value)} placeholder={c.t === "numero" ? "0,00" : "novo valor"} />;
   const podeApagar = c.t !== "numero" && c.t !== "ativo";
 
@@ -389,8 +434,8 @@ function Saidas({ busca }: { busca: string }) {
         <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
         <F l="Destino"><SelDestino value={f.destino} onChange={(v) => setF({ ...f, destino: v })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
-        <F l="Início"><Input className="h-8 w-36" type="month" value={f.ri} onChange={(e) => setF({ ...f, ri: e.target.value })} /></F>
-        <F l="Fim (opcional)"><Input className="h-8 w-36" type="month" value={f.rf} onChange={(e) => setF({ ...f, rf: e.target.value })} /></F>
+        <F l="Início"><CampoMesForm valor={f.ri} onChange={(v) => setF({ ...f, ri: v })} /></F>
+        <F l="Fim (opcional)"><CampoMesForm valor={f.rf} onChange={(v) => setF({ ...f, rf: v })} /></F>
       </Form>
       <div className="surface-card mt-4 overflow-x-auto">
         <table className="w-full text-sm">
@@ -408,15 +453,15 @@ function Saidas({ busca }: { busca: string }) {
             {lista.map((s) => (
               <tr key={s.id} className="border-b border-border/60">
                 <CaixaLinha s={selS} id={s.id} />
-                <td className={td}>{s.descricao}</td>
+                <td className={td}><CampoTexto valor={s.descricao} onSalvar={(v) => atualizar.mutate({ id: s.id, v: { descricao: v } })} /></td>
                 <td className={td}>{s.categoria}</td>
                 <td className={td}>{s.pgto}</td>
                 <td className={td}>{s.banco}</td>
                 <td className={`${td} num`}>{s.dia}</td>
                 <td className={td}><SelDestino value={s.destino ?? ""} onChange={(v) => atualizar.mutate({ id: s.id, v: { destino: (v || null) as Saida["destino"] } })} /></td>
                 <td className={td}><CampoValor valor={valorSaidaNoMes(s, k1)} onSalvar={(n) => editarValor(s, n)} /></td>
-                <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={s.ri ?? ""} title="Vazio = desde o início do horizonte" onBlur={(ev) => { const v = ev.target.value || null; if (v !== s.ri) atualizar.mutate({ id: s.id, v: { ri: v } }); }} /></td>
-                <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={s.rf ?? ""} title="Vazio = contínua" onBlur={(ev) => { const v = ev.target.value || null; if (v !== s.rf) atualizar.mutate({ id: s.id, v: { rf: v } }); }} /></td>
+                <td className={td}><CampoMes valor={s.ri} title="Vazio = desde o início do horizonte" onSalvar={(v) => atualizar.mutate({ id: s.id, v: { ri: v } })} /></td>
+                <td className={td}><CampoMes valor={s.rf} title="Vazio = contínua" onSalvar={(v) => atualizar.mutate({ id: s.id, v: { rf: v } })} /></td>
                 <td className={`${td} whitespace-nowrap`}><Botao12Meses nome={s.descricao} valorDe={(k) => valorSaida(s, k)} onSalvar={(rec) => atualizar.mutateAsync({ id: s.id, v: mesesSaida(s, rec) })} /><BotaoExcluir onConfirmar={() => excluir.mutate(s.id)} /></td>
               </tr>
             ))}
@@ -496,8 +541,8 @@ function Entradas({ busca }: { busca: string }) {
         <F l="Regime"><Input className="h-8 w-36" value={f.regime} onChange={(e) => setF({ ...f, regime: e.target.value })} /></F>
         <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
-        <F l="Início (opcional)"><Input className="h-8 w-36" type="month" value={f.inicio} onChange={(e) => setF({ ...f, inicio: e.target.value })} /></F>
-        <F l="Fim (opcional)"><Input className="h-8 w-36" type="month" value={f.fim} onChange={(e) => setF({ ...f, fim: e.target.value })} /></F>
+        <F l="Início (opcional)"><CampoMesForm valor={f.inicio} onChange={(v) => setF({ ...f, inicio: v })} /></F>
+        <F l="Fim (opcional)"><CampoMesForm valor={f.fim} onChange={(v) => setF({ ...f, fim: v })} /></F>
       </Form>
       <div className="surface-card mt-4 overflow-x-auto">
         <table className="w-full text-sm">
@@ -519,7 +564,7 @@ function Entradas({ busca }: { busca: string }) {
               <tr key={e.id} className={`border-b border-border/60 ${e.ativo ? "" : "opacity-50"}`}>
                 <CaixaLinha s={selE} id={e.id} />
                 <td className={`${td} num`}>{e.codigo}</td>
-                <td className={td}>{e.empresa}</td>
+                <td className={td}><CampoTexto valor={e.empresa} onSalvar={(v) => atualizar.mutate({ id: e.id, v: { empresa: v } })} /></td>
                 <td className={td}>{e.carteira}</td>
                 <td className={td}>{e.grupo}</td>
                 <td className={td}><Input className="h-7 w-32" defaultValue={e.setor ?? ""} onBlur={(ev) => { const v = ev.target.value.trim() || null; if (v !== e.setor) atualizar.mutate({ id: e.id, v: { setor: v } }); }} /></td>
@@ -527,8 +572,8 @@ function Entradas({ busca }: { busca: string }) {
                 <td className={`${td} num`}>{e.dia}</td>
                 <td className={td}><Checkbox checked={e.ativo} onCheckedChange={(v) => atualizar.mutate({ id: e.id, v: { ativo: !!v } })} /></td>
                 <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
-                <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={e.inicio ?? ""} title="Vazio = desde sempre" onBlur={(ev) => { const v = ev.target.value || null; if (v !== e.inicio) atualizar.mutate({ id: e.id, v: { inicio: v } }); }} /></td>
-                <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={e.fim ?? ""} title="Vazio = contínua" onBlur={(ev) => { const v = ev.target.value || null; if (v !== e.fim) atualizar.mutate({ id: e.id, v: { fim: v } }); }} /></td>
+                <td className={td}><CampoMes valor={e.inicio} title="Vazio = desde sempre" onSalvar={(v) => atualizar.mutate({ id: e.id, v: { inicio: v } })} /></td>
+                <td className={td}><CampoMes valor={e.fim} title="Vazio = contínua" onSalvar={(v) => atualizar.mutate({ id: e.id, v: { fim: v } })} /></td>
                 <td className={`${td} whitespace-nowrap`}><Botao12Meses nome={e.empresa} valorDe={(k) => valorBase(e.valores_base, Number(e.valor), k)} onSalvar={(rec) => atualizar.mutateAsync({ id: e.id, v: { valores_base: rec } })} /><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
               </tr>
             ))}
@@ -577,8 +622,8 @@ function Pessoais({ busca }: { busca: string }) {
         <F l="Origem"><Input className="h-8 w-56" value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} /></F>
         <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
         <F l="Banco"><Input className="h-8 w-32" value={f.banco} onChange={(e) => setF({ ...f, banco: e.target.value })} /></F>
-        <F l="Início"><Input className="h-8 w-36" type="month" value={f.inicio} onChange={(e) => setF({ ...f, inicio: e.target.value })} /></F>
-        <F l="Fim (opcional)"><Input className="h-8 w-36" type="month" value={f.fim} onChange={(e) => setF({ ...f, fim: e.target.value })} /></F>
+        <F l="Início"><CampoMesForm valor={f.inicio} onChange={(v) => setF({ ...f, inicio: v })} /></F>
+        <F l="Fim (opcional)"><CampoMesForm valor={f.fim} onChange={(v) => setF({ ...f, fim: v })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
       </Form>
       <div className="surface-card mt-4 overflow-x-auto">
@@ -596,11 +641,11 @@ function Pessoais({ busca }: { busca: string }) {
             {lista.map((e) => (
               <tr key={e.id} className="border-b border-border/60">
                 <CaixaLinha s={selP} id={e.id} />
-                <td className={td}>{e.descricao}</td>
+                <td className={td}><CampoTexto valor={e.descricao} onSalvar={(v) => atualizar.mutate({ id: e.id, v: { descricao: v } })} /></td>
                 <td className={`${td} num`}>{e.dia}</td>
                 <td className={td}>{e.banco}</td>
-                <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={e.inicio ?? ""} title="Vazio = desde sempre" onBlur={(ev) => { const v = ev.target.value || null; if (v !== e.inicio) atualizar.mutate({ id: e.id, v: { inicio: v } }); }} /></td>
-                <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={e.fim ?? ""} title="Vazio = contínua" onBlur={(ev) => { const v = ev.target.value || null; if (v !== e.fim) atualizar.mutate({ id: e.id, v: { fim: v } }); }} /></td>
+                <td className={td}><CampoMes valor={e.inicio} title="Vazio = desde sempre" onSalvar={(v) => atualizar.mutate({ id: e.id, v: { inicio: v } })} /></td>
+                <td className={td}><CampoMes valor={e.fim} title="Vazio = contínua" onSalvar={(v) => atualizar.mutate({ id: e.id, v: { fim: v } })} /></td>
                 <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
                 <td className={`${td} whitespace-nowrap`}><Botao12Meses nome={e.descricao} valorDe={(k) => valorBase(e.valores_base, Number(e.valor), k)} onSalvar={(rec) => atualizar.mutateAsync({ id: e.id, v: { valores_base: rec } })} /><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
               </tr>
