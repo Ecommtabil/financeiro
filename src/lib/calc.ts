@@ -46,18 +46,37 @@ export function nReajustes(m: MesRef, h: Pick<Horizonte, "fimBase">, mesReajuste
   return Math.floor((b - r) / 12) - Math.floor((a - r) / 12);
 }
 
-export function regraDo(cfg: Config, id: string, chaveCat: string, tipo: "E" | "S"): Required<Regra> {
+/** Premissas de crescimento por ano (a partir do 2º ano após a base): { "2028": { e: 5, s: 4 } } */
+export type Premissas = Record<string, { e?: number; s?: number }>;
+export type RegraCalc = Required<Regra> & { tipo?: "E" | "S"; prem?: Premissas; padrao?: number };
+
+export function regraDo(cfg: Config, id: string, chaveCat: string, tipo: "E" | "S"): RegraCalc {
   const item = (cfg.regras_item as Record<string, Regra>)?.[id];
   const cat = (cfg.regras_categoria as Record<string, Regra>)?.[chaveCat];
   const padrao = Number(tipo === "E" ? cfg.indice_padrao_entradas : cfg.indice_padrao_saidas);
   const r = item ?? cat;
-  return { indice: r?.indice ?? padrao, sobe: r?.sobe ?? true };
+  return { indice: r?.indice ?? padrao, sobe: r?.sobe ?? true, tipo, prem: ((cfg as { premissas?: unknown }).premissas ?? {}) as Premissas, padrao };
 }
 
-export function fator(m: MesRef, h: Pick<Horizonte, "fimBase">, mesReajuste: number, r: Required<Regra>): number {
+/** % de crescimento da premissa de um ano (cai no índice padrão se não informado). */
+export function premissaDoAno(prem: Premissas | undefined, ano: number, tipo: "E" | "S", padrao: number): number {
+  const p = prem?.[String(ano)];
+  const v = tipo === "E" ? p?.e : p?.s;
+  return v == null || isNaN(Number(v)) ? padrao : Number(v);
+}
+
+/**
+ * 1º reajuste (ano seguinte à base) usa a regra do item/categoria ("O que sobe").
+ * Do 2º em diante, cada ano aplica a premissa de crescimento daquele ano sobre dezembro do ano anterior.
+ */
+export function fator(m: MesRef, h: Pick<Horizonte, "fimBase">, mesReajuste: number, r: RegraCalc): number {
   const n = nReajustes(m, h, mesReajuste);
-  if (n <= 0 || !r.sobe) return 1;
-  return Math.pow(1 + r.indice / 100, n);
+  if (n <= 0) return 1;
+  let f = r.sobe ? 1 + r.indice / 100 : 1;
+  if (!r.tipo) return r.sobe ? Math.pow(1 + r.indice / 100, n) : 1;
+  const y0 = h.fimBase.ano + 1;
+  for (let k = 2; k <= n; k++) f *= 1 + premissaDoAno(r.prem, y0 + k - 1, r.tipo, r.padrao ?? r.indice) / 100;
+  return f;
 }
 
 // ---------- totais ----------
