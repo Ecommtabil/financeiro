@@ -34,7 +34,7 @@ function ChipSituacao({ s }: { s: SituacaoConta }) {
 }
 
 function Contas() {
-  const { horizonte: h, periodo } = usePeriodo();
+  const { horizonte: h, mesesPeriodo } = usePeriodo();
   const { data: cfg } = useConfig();
   const ent = useLista("entradas"), sai = useLista("saidas"), pes = useLista("entradas_pessoais");
   const baixas = useBaixas();
@@ -48,9 +48,9 @@ function Contas() {
   const chaves = useMemo(() => (h ? h.meses.map(chaveMes) : []), [h]);
   useEffect(() => {
     if (!chaves.length) return;
-    const doAno = periodo === "todos" ? chaves : chaves.filter((k) => k.startsWith(`${periodo}-`));
+    const doAno = mesesPeriodo.length ? mesesPeriodo.map(chaveMes) : chaves;
     setDe(doAno[0]!); setAte(doAno[doAno.length - 1]!);
-  }, [periodo, chaves]);
+  }, [mesesPeriodo, chaves]);
 
   const linhas = useMemo<Linha[]>(() => {
     if (!h || !cfg || !ent.data || !sai.data || !pes.data || !baixas.data || !de) return [];

@@ -43,7 +43,7 @@ type Faixas = { baixado: number; aberto: number; vencido: number };
 type Serie = { nome: string; valor: number; acumulado?: number };
 
 function DashboardPage() {
-  const { horizonte, periodo } = usePeriodo();
+  const { horizonte, mesesPeriodo } = usePeriodo();
   const { data: cfg } = useConfig();
   const entradas = useLista("entradas");
   const saidas = useLista("saidas");
@@ -53,8 +53,8 @@ function DashboardPage() {
   const visao = useArea() === "PESSOAL" ? "pessoal" : "escritorio";
   const mesesDisponiveis = useMemo(() => {
     if (!horizonte) return [];
-    return periodo === "todos" ? horizonte.meses : horizonte.meses.filter((m) => m.ano === periodo);
-  }, [horizonte, periodo]);
+    return mesesPeriodo;
+  }, [horizonte, mesesPeriodo]);
   const [mesKey, setMesKey] = useState("");
 
   useEffect(() => {
