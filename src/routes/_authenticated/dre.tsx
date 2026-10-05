@@ -11,7 +11,7 @@ import { sugerirDRE } from "@/lib/dre-ia.functions";
 import { useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig, useSalvarConfig, type Config } from "@/lib/config";
 import { useLista } from "@/lib/dados";
-import { GRUPOS_DRE, chaveCatDRE, chaveMes, grupoDRE, grupoPadraoDRE, somar, totaisHorizonte, type GrupoDRE, type TotaisMes } from "@/lib/calc";
+import { GRUPOS_DRE, contasDoMes, destinoSaida, chaveCatDRE, chaveMes, grupoDRE, grupoPadraoDRE, somar, totaisHorizonte, type GrupoDRE, type TotaisMes } from "@/lib/calc";
 import { acharCabecalho, lerPlanilha, norm } from "@/lib/importacao";
 import { formatarBRL, formatarMes, formatarNumero } from "@/lib/format";
 
@@ -29,17 +29,17 @@ export const Route = createFileRoute("/_authenticated/dre")({
   component: DRE,
 });
 
-type Res = { RB: number; g: Record<GrupoDRE, number>; RL: number; LB: number; RO: number; RLiq: number; t: TotaisMes };
+type Res = { it: Record<string, number>; RB: number; g: Record<GrupoDRE, number>; RL: number; LB: number; RO: number; RLiq: number; t: TotaisMes };
 const rotuloGrupo = (id: GrupoDRE) => GRUPOS_DRE.find((g) => g.id === id)!.rotulo;
 
-function calcular(t: TotaisMes, cfg: Config): Res {
+function calcular(t: TotaisMes, cfg: Config, it: Record<string, number> = {}): Res {
   const g: Record<GrupoDRE, number> = { IMP: 0, PES: 0, DESP: 0, SOC: 0, FIN: 0 };
   for (const [cat, v] of Object.entries(t.porCatEscritorio)) g[grupoDRE(cfg, cat)] += v;
   const RB = t.E, RL = RB - g.IMP, LB = RL - g.PES, RO = LB - g.DESP, RLiq = RO - g.SOC - g.FIN;
-  return { RB, g, RL, LB, RO, RLiq, t };
+  return { it, RB, g, RL, LB, RO, RLiq, t };
 }
 
-type Linha = { id: string; rotulo: string; v: (r: Res) => number; tipo?: "total" | "destaque" | "sub" | "grupo"; abre?: string; pai?: string };
+type Linha = { id: string; rotulo: string; v: (r: Res) => number; tipo?: "total" | "destaque" | "sub" | "grupo" | "item"; abre?: string; pai?: string };
 
 function DRE() {
   const area = useArea();
@@ -65,8 +65,21 @@ function DRE() {
     ? h.anos.map((a) => ({ chave: `A${a.ano}`, rotulo: a.rotulo, meses: a.meses }))
     : (anoObj?.meses ?? []).map((m) => ({ chave: `${m.ano}-${m.mes}`, rotulo: formatarMes(m.ano, m.mes), meses: [m] }));
   void colunas;
-  const cols = base.map((c) => ({ ...c, r: calcular(somar(c.meses.map((m) => porMes.get(chaveMes(m))!)), cfg) }));
-  const total = calcular(somar(cols.map((c) => c.r.t)), cfg);
+  const dd = { entradas: ent.data ?? [], saidas: sai.data ?? [], pessoais: pes.data ?? [] };
+  const itensDe = (ms: typeof base[number]["meses"]) => {
+    const o: Record<string, number> = {};
+    for (const m of ms) { const { receber, pagar } = contasDoMes(m, dd, cfg, h); for (const c of [...receber, ...pagar]) o[c.id] = (o[c.id] ?? 0) + c.valor; }
+    return o;
+  };
+  const cols = base.map((c) => ({ ...c, r: calcular(somar(c.meses.map((m) => porMes.get(chaveMes(m))!)), cfg, itensDe(c.meses)) }));
+  const itT: Record<string, number> = {};
+  for (const c of cols) for (const [k, v] of Object.entries(c.r.it)) itT[k] = (itT[k] ?? 0) + v;
+  const total = calcular(somar(cols.map((c) => c.r.t)), cfg, itT);
+  const nc = (x?: string | null, d = "Sem categoria") => x?.trim() || d;
+  const itensLinha = (pai: string, lista: { id: string; nome: string }[], sinal: 1 | -1): Linha[] =>
+    lista.filter((x) => itT[x.id]).sort((a, b) => (itT[b.id] ?? 0) - (itT[a.id] ?? 0))
+      .map((x) => ({ id: `${pai}|${x.id}`, rotulo: x.nome, v: (r) => sinal * (r.it[x.id] ?? 0), tipo: "item", pai }));
+  const saidasCat = (pessoal: boolean, cat: string) => (sai.data ?? []).filter((s) => (destinoSaida(s) === "PESSOAL") === pessoal && nc(s.categoria) === cat).map((s) => ({ id: s.id, nome: s.descricao }));
 
   // categorias do escritório (todas do cadastro + as com valor)
   const catsEsc = new Set<string>(Object.keys(total.t.porCatEscritorio));
@@ -74,12 +87,12 @@ function DRE() {
   const ordena = (o: Record<string, number>, ks: string[]) => ks.sort((a, b) => (o[b] ?? 0) - (o[a] ?? 0));
   const catsDoGrupo = (g: GrupoDRE) => ordena(total.t.porCatEscritorio, Object.keys(total.t.porCatEscritorio).filter((c) => grupoDRE(cfg, c) === g));
 
-  const subCats = (g: GrupoDRE): Linha[] => catsDoGrupo(g).map((c) => ({ id: `${g}|${c}`, rotulo: c, v: (r) => -(r.t.porCatEscritorio[c] ?? 0), tipo: "sub", pai: g }));
+  const subCats = (g: GrupoDRE): Linha[] => catsDoGrupo(g).flatMap((c): Linha[] => [{ id: `${g}|${c}`, rotulo: c, v: (r) => -(r.t.porCatEscritorio[c] ?? 0), tipo: "sub", pai: g, abre: `${g}|${c}` }, ...itensLinha(`${g}|${c}`, saidasCat(false, c), -1)]);
   const menos = (g: GrupoDRE): Linha[] => [{ id: g, rotulo: `(−) ${rotuloGrupo(g)}`, v: (r) => -r.g[g], tipo: "grupo", abre: g }, ...subCats(g)];
 
   const escritorio: Linha[] = [
     { id: "RB", rotulo: "Receita bruta de serviços", v: (r) => r.RB, tipo: "grupo", abre: "RB" },
-    ...ordena(total.t.porCarteira, Object.keys(total.t.porCarteira)).map((k): Linha => ({ id: `RB|${k}`, rotulo: k, v: (r) => r.t.porCarteira[k] ?? 0, tipo: "sub", pai: "RB" })),
+    ...ordena(total.t.porCarteira, Object.keys(total.t.porCarteira)).flatMap((k): Linha[] => [{ id: `RB|${k}`, rotulo: k, v: (r) => r.t.porCarteira[k] ?? 0, tipo: "sub", pai: "RB", abre: `RB|${k}` }, ...itensLinha(`RB|${k}`, (ent.data ?? []).filter((e) => nc(e.carteira, "Sem carteira") === k).map((e) => ({ id: e.id, nome: e.empresa })), 1)]),
     ...menos("IMP"),
     { id: "RL", rotulo: "= Receita líquida", v: (r) => r.RL, tipo: "total" },
     ...menos("PES"),
@@ -95,7 +108,7 @@ function DRE() {
     { id: "EP", rotulo: "(+) Entradas pessoais", v: (r) => r.t.EP, tipo: "grupo", abre: "EP" },
     ...ordena(total.t.porOrigemPessoal, Object.keys(total.t.porOrigemPessoal)).map((k): Linha => ({ id: `EP|${k}`, rotulo: k, v: (r) => r.t.porOrigemPessoal[k] ?? 0, tipo: "sub", pai: "EP" })),
     { id: "SP", rotulo: "(−) Saídas pessoais", v: (r) => -r.t.SP, tipo: "grupo", abre: "SP" },
-    ...ordena(total.t.porCatPessoal, Object.keys(total.t.porCatPessoal)).map((k): Linha => ({ id: `SP|${k}`, rotulo: k, v: (r) => -(r.t.porCatPessoal[k] ?? 0), tipo: "sub", pai: "SP" })),
+    ...ordena(total.t.porCatPessoal, Object.keys(total.t.porCatPessoal)).flatMap((k): Linha[] => [{ id: `SP|${k}`, rotulo: k, v: (r) => -(r.t.porCatPessoal[k] ?? 0), tipo: "sub", pai: "SP", abre: `SP|${k}` }, ...itensLinha(`SP|${k}`, saidasCat(true, k), -1)]),
     { id: "R", rotulo: "= Reserva", v: (r) => r.t.R, tipo: "destaque" },
   ];
 
@@ -114,13 +127,18 @@ function DRE() {
           </tr>
         </thead>
         <tbody>
-          {linhas.filter((l) => !l.pai || (detalhe === "analitico" ? true : abertos.has(l.pai))).map((l) => {
+          {linhas.filter((l) => {
+            if (!l.pai) return true;
+            const pai = linhas.find((x) => x.abre === l.pai);
+            const aberto = abertos.has(l.pai) || (detalhe === "analitico" && l.tipo === "sub");
+            return aberto && (!pai?.pai || abertos.has(pai.pai) || detalhe === "analitico");
+          }).map((l) => {
             const tem = l.abre && linhas.some((x) => x.pai === l.abre);
-            const cls = l.tipo === "destaque" ? "bg-primary/10 font-semibold" : l.tipo === "total" ? "border-t font-semibold" : l.tipo === "grupo" ? "border-t font-medium" : "text-muted-foreground";
+            const cls = l.tipo === "destaque" ? "bg-primary/10 font-semibold" : l.tipo === "total" ? "border-t font-semibold" : l.tipo === "grupo" ? "border-t font-medium" : l.tipo === "item" ? "text-xs text-muted-foreground/80" : "text-muted-foreground";
             const tv = l.v(total);
             return (
               <tr key={l.id} className={cls}>
-                <td className={`sticky left-0 bg-card px-3 py-1.5 ${l.tipo === "sub" ? "pl-9" : ""}`}>
+                <td className={`sticky left-0 bg-card px-3 py-1.5 ${l.tipo === "sub" ? "pl-9" : l.tipo === "item" ? "pl-16" : ""}`}>
                   {tem ? (
                     <button onClick={() => alterna(l.abre!)} className="inline-flex items-center gap-1 text-left">
                       {abertos.has(l.abre!) ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}{l.rotulo}
