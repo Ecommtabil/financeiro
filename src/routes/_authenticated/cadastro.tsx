@@ -537,10 +537,10 @@ function Entradas({ busca }: { busca: string }) {
       }}>
         <F l="Código"><Input className="h-8 w-20" value={f.codigo} onChange={(e) => setF({ ...f, codigo: e.target.value })} /></F>
         <F l="Empresa"><Input className="h-8 w-56" value={f.empresa} onChange={(e) => setF({ ...f, empresa: e.target.value })} /></F>
-        <F l="Carteira"><Input className="h-8 w-32" value={f.carteira} onChange={(e) => setF({ ...f, carteira: e.target.value })} /></F>
-        <F l="Grupo"><Input className="h-8 w-32" value={f.grupo} onChange={(e) => setF({ ...f, grupo: e.target.value })} /></F>
-        <F l="Setor"><Input className="h-8 w-32" value={f.setor} onChange={(e) => setF({ ...f, setor: e.target.value })} /></F>
-        <F l="Regime"><Input className="h-8 w-36" value={f.regime} onChange={(e) => setF({ ...f, regime: e.target.value })} /></F>
+        <F l="Carteira"><SelLista lista="cad_carteiras" value={f.carteira} onChange={(v) => setF({ ...f, carteira: v ?? "" })} /></F>
+        <F l="Grupo"><SelLista lista="cad_grupos" value={f.grupo} onChange={(v) => setF({ ...f, grupo: v ?? "" })} /></F>
+        <F l="Setor"><SelLista lista="cad_setores" value={f.setor} onChange={(v) => setF({ ...f, setor: v ?? "" })} /></F>
+        <F l="Regime"><SelLista lista="cad_regimes" value={f.regime} onChange={(v) => setF({ ...f, regime: v ?? "" })} /></F>
         <F l="Dia"><SelDia value={Number(f.dia) || null} onChange={(v) => setF({ ...f, dia: v ? String(v) : "" })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
         <F l="Início (opcional)"><CampoMesForm valor={f.inicio} onChange={(v) => setF({ ...f, inicio: v })} /></F>
@@ -567,10 +567,10 @@ function Entradas({ busca }: { busca: string }) {
                 <CaixaLinha s={selE} id={e.id} />
                 <td className={`${td} num`}>{e.codigo}</td>
                 <td className={td}><CampoTexto valor={e.empresa} onSalvar={(v) => atualizar.mutate({ id: e.id, v: { empresa: v } })} /></td>
-                <td className={td}>{e.carteira}</td>
-                <td className={td}>{e.grupo}</td>
-                <td className={td}><Input className="h-7 w-32" defaultValue={e.setor ?? ""} onBlur={(ev) => { const v = ev.target.value.trim() || null; if (v !== e.setor) atualizar.mutate({ id: e.id, v: { setor: v } }); }} /></td>
-                <td className={td}>{e.regime}</td>
+                <td className={td}><SelLista lista="cad_carteiras" value={e.carteira} onChange={(v) => atualizar.mutate({ id: e.id, v: { carteira: v } })} /></td>
+                <td className={td}><SelLista lista="cad_grupos" value={e.grupo} onChange={(v) => atualizar.mutate({ id: e.id, v: { grupo: v } })} /></td>
+                <td className={td}><SelLista lista="cad_setores" value={e.setor} onChange={(v) => atualizar.mutate({ id: e.id, v: { setor: v } })} /></td>
+                <td className={td}><SelLista lista="cad_regimes" value={e.regime} onChange={(v) => atualizar.mutate({ id: e.id, v: { regime: v } })} /></td>
                 <td className={td}><SelDia value={e.dia} onChange={(v) => atualizar.mutate({ id: e.id, v: { dia: v } })} /></td>
                 <td className={td}><Checkbox checked={e.ativo} onCheckedChange={(v) => atualizar.mutate({ id: e.id, v: { ativo: !!v } })} /></td>
                 <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
