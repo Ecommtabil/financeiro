@@ -18,7 +18,7 @@ const ABAS = [
   { to: "/contas", label: "Contas a pagar e receber", periodo: true },
   { to: "/investimentos", label: "Investimentos", periodo: true },
   { to: "/balanco", label: "Balanço", periodo: true },
-  { to: "/projecao", label: "Projeção", periodo: false },
+  { to: "/projecao", label: "Projeção", periodo: false, pessoal: true },
   { to: "/cadastro", label: "Cadastro", periodo: false },
 ] as const;
 

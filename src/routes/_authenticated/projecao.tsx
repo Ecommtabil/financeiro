@@ -54,6 +54,7 @@ function Projecao() {
   const [grupoF, setGrupoF] = useState("todos");
   const area = useArea();
   const gruposArea = area === "PESSOAL" ? ["SP", "EP"] : ["E", "SE"];
+  const LINHAS = area === "PESSOAL" ? LINHAS_PES : LINHAS_ESC;
   const [busca, setBusca] = useState("");
 
   const dados = useMemo(() => (ent.data && sai.data && pes.data ? { entradas: ent.data, saidas: sai.data, pessoais: pes.data } : null), [ent.data, sai.data, pes.data]);
@@ -125,7 +126,7 @@ function Projecao() {
   return (
     <div className="space-y-6 px-6 py-6 lg:px-10">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-2xl font-bold">Projeção {h.y0}–{ultimo}</h1>
+        <h1 className="text-2xl font-bold">Projeção {area === "PESSOAL" ? "pessoal" : "do escritório"} {h.y0}–{ultimo}</h1>
         <BotaoImportar itens={itens} cfg={cfg} salvar={(v) => salvar.mutateAsync(v)} />
       </div>
 
@@ -165,9 +166,10 @@ function Projecao() {
         </section>
       )}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        {([["Entradas do ano", com.E, sem.E], ["Saídas escritório", com.SE, sem.SE], ["Lucro", com.L, sem.L],
-          ["Saídas pessoais líquidas", com.SP - com.EP, sem.SP - sem.EP], ["Reserva", com.R, sem.R]] as const).map(([r, c, s]) => (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {(area === "PESSOAL"
+          ? [["Entradas pessoais", com.EP, sem.EP], ["Saídas pessoais", com.SP, sem.SP], ["Resultado pessoal", com.EP - com.SP, sem.EP - sem.SP]]
+          : [["Entradas do ano", com.E, sem.E], ["Saídas escritório", com.SE, sem.SE], ["Lucro", com.L, sem.L]]).map(([r, c, s]) => (
           <div key={r} className="surface-card p-4">
             <div className="label-eyebrow">{r}</div>
             <div className="num mt-1 text-lg font-semibold">{formatarBRL(c)}</div>
@@ -176,8 +178,8 @@ function Projecao() {
         ))}
       </div>
 
-      <TabelaLinhas titulo="Resumo por ano" colunas={anosAnalise.map((a) => ({ rotulo: String(a.ano), t: calc.doAno(a.ano, "com") }))} acumulada />
-      <TabelaLinhas titulo={`Mês a mês · ${ano}`} colunas={calc.mesesAno.map((m) => ({ rotulo: formatarMes(m.ano, m.mes), t: calc.porMes.get(chaveMes(m))!.com }))} total />
+      <TabelaLinhas titulo="Resumo por ano" colunas={anosAnalise.map((a) => ({ rotulo: String(a.ano), t: calc.doAno(a.ano, "com") }))} acumulada linhas={LINHAS} />
+      <TabelaLinhas titulo={`Mês a mês · ${ano}`} colunas={calc.mesesAno.map((m) => ({ rotulo: formatarMes(m.ano, m.mes), t: calc.porMes.get(chaveMes(m))!.com }))} total linhas={LINHAS} />
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Sem nenhum reajuste × Com reajustes acumulados · {ano}</h2>
@@ -269,14 +271,14 @@ function Projecao() {
   );
 }
 
-const LINHAS: [string, (t: TotaisMes) => number][] = [
-  ["Entradas", (t) => t.E], ["− Saídas escritório", (t) => t.SE], ["= Lucro", (t) => t.L],
-  ["+ Entradas pessoais", (t) => t.EP], ["− Saídas pessoais", (t) => t.SP], ["= Reserva", (t) => t.R],
-];
+type Linha = [string, (t: TotaisMes) => number];
+const LINHAS_ESC: Linha[] = [["Entradas", (t) => t.E], ["− Saídas escritório", (t) => t.SE], ["= Lucro", (t) => t.L]];
+const LINHAS_PES: Linha[] = [["Entradas pessoais", (t) => t.EP], ["− Saídas pessoais", (t) => t.SP], ["= Resultado pessoal", (t) => t.EP - t.SP]];
 
-function TabelaLinhas({ titulo, colunas, acumulada, total }: { titulo: string; colunas: { rotulo: string; t: TotaisMes }[]; acumulada?: boolean; total?: boolean }) {
+function TabelaLinhas({ titulo, colunas, acumulada, total, linhas: LINHAS }: { titulo: string; colunas: { rotulo: string; t: TotaisMes }[]; acumulada?: boolean; total?: boolean; linhas: Linha[] }) {
   let ac = 0;
-  const acum = colunas.map((c) => (ac += c.t.R));
+  const res = LINHAS[LINHAS.length - 1]![1];
+  const acum = colunas.map((c) => (ac += res(c.t)));
   const tot = somar(colunas.map((c) => c.t));
   return (
     <section className="space-y-2">
@@ -294,7 +296,7 @@ function TabelaLinhas({ titulo, colunas, acumulada, total }: { titulo: string; c
               </tr>
             ))}
             {acumulada && (
-              <tr className="bg-muted font-semibold"><td className="sticky left-0 bg-muted px-3 py-1.5">Reserva acumulada</td>
+              <tr className="bg-muted font-semibold"><td className="sticky left-0 bg-muted px-3 py-1.5">{LINHAS === LINHAS_ESC ? "Lucro acumulado" : "Resultado acumulado"}</td>
                 {acum.map((v, i) => <td key={i} className={cn("num whitespace-nowrap px-3 py-1.5 text-right", v < 0 && "text-negative")}>{formatarNumero(v)}</td>)}</tr>
             )}
           </tbody>
