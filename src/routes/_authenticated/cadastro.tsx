@@ -24,7 +24,7 @@ import { CalendarRange } from "lucide-react";
 import { BotaoConfirmar } from "@/components/botao-confirmar";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { daArea, useArea, usePeriodo } from "@/components/app-shell";
+import { usePeriodo } from "@/components/app-shell";
 import { useConfig } from "@/lib/config";
 import { formatarBRL, formatarMes, formatarNumero, normalizarBanco } from "@/lib/format";
 import { baixarModelo, chaveMes, lerImportacao, norm, paraNumero, type Previa, type TipoImport } from "@/lib/importacao";
