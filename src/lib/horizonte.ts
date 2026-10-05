@@ -19,7 +19,7 @@ export type Horizonte = {
   primeiro: MesRef;
   ultimo: MesRef;
   y0: number;
-  /** Último dos 12 meses-base (definidos pelo usuário) após a base zero; reajustes só depois dele. */
+  /** Dezembro do ano da base zero; reajustes só depois dele. */
   fimBase: MesRef;
   mesesBase: MesRef[];
   meses: MesRef[];
@@ -54,14 +54,14 @@ export function calcularHorizonte(baseISO: string, anosProjecao: number, incluir
     });
   }
 
-  const p0: MesRef = bd === 1 ? { ano: by, mes: bm } : bm === 12 ? { ano: by + 1, mes: 1 } : { ano: by, mes: bm + 1 };
-  const mesesBase: MesRef[] = Array.from({ length: 12 }, (_, i) => { const t = p0.ano * 12 + p0.mes - 1 + i; return { ano: Math.floor(t / 12), mes: (t % 12) + 1 }; });
-  const fimBase = mesesBase[11]!;
+  // Meses-base = meses projetados do ano da base zero; o ano seguinte parte do último deles (dezembro).
+  const mesesBase: MesRef[] = meses.filter((x) => x.ano === by);
+  const fimBase: MesRef = { ano: by, mes: 12 };
   return { base: { ano: by, mes: bm, dia: bd }, primeiro, ultimo, y0: by + 1, fimBase, mesesBase, meses, anos, totalMeses: meses.length };
 }
 
 export function descreverHorizonte(h: Horizonte): string {
-  return `Projeção de ${MESES_LONGOS[h.primeiro.mes - 1]} ${h.primeiro.ano} a ${MESES_LONGOS[h.ultimo.mes - 1]} ${h.ultimo.ano} · ${h.totalMeses} meses. 12 meses-base até ${formatarMes(h.fimBase.ano, h.fimBase.mes)}; reajustes por índice depois disso.`;
+  return `Projeção de ${MESES_LONGOS[h.primeiro.mes - 1]} ${h.primeiro.ano} a ${MESES_LONGOS[h.ultimo.mes - 1]} ${h.ultimo.ano} · ${h.totalMeses} meses. Meses de ${h.base.ano} são a base; cada ano seguinte parte de dezembro do anterior com o índice.`;
 }
 
 export function faixaCurta(h: Horizonte): string {
