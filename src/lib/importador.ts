@@ -9,7 +9,7 @@ import { formatarBRL, normalizarBanco } from "./format";
 import { acharCabecalho, chaveMes, lerMes, lerPlanilha, norm, paraNumero } from "./importacao";
 import {
   CHAVE_CAT_PESSOAL, GRUPOS_DRE, chaveCatDRE, chaveCatEntrada, chaveCatSaida, destinoSaida, fator, grupoDRE, grupoPadraoDRE,
-  regraDo, tipoInvestimentoSugerido, valorEntrada, valorEntradaPessoal, valorSaida,
+  regraDo, tipoInvestimentoSugerido, valorBase, valorEntrada, valorEntradaPessoal, valorSaida,
   type Baixa, type Bem, type Divida, type GrupoDRE, type Investimento, type Regra, type Saldo,
 } from "./calc";
 
@@ -60,6 +60,25 @@ function dia(v: unknown): number | null {
 }
 const mesDe = (v: unknown, anoBase: number) => { const m = lerMes(v); return m ? chaveMes(m.ano ?? anoBase, m.mes) : null; };
 const cel = (v: unknown) => (v == null ? "" : typeof v === "number" ? v.toLocaleString("pt-BR", { maximumFractionDigits: 6 }) : v instanceof Date ? dataBR(v.toISOString()) : String(v));
+const chavesBase = (c: Ctx) => c.h.mesesBase.map((x) => chaveMes(x.ano, x.mes));
+/** Colunas de mês (12 meses-base) fora das colunas fixas. */
+function colunasMes(bruto: unknown[], fixas: number[], anoBase: number): { idx: number; chave: string }[] {
+  const f = new Set(fixas), out: { idx: number; chave: string }[] = [];
+  let ano = anoBase, ant = 0;
+  bruto.forEach((v, idx) => {
+    if (f.has(idx)) return;
+    const m = lerMes(v); if (!m) return;
+    if (m.ano != null) ano = m.ano; else if (ant && m.mes < ant) ano++;
+    ant = m.mes; out.push({ idx, chave: chaveMes(ano, m.mes) });
+  });
+  return out;
+}
+function lerBase(r: unknown[], meses: { idx: number; chave: string }[], valor: number, c: Ctx): Record<string, number> {
+  if (!meses.length) return {};
+  const lidos = new Map<string, number>();
+  for (const m of meses) { const n = paraNumero(r[m.idx]); if (n != null) lidos.set(m.chave, r6(n)); }
+  return Object.fromEntries(chavesBase(c).map((k) => [k, lidos.get(k) ?? r6(valor)]));
+}
 const amostra = (cab: string[], linhas: unknown[][]) => ({ cab, linhas: linhas.map((l) => l.map(cel)) });
 const sim = (v: unknown) => !["NAO", "N", "0", "FALSE", "FALSO"].includes(norm(v));
 
@@ -137,20 +156,21 @@ function acharLinhaDRE(v: unknown): GrupoDRE | null {
 export const TIPOS: Def[] = [
   {
     id: "entradas", titulo: "Entradas", aba: "ENTRADAS", aliases: ["RECEITAS"], chaves: ["EMPRESA", "VALOR"], contagem: "entradas",
-    colunas: [["CODIGOS", "Código do cliente"], ["EMPRESAS", "Nome da empresa (obrigatório)"], ["CARTEIRA", "Carteira"], ["Dia do vencimento", "Dia 1 a 31"], ["Recebimento", "Banco onde recebe"], ["Situação", "Ativo ou Inativo"], ["Regime Tributário", "Regime"], ["Grupo", "Grupo (boleto único)"], ["Setor", "Setor"], ["Valor", "Valor mensal (obrigatório; pode ser fórmula)"], ["INICIO", "Primeiro mês mm/aaaa (opcional)"], ["FIM", "Último mês mm/aaaa (opcional)"]],
+    colunas: [["CODIGOS", "Código do cliente"], ["EMPRESAS", "Nome da empresa (obrigatório)"], ["CARTEIRA", "Carteira"], ["Dia do vencimento", "Dia 1 a 31"], ["Recebimento", "Banco onde recebe"], ["Situação", "Ativo ou Inativo"], ["Regime Tributário", "Regime"], ["Grupo", "Grupo (boleto único)"], ["Setor", "Setor"], ["Valor", "Valor mensal (obrigatório; pode ser fórmula)"], ["INICIO", "Primeiro mês mm/aaaa (opcional)"], ["FIM", "Último mês mm/aaaa (opcional)"], ["12 meses-base", "Uma coluna por mês após a base zero (ex.: 10/2026); vazio = Valor. Depois deles entra o reajuste por índice"]],
     exportar: (c) => [
-      ["CODIGOS", "EMPRESAS", "CARTEIRA", "Dia do vencimento", "Recebimento", "Situação", "Regime Tributário", "Grupo", "Setor", "Valor", "INICIO", "FIM"],
-      ...c.entradas.map((e) => [e.codigo ?? "", e.empresa, e.carteira ?? "", e.dia ?? "", e.banco ?? "", e.ativo ? "Ativo" : "Inativo", e.regime ?? "", e.grupo ?? "", e.setor ?? "", Number(e.valor), mmaaaa(e.inicio), mmaaaa(e.fim)]),
+      ["CODIGOS", "EMPRESAS", "CARTEIRA", "Dia do vencimento", "Recebimento", "Situação", "Regime Tributário", "Grupo", "Setor", "Valor", "INICIO", "FIM", ...chavesBase(c).map(mmaaaa)],
+      ...c.entradas.map((e) => [e.codigo ?? "", e.empresa, e.carteira ?? "", e.dia ?? "", e.banco ?? "", e.ativo ? "Ativo" : "Inativo", e.regime ?? "", e.grupo ?? "", e.setor ?? "", Number(e.valor), mmaaaa(e.inicio), mmaaaa(e.fim), ...chavesBase(c).map((k) => valorBase(e.valores_base, Number(e.valor), k))]),
     ],
     ler: (rows, c) => {
       const h = acharCabecalho(rows, ["EMPRESA", "VALOR"]);
-      const cab = (rows[h] ?? []).map(norm);
+      const bruto = rows[h] ?? [], cab = bruto.map(norm);
       const ci = { cod: col(cab, "CODIGO"), emp: col(cab, "EMPRESA"), cart: col(cab, "CARTEIRA"), dia: col(cab, "VENCIMENTO", "DIA"), banco: col(cab, "RECEBIMENTO", "BANCO"), sit: col(cab, "SITUA"), reg: col(cab, "REGIME"), grupo: col(cab, "GRUPO"), setor: col(cab, "SETOR"), valor: col(cab, "VALOR"), ini: col(cab, "INICIO"), fim: col(cab, "FIM") };
+      const mesesE = colunasMes(bruto, Object.values(ci), c.h.base.ano);
       const itens: TablesInsert<"entradas">[] = [];
       for (const r of rows.slice(h + 1)) {
         const empresa = txt(r, ci.emp), valor = num(r, ci.valor);
         if (!empresa || !valor) continue;
-        itens.push({ codigo: txt(r, ci.cod) || null, empresa, carteira: txt(r, ci.cart) || null, dia: dia(r[ci.dia]), banco: banco(txt(r, ci.banco)), ativo: !norm(r[ci.sit]).startsWith("INATIV"), regime: txt(r, ci.reg) || null, grupo: txt(r, ci.grupo) || null, setor: txt(r, ci.setor) || null, valor: r6(valor), inicio: ci.ini >= 0 ? mesDe(r[ci.ini], c.h.base.ano) : null, fim: ci.fim >= 0 ? mesDe(r[ci.fim], c.h.base.ano) : null, origem: "import" });
+        itens.push({ codigo: txt(r, ci.cod) || null, empresa, carteira: txt(r, ci.cart) || null, dia: dia(r[ci.dia]), banco: banco(txt(r, ci.banco)), ativo: !norm(r[ci.sit]).startsWith("INATIV"), regime: txt(r, ci.reg) || null, grupo: txt(r, ci.grupo) || null, setor: txt(r, ci.setor) || null, valor: r6(valor), inicio: ci.ini >= 0 ? mesDe(r[ci.ini], c.h.base.ano) : null, fim: ci.fim >= 0 ? mesDe(r[ci.fim], c.h.base.ano) : null, valores_base: lerBase(r, mesesE, valor, c), origem: "import" });
       }
       const k = (i: { codigo?: string | null; empresa: string }) => `${norm(i.codigo)}|${norm(i.empresa)}`;
       const total = itens.reduce((s, i) => s + Number(i.valor ?? 0), 0);
@@ -216,17 +236,18 @@ export const TIPOS: Def[] = [
   },
   {
     id: "pessoais", titulo: "Entradas pessoais", aba: "PESSOAIS", aliases: ["ENTRADAS PESSOAIS"], chaves: ["ORIGEM", "VALOR"], contagem: "entradas pessoais",
-    colunas: [["ORIGEM", "De onde vem (obrigatório)"], ["DIA", "Dia do recebimento"], ["BANCO", "Banco"], ["VALOR", "Valor mensal (obrigatório)"], ["INICIO", "Primeiro mês mm/aaaa"], ["FIM", "Último mês mm/aaaa (vazio = contínua)"]],
-    exportar: (c) => [["ORIGEM", "DIA", "BANCO", "VALOR", "INICIO", "FIM"], ...c.pessoais.map((p) => [p.descricao, p.dia ?? "", p.banco ?? "", Number(p.valor), mmaaaa(p.inicio), mmaaaa(p.fim)])],
+    colunas: [["ORIGEM", "De onde vem (obrigatório)"], ["DIA", "Dia do recebimento"], ["BANCO", "Banco"], ["VALOR", "Valor mensal (obrigatório)"], ["INICIO", "Primeiro mês mm/aaaa"], ["FIM", "Último mês mm/aaaa (vazio = contínua)"], ["12 meses-base", "Uma coluna por mês após a base zero; vazio = VALOR. Depois deles entra o reajuste por índice"]],
+    exportar: (c) => [["ORIGEM", "DIA", "BANCO", "VALOR", "INICIO", "FIM", ...chavesBase(c).map(mmaaaa)], ...c.pessoais.map((p) => [p.descricao, p.dia ?? "", p.banco ?? "", Number(p.valor), mmaaaa(p.inicio), mmaaaa(p.fim), ...chavesBase(c).map((k) => valorBase(p.valores_base, Number(p.valor), k))])],
     ler: (rows, c) => {
       const h = acharCabecalho(rows, ["ORIGEM", "VALOR"]);
-      const cab = (rows[h] ?? []).map(norm);
+      const bruto = rows[h] ?? [], cab = bruto.map(norm);
       const ci = { ori: col(cab, "ORIGEM"), dia: col(cab, "DIA"), banco: col(cab, "BANCO"), ini: col(cab, "INICIO"), fim: col(cab, "FIM"), valor: col(cab, "VALOR") };
+      const mesesP = colunasMes(bruto, Object.values(ci), c.h.base.ano);
       const itens: TablesInsert<"entradas_pessoais">[] = [];
       for (const r of rows.slice(h + 1)) {
         const descricao = txt(r, ci.ori), valor = num(r, ci.valor);
         if (!descricao || !valor) continue;
-        itens.push({ descricao, dia: dia(r[ci.dia]), banco: banco(txt(r, ci.banco)), inicio: ci.ini >= 0 ? mesDe(r[ci.ini], c.h.base.ano) : null, fim: ci.fim >= 0 ? mesDe(r[ci.fim], c.h.base.ano) : null, valor: r6(valor), origem: "import" });
+        itens.push({ descricao, dia: dia(r[ci.dia]), banco: banco(txt(r, ci.banco)), inicio: ci.ini >= 0 ? mesDe(r[ci.ini], c.h.base.ano) : null, fim: ci.fim >= 0 ? mesDe(r[ci.fim], c.h.base.ano) : null, valor: r6(valor), valores_base: lerBase(r, mesesP, valor, c), origem: "import" });
       }
       const k = (i: { descricao: string }) => norm(i.descricao);
       const total = itens.reduce((s, i) => s + Number(i.valor ?? 0), 0);
