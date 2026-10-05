@@ -434,8 +434,8 @@ function Saidas({ busca }: { busca: string }) {
         <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
         <F l="Destino"><SelDestino value={f.destino} onChange={(v) => setF({ ...f, destino: v })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
-        <F l="Início"><Input className="h-8 w-36" type="month" value={f.ri} onChange={(e) => setF({ ...f, ri: e.target.value })} /></F>
-        <F l="Fim (opcional)"><Input className="h-8 w-36" type="month" value={f.rf} onChange={(e) => setF({ ...f, rf: e.target.value })} /></F>
+        <F l="Início"><CampoMesForm valor={f.ri} onChange={(v) => setF({ ...f, ri: v })} /></F>
+        <F l="Fim (opcional)"><CampoMesForm valor={f.rf} onChange={(v) => setF({ ...f, rf: v })} /></F>
       </Form>
       <div className="surface-card mt-4 overflow-x-auto">
         <table className="w-full text-sm">
@@ -541,8 +541,8 @@ function Entradas({ busca }: { busca: string }) {
         <F l="Regime"><Input className="h-8 w-36" value={f.regime} onChange={(e) => setF({ ...f, regime: e.target.value })} /></F>
         <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
-        <F l="Início (opcional)"><Input className="h-8 w-36" type="month" value={f.inicio} onChange={(e) => setF({ ...f, inicio: e.target.value })} /></F>
-        <F l="Fim (opcional)"><Input className="h-8 w-36" type="month" value={f.fim} onChange={(e) => setF({ ...f, fim: e.target.value })} /></F>
+        <F l="Início (opcional)"><CampoMesForm valor={f.inicio} onChange={(v) => setF({ ...f, inicio: v })} /></F>
+        <F l="Fim (opcional)"><CampoMesForm valor={f.fim} onChange={(v) => setF({ ...f, fim: v })} /></F>
       </Form>
       <div className="surface-card mt-4 overflow-x-auto">
         <table className="w-full text-sm">
@@ -622,8 +622,8 @@ function Pessoais({ busca }: { busca: string }) {
         <F l="Origem"><Input className="h-8 w-56" value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} /></F>
         <F l="Dia"><Input className="h-8 w-16" type="number" min={1} max={31} value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></F>
         <F l="Banco"><Input className="h-8 w-32" value={f.banco} onChange={(e) => setF({ ...f, banco: e.target.value })} /></F>
-        <F l="Início"><Input className="h-8 w-36" type="month" value={f.inicio} onChange={(e) => setF({ ...f, inicio: e.target.value })} /></F>
-        <F l="Fim (opcional)"><Input className="h-8 w-36" type="month" value={f.fim} onChange={(e) => setF({ ...f, fim: e.target.value })} /></F>
+        <F l="Início"><CampoMesForm valor={f.inicio} onChange={(v) => setF({ ...f, inicio: v })} /></F>
+        <F l="Fim (opcional)"><CampoMesForm valor={f.fim} onChange={(v) => setF({ ...f, fim: v })} /></F>
         <F l="Valor/mês"><Input className="num h-8 w-28" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="0,00" /></F>
       </Form>
       <div className="surface-card mt-4 overflow-x-auto">
