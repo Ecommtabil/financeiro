@@ -7,9 +7,9 @@ import { useConfig, useSalvarConfig } from "@/lib/config";
 import { useLista } from "@/lib/dados";
 import { normalizarBanco } from "@/lib/format";
 
-/** Pré-cadastro de categorias, pagamentos e bancos (salvo em config.carteira_listas com prefixo cad_). */
-export type ChaveLista = "cad_categorias" | "cad_pgtos" | "cad_bancos";
-const ROTULO: Record<ChaveLista, string> = { cad_categorias: "Categorias", cad_pgtos: "Pagamentos", cad_bancos: "Bancos" };
+/** Pré-cadastro de categorias, pagamentos, bancos e listas das entradas (salvo em config.carteira_listas com prefixo cad_). */
+export type ChaveLista = "cad_categorias" | "cad_pgtos" | "cad_bancos" | "cad_carteiras" | "cad_grupos" | "cad_setores" | "cad_regimes";
+const ROTULO: Record<ChaveLista, string> = { cad_categorias: "Categorias", cad_pgtos: "Pagamentos", cad_bancos: "Bancos", cad_carteiras: "Carteiras", cad_grupos: "Grupos", cad_setores: "Setores", cad_regimes: "Regimes" };
 const sel = "h-7 max-w-44 rounded-md border border-input bg-background px-1.5 text-sm";
 
 const limpar = (k: ChaveLista, v: string) => {
@@ -32,6 +32,10 @@ export function useListasCadastro() {
     cad_categorias: unicos("cad_categorias", [...salvas("cad_categorias"), ...saidas.map((s) => s.categoria)]),
     cad_pgtos: unicos("cad_pgtos", [...salvas("cad_pgtos"), ...saidas.map((s) => s.pgto)]),
     cad_bancos: unicos("cad_bancos", [...salvas("cad_bancos"), ...saidas.map((s) => s.banco), ...entradas.map((e) => e.banco), ...pessoais.map((p) => p.banco)]),
+    cad_carteiras: unicos("cad_carteiras", [...salvas("cad_carteiras"), ...entradas.map((e) => e.carteira)]),
+    cad_grupos: unicos("cad_grupos", [...salvas("cad_grupos"), ...entradas.map((e) => e.grupo)]),
+    cad_setores: unicos("cad_setores", [...salvas("cad_setores"), ...entradas.map((e) => e.setor)]),
+    cad_regimes: unicos("cad_regimes", [...salvas("cad_regimes"), ...entradas.map((e) => e.regime)]),
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [cfg, saidas, entradas, pessoais]);
   const gravar = (k: ChaveLista, l: string[]) => salvar.mutateAsync({ carteira_listas: { ...todas, [k]: unicos(k, l) } as never });
