@@ -53,7 +53,7 @@ export async function gerarRelatorioEscritorio(p: {
         styles: { fontSize: 8, cellPadding: 3 },
         headStyles: { fillColor: [70, 90, 140] },
         footStyles: { fillColor: [230, 233, 240], textColor: 20 },
-        columnStyles: { 0: { cellWidth: 28 }, 5: { halign: "right", cellWidth: 70 } },
+        columnStyles: { 0: { cellWidth: 28 }, 4: { cellWidth: 62 }, 5: { halign: "right", cellWidth: 70 } },
         margin: { left: 40, right: 40 },
       });
       y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
@@ -101,7 +101,7 @@ export async function gerarPdfTabela(p: { titulo: string; subtitulo: string; col
     startY: 80,
     head: [["Conta", ...p.colunas]],
     body: p.linhas.map((l) => [
-      { content: "    ".repeat(l.nivel) + l.rotulo, styles: { fontStyle: l.forte ? "bold" : "normal", fillColor: l.forte ? [230, 233, 240] : undefined } },
+      { content: "    ".repeat(l.nivel) + l.rotulo.replace(/[−–]/g, "-"), styles: { fontStyle: l.forte ? "bold" : "normal", fillColor: l.forte ? [230, 233, 240] : undefined } },
       ...l.valores.map((v) => ({ content: formatarNumero(v), styles: { fontStyle: l.forte ? "bold" : "normal", textColor: v < 0 ? [190, 30, 45] : 20, fillColor: l.forte ? [230, 233, 240] : undefined } })),
     ]) as never,
     styles: { fontSize: p.colunas.length > 10 ? 6.5 : 8, cellPadding: 2.5 },
