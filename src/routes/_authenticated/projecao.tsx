@@ -127,7 +127,7 @@ function Projecao() {
     try {
       const { gerarPdfTabela } = await import("@/lib/relatorio-pdf");
       const anosPdf = h.anos;
-      const cols = anosPdf.map((a) => a.rotulo ?? String(a.ano));
+      const cols = anosPdf.map((a) => a.rotulo);
       const tots = anosPdf.map((a) => calc.doAno(a.ano, "com"));
       let ac = 0;
       const res = LINHAS[LINHAS.length - 1]![1];
@@ -138,7 +138,7 @@ function Projecao() {
       const nomeA = area === "PESSOAL" ? "pessoal" : "do escritório";
       await gerarPdfTabela({
         titulo: `Projeção ${nomeA} ${anosPdf[0]!.ano}–${ultimo}`,
-        subtitulo: `Base zero ${h.fimBase ? `até Dez/${String(h.fimBase.ano).slice(2)}` : ""} · ${h.anos[0]!.ano}* = ano parcial da base zero`,
+        subtitulo: `Base zero ${String(h.base.dia).padStart(2,"0")}/${String(h.base.mes).padStart(2,"0")}/${h.base.ano} · * = ano parcial da base zero`,
         colunas: cols, linhas,
         arquivo: `projecao-${area === "PESSOAL" ? "pessoal" : "escritorio"}.pdf`,
         extra: {
