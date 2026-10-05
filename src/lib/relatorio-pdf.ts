@@ -88,7 +88,7 @@ export async function gerarRelatorioEscritorio(p: {
 
 export type LinhaPdf = { rotulo: string; nivel: number; forte?: boolean; valores: number[] };
 /** PDF de uma tabela com níveis (ex.: DRE exatamente como está expandida na tela). */
-export async function gerarPdfTabela(p: { titulo: string; subtitulo: string; colunas: string[]; linhas: LinhaPdf[]; arquivo: string }) {
+export async function gerarPdfTabela(p: { titulo: string; subtitulo: string; colunas: string[]; linhas: LinhaPdf[]; arquivo: string; extra?: { titulo: string; cabecalho: string[]; linhas: string[][] } }) {
   const { jsPDF } = await import("jspdf");
   const autoTable = (await import("jspdf-autotable")).default;
   const doc = new jsPDF({ orientation: p.colunas.length > 6 ? "landscape" : "portrait", unit: "pt", format: "a4" });
@@ -109,6 +109,13 @@ export async function gerarPdfTabela(p: { titulo: string; subtitulo: string; col
     columnStyles: col,
     margin: { left: 30, right: 30 },
   });
+  if (p.extra) {
+    const y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 28;
+    doc.setFontSize(12); doc.text(p.extra.titulo, 30, y);
+    const c2: Record<number, { halign: "right" }> = {};
+    p.extra.cabecalho.forEach((_, i) => { if (i) c2[i] = { halign: "right" }; });
+    autoTable(doc, { startY: y + 8, head: [p.extra.cabecalho], body: p.extra.linhas, styles: { fontSize: 8, cellPadding: 2.5 }, headStyles: { fillColor: azul }, columnStyles: c2, margin: { left: 30, right: 30 }, tableWidth: 360 });
+  }
   const n = doc.getNumberOfPages();
   for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(8); doc.text(`Fluxo Escritório & Casa · página ${i} de ${n}`, 40, doc.internal.pageSize.getHeight() - 20); }
   doc.save(p.arquivo);

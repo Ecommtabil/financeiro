@@ -123,11 +123,44 @@ function Projecao() {
   const salvarPrem = (a: number, k: "e" | "s", v: number) =>
     salvar.mutate({ premissas: { ...prem, [String(a)]: { ...(prem[String(a)] ?? {}), [k]: v } } } as Partial<Config>, ok);
 
+  const gerarPdf = async () => {
+    try {
+      const { gerarPdfTabela } = await import("@/lib/relatorio-pdf");
+      const anosPdf = h.anos;
+      const cols = anosPdf.map((a) => a.rotulo);
+      const tots = anosPdf.map((a) => calc.doAno(a.ano, "com"));
+      let ac = 0;
+      const res = LINHAS[LINHAS.length - 1]![1];
+      const linhas = [
+        ...LINHAS.map(([r, f]) => ({ rotulo: r, nivel: 0, forte: r.startsWith("="), valores: tots.map(f) })),
+        { rotulo: area === "PESSOAL" ? "Reserva acumulada" : "Lucro acumulado", nivel: 0, forte: true, valores: tots.map((t) => (ac += res(t))) },
+      ];
+      const nomeA = area === "PESSOAL" ? "pessoal" : "do escritório";
+      await gerarPdfTabela({
+        titulo: `Projeção ${nomeA} ${anosPdf[0]!.ano}–${ultimo}`,
+        subtitulo: `Base zero ${String(h.base.dia).padStart(2,"0")}/${String(h.base.mes).padStart(2,"0")}/${h.base.ano} · * = ano parcial da base zero`,
+        colunas: cols, linhas,
+        arquivo: `projecao-${area === "PESSOAL" ? "pessoal" : "escritorio"}.pdf`,
+        extra: {
+          titulo: "Premissas de crescimento",
+          cabecalho: ["Ano", area === "PESSOAL" ? "Entradas pessoais %" : "Entradas %", area === "PESSOAL" ? "Saídas pessoais %" : "Saídas %"],
+          linhas: [
+            [String(h.y0), "O que sobe", "O que sobe"],
+            ...anosPremissa.map((a) => [String(a), formatarNumero(premissaDoAno(prem, a, "E", padrao("E"))), formatarNumero(premissaDoAno(prem, a, "S", padrao("S")))]),
+          ],
+        },
+      });
+    } catch (e) { toast.error((e as Error).message); }
+  };
+
   return (
     <div className="space-y-6 px-6 py-6 lg:px-10">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="text-2xl font-bold">Projeção {area === "PESSOAL" ? "pessoal" : "do escritório"} {h.y0}–{ultimo}</h1>
-        <BotaoImportar itens={itens} cfg={cfg} salvar={(v) => salvar.mutateAsync(v)} />
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={gerarPdf}><Download className="mr-1 h-4 w-4" />PDF da projeção</Button>
+          <BotaoImportar itens={itens} cfg={cfg} salvar={(v) => salvar.mutateAsync(v)} />
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-4">
