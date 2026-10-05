@@ -284,6 +284,15 @@ function CampoMes({ valor, onSalvar, title }: { valor: string | null; onSalvar: 
   );
 }
 
+/** Campo de mês numérico para formulários: digita mm/aaaa, devolve "aaaa-mm". */
+function CampoMesForm({ valor, onChange }: { valor: string; onChange: (v: string) => void }) {
+  const [txt, setTxt] = useState(exibirMes(valor || null));
+  return (
+    <Input className="num h-8 w-28" value={txt} placeholder="mm/aaaa"
+      onChange={(e) => { setTxt(e.target.value); const v = lerMes(e.target.value); if (v !== undefined) onChange(v ?? ""); }} />
+  );
+}
+
 /** Texto editável em linha (descrição, empresa etc.). */
 function CampoTexto({ valor, onSalvar, className = "w-56" }: { valor: string; onSalvar: (v: string) => void; className?: string }) {
   return (
