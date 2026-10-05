@@ -170,6 +170,8 @@ function Pessoal(p: PainelProps & { saldoBancos: number }) {
   const acumulada = soma(ateMes.map((m) => totais.get(chaveMes(m))?.R ?? 0));
   let rodando = soma(horizonte.meses.filter((m) => chaveMes(m) < `${mes.ano}-01`).map((m) => totais.get(chaveMes(m))?.R ?? 0));
   const serie = mesesAno.map((m) => { const valor = totais.get(chaveMes(m))?.R ?? 0; rodando += valor; return { nome: formatarMes(m.ano, m.mes), valor, acumulado: rodando }; });
+  let rodandoHorizonte = 0;
+  const serieHorizonte = horizonte.meses.map((m) => { const valor = totais.get(chaveMes(m))?.R ?? 0; rodandoHorizonte += valor; return { nome: formatarMes(m.ano, m.mes), valor, acumulado: rodandoHorizonte }; });
   const medPagar = faixas(pagar, mapa), medReceber = faixas(receber, mapa);
   const despesas: Record<string, number> = {};
   for (const s of dados.saidas.filter((x) => destinoSaida(x) === "PESSOAL")) {
@@ -189,7 +191,7 @@ function Pessoal(p: PainelProps & { saldoBancos: number }) {
     <div className="grid gap-4 xl:grid-cols-2"><Medidor titulo="Pagamentos pessoais" dados={medPagar} /><Medidor titulo="Entradas pessoais" dados={medReceber} /></div>
     <div className="grid gap-4 xl:grid-cols-2">
       <Secao titulo={`Reserva mês a mês · ${mes.ano}`}><GraficoVertical dados={serie} /></Secao>
-      <Secao titulo={`Reserva acumulada · ${mes.ano}`}><GraficoLinha dados={serie} /></Secao>
+      <Secao titulo="Evolução das reservas · horizonte completo"><GraficoLinha dados={serieHorizonte} /></Secao>
     </div>
     <div className="grid gap-4 xl:grid-cols-2">
       <Secao titulo="Saídas pessoais por categoria"><GraficoHorizontal dados={top(atual.porCatPessoal).map(([nome, valor]) => ({ nome, valor }))} /></Secao>
