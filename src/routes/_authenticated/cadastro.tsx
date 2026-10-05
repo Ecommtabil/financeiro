@@ -111,18 +111,19 @@ function Botao12Meses({ nome, valorDe, onSalvar }: { nome: string; valorDe: (k: 
   async function salvar() {
     const rec: Record<string, number> = {};
     for (const { k } of ks) rec[k] = paraNumero(vals[k]) ?? 0;
-    try { await onSalvar(rec); toast.success("12 meses salvos."); setAberto(false); } catch (e) { toast.error((e as Error).message); }
+    try { await onSalvar(rec); toast.success("Meses-base salvos."); setAberto(false); } catch (e) { toast.error((e as Error).message); }
   }
   return (
     <>
-      <Button size="icon" variant="ghost" className="size-7" title="Editar 12 meses-base" onClick={abrir}><CalendarRange className="size-4" /></Button>
+      <Button size="icon" variant="ghost" className="size-7" title="Editar meses-base" onClick={abrir}><CalendarRange className="size-4" /></Button>
       <Dialog open={aberto} onOpenChange={setAberto}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>12 meses-base · {nome}</DialogTitle>
-            <DialogDescription>Valor de cada mês após a base zero. Depois deles, o último mês segue com o reajuste por índice (aba Projeção).</DialogDescription>
+            <DialogTitle>Meses-base · {nome}</DialogTitle>
+            <DialogDescription>Valor de cada mês do ano da base zero. Os anos seguintes partem de dezembro com o índice de crescimento (aba Projeção).</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-3 gap-2">
+            {!ks.length ? <p className="col-span-3 text-sm text-muted-foreground">Não há meses do ano da base zero no horizonte.</p> : null}
             {ks.map(({ k, r }) => (
               <label key={k} className="space-y-1 text-xs text-muted-foreground">{r}
                 <Input className="num h-8 text-right" value={vals[k] ?? ""} onChange={(e) => setVals((v) => ({ ...v, [k]: e.target.value }))} />

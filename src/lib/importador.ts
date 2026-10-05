@@ -74,7 +74,7 @@ function colunasMes(bruto: unknown[], fixas: number[], anoBase: number): { idx: 
   return out;
 }
 function lerBase(r: unknown[], meses: { idx: number; chave: string }[], valor: number, c: Ctx): Record<string, number> {
-  if (!meses.length) return {};
+  if (!meses.length || !c.h.mesesBase.length) return {};
   const lidos = new Map<string, number>();
   for (const m of meses) { const n = paraNumero(r[m.idx]); if (n != null) lidos.set(m.chave, r6(n)); }
   return Object.fromEntries(chavesBase(c).map((k) => [k, lidos.get(k) ?? r6(valor)]));
@@ -156,7 +156,7 @@ function acharLinhaDRE(v: unknown): GrupoDRE | null {
 export const TIPOS: Def[] = [
   {
     id: "entradas", titulo: "Entradas", aba: "ENTRADAS", aliases: ["RECEITAS"], chaves: ["EMPRESA", "VALOR"], contagem: "entradas",
-    colunas: [["CODIGOS", "Código do cliente"], ["EMPRESAS", "Nome da empresa (obrigatório)"], ["CARTEIRA", "Carteira"], ["Dia do vencimento", "Dia 1 a 31"], ["Recebimento", "Banco onde recebe"], ["Situação", "Ativo ou Inativo"], ["Regime Tributário", "Regime"], ["Grupo", "Grupo (boleto único)"], ["Setor", "Setor"], ["Valor", "Valor mensal (obrigatório; pode ser fórmula)"], ["INICIO", "Primeiro mês mm/aaaa (opcional)"], ["FIM", "Último mês mm/aaaa (opcional)"], ["12 meses-base", "Uma coluna por mês após a base zero (ex.: 10/2026); vazio = Valor. Depois deles entra o reajuste por índice"]],
+    colunas: [["CODIGOS", "Código do cliente"], ["EMPRESAS", "Nome da empresa (obrigatório)"], ["CARTEIRA", "Carteira"], ["Dia do vencimento", "Dia 1 a 31"], ["Recebimento", "Banco onde recebe"], ["Situação", "Ativo ou Inativo"], ["Regime Tributário", "Regime"], ["Grupo", "Grupo (boleto único)"], ["Setor", "Setor"], ["Valor", "Valor mensal (obrigatório; pode ser fórmula)"], ["INICIO", "Primeiro mês mm/aaaa (opcional)"], ["FIM", "Último mês mm/aaaa (opcional)"], ["Meses-base", "Uma coluna por mês do ano da base zero (ex.: 10/2026); vazio = Valor. Os anos seguintes partem de dezembro com o índice"]],
     exportar: (c) => [
       ["CODIGOS", "EMPRESAS", "CARTEIRA", "Dia do vencimento", "Recebimento", "Situação", "Regime Tributário", "Grupo", "Setor", "Valor", "INICIO", "FIM", ...chavesBase(c).map(mmaaaa)],
       ...c.entradas.map((e) => [e.codigo ?? "", e.empresa, e.carteira ?? "", e.dia ?? "", e.banco ?? "", e.ativo ? "Ativo" : "Inativo", e.regime ?? "", e.grupo ?? "", e.setor ?? "", Number(e.valor), mmaaaa(e.inicio), mmaaaa(e.fim), ...chavesBase(c).map((k) => valorBase(e.valores_base, Number(e.valor), k))]),
@@ -236,7 +236,7 @@ export const TIPOS: Def[] = [
   },
   {
     id: "pessoais", titulo: "Entradas pessoais", aba: "PESSOAIS", aliases: ["ENTRADAS PESSOAIS"], chaves: ["ORIGEM", "VALOR"], contagem: "entradas pessoais",
-    colunas: [["ORIGEM", "De onde vem (obrigatório)"], ["DIA", "Dia do recebimento"], ["BANCO", "Banco"], ["VALOR", "Valor mensal (obrigatório)"], ["INICIO", "Primeiro mês mm/aaaa"], ["FIM", "Último mês mm/aaaa (vazio = contínua)"], ["12 meses-base", "Uma coluna por mês após a base zero; vazio = VALOR. Depois deles entra o reajuste por índice"]],
+    colunas: [["ORIGEM", "De onde vem (obrigatório)"], ["DIA", "Dia do recebimento"], ["BANCO", "Banco"], ["VALOR", "Valor mensal (obrigatório)"], ["INICIO", "Primeiro mês mm/aaaa"], ["FIM", "Último mês mm/aaaa (vazio = contínua)"], ["Meses-base", "Uma coluna por mês do ano da base zero; vazio = VALOR. Os anos seguintes partem de dezembro com o índice"]],
     exportar: (c) => [["ORIGEM", "DIA", "BANCO", "VALOR", "INICIO", "FIM", ...chavesBase(c).map(mmaaaa)], ...c.pessoais.map((p) => [p.descricao, p.dia ?? "", p.banco ?? "", Number(p.valor), mmaaaa(p.inicio), mmaaaa(p.fim), ...chavesBase(c).map((k) => valorBase(p.valores_base, Number(p.valor), k))])],
     ler: (rows, c) => {
       const h = acharCabecalho(rows, ["ORIGEM", "VALOR"]);
