@@ -78,9 +78,9 @@ export function SelDia({ value, onChange }: { value: number | null; onChange: (v
 export function BotaoListas() {
   const { listas, gravar } = useListasCadastro();
   const [aberto, setAberto] = useState(false);
-  const [txt, setTxt] = useState<Record<ChaveLista, string>>({ cad_categorias: "", cad_pgtos: "", cad_bancos: "" });
+  const [txt, setTxt] = useState<Record<ChaveLista, string>>({} as Record<ChaveLista, string>);
   const abrir = () => {
-    setTxt({ cad_categorias: listas.cad_categorias.join("\n"), cad_pgtos: listas.cad_pgtos.join("\n"), cad_bancos: listas.cad_bancos.join("\n") });
+    setTxt(Object.fromEntries((Object.keys(ROTULO) as ChaveLista[]).map((k) => [k, listas[k].join("\n")])) as Record<ChaveLista, string>);
     setAberto(true);
   };
   const salvar = async () => {
@@ -99,7 +99,7 @@ export function BotaoListas() {
             <DialogTitle>Pré-cadastro das listas</DialogTitle>
             <DialogDescription>Um item por linha. Itens já usados em algum cadastro continuam aparecendo nas listas.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {(Object.keys(ROTULO) as ChaveLista[]).map((k) => (
               <label key={k} className="text-sm">
                 <span className="text-xs text-muted-foreground">{ROTULO[k]}</span>
