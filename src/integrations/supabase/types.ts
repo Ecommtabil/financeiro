@@ -242,6 +242,7 @@ export type Database = {
           setor: string | null
           user_id: string
           valor: number
+          valores_base: Json
         }
         Insert: {
           ativo?: boolean
@@ -260,6 +261,7 @@ export type Database = {
           setor?: string | null
           user_id?: string
           valor?: number
+          valores_base?: Json
         }
         Update: {
           ativo?: boolean
@@ -278,6 +280,7 @@ export type Database = {
           setor?: string | null
           user_id?: string
           valor?: number
+          valores_base?: Json
         }
         Relationships: []
       }
@@ -293,6 +296,7 @@ export type Database = {
           origem: string
           user_id: string
           valor: number
+          valores_base: Json
         }
         Insert: {
           banco?: string | null
@@ -305,6 +309,7 @@ export type Database = {
           origem?: string
           user_id?: string
           valor?: number
+          valores_base?: Json
         }
         Update: {
           banco?: string | null
@@ -317,6 +322,7 @@ export type Database = {
           origem?: string
           user_id?: string
           valor?: number
+          valores_base?: Json
         }
         Relationships: []
       }

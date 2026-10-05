@@ -57,6 +57,13 @@
       "when": 1790715653399,
       "tag": "0007_config_carteira_listas",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791206401612,
+      "tag": "0008_valores_base_12_meses",
+      "breakpoints": true
     }
   ]
 }
