@@ -13,6 +13,7 @@ import { formatarBRL, formatarMes, formatarNumero } from "@/lib/format";
 import {
   CHAVE_CAT_PESSOAL, chaveCatEntrada, chaveCatSaida, chaveMes, destinoSaida, fator, regraDo, somar, totaisDoMes,
   valorEntrada, valorEntradaPessoal, valorSaida, type Regra, type TotaisMes,
+  premissaDoAno, type Premissas,
 } from "@/lib/calc";
 import type { MesRef } from "@/lib/horizonte";
 import { acharCabecalho, lerPlanilha, norm, paraNumero } from "@/lib/importacao";
@@ -85,7 +86,8 @@ function Projecao() {
       const mr: MesRef = { ano, mes: rm }, vr = it.valor(chaveMes(mr));
       linhas.push({ ...it, r, excecao: it.id in itensExt, base: vr * fAnt, novo: vr * fator(mr, h, rm, r), total, impactoAno: total - nivelAnt, semValorReaj: !vr });
     }
-    const semCfg: Config = { ...cfg, regras_item: {}, regras_categoria: {}, indice_padrao_entradas: 0, indice_padrao_saidas: 0 };
+    const premZero = Object.fromEntries(h.anos.map((a) => [String(a.ano), { e: 0, s: 0 }]));
+    const semCfg = { ...cfg, regras_item: {}, regras_categoria: {}, indice_padrao_entradas: 0, indice_padrao_saidas: 0, premissas: premZero } as Config;
     const porMes = new Map(h.meses.map((m) => [chaveMes(m), { com: totaisDoMes(m, dados, cfg, h), sem: totaisDoMes(m, dados, semCfg, h) }]));
     const doAno = (a: number, t: "com" | "sem") => somar(h.meses.filter((m) => m.ano === a).map((m) => porMes.get(chaveMes(m))![t]));
     return { linhas, porMes, doAno, mesesAno };
@@ -114,6 +116,11 @@ function Projecao() {
   const com = calc.doAno(ano, "com"), sem = calc.doAno(ano, "sem");
   const ultimo = h.anos[h.anos.length - 1]!.ano;
   const sel = "rounded-md border bg-card px-2 py-1.5 text-sm";
+  const prem = ((cfg as { premissas?: unknown }).premissas ?? {}) as Premissas;
+  const anosPremissa: number[] = [];
+  for (let a = h.y0 + 1; a <= ultimo; a++) anosPremissa.push(a);
+  const salvarPrem = (a: number, k: "e" | "s", v: number) =>
+    salvar.mutate({ premissas: { ...prem, [String(a)]: { ...(prem[String(a)] ?? {}), [k]: v } } } as Partial<Config>, ok);
 
   return (
     <div className="space-y-6 px-6 py-6 lg:px-10">
@@ -132,6 +139,31 @@ function Projecao() {
         <label className="text-xs text-muted-foreground">Índice padrão saídas (%)<br />
           <CampoIndice valor={Number(cfg.indice_padrao_saidas)} salvar={(v) => salvar.mutate({ indice_padrao_saidas: v }, ok)} className="w-24" /></label>
       </div>
+
+      {anosPremissa.length > 0 && (
+        <section className="surface-card space-y-3 p-4">
+          <div>
+            <h2 className="text-sm font-semibold">Premissas de crescimento</h2>
+            <p className="text-xs text-muted-foreground">
+              {h.y0} usa o reajuste de "O que sobe" sobre Dez/{String(h.fimBase.ano).slice(2)}. Cada ano seguinte parte de dezembro do ano anterior e aplica o % abaixo. Também dá para importar pela planilha de Reajustes.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="text-sm">
+              <thead><tr className="text-xs text-muted-foreground"><th className="pr-4 text-left font-medium">Ano</th><th className="pr-4 text-left font-medium">Entradas %</th><th className="text-left font-medium">Saídas %</th></tr></thead>
+              <tbody>
+                {anosPremissa.map((a) => (
+                  <tr key={a}>
+                    <td className="num pr-4 py-1">{a}</td>
+                    <td className="pr-4 py-1"><CampoIndice valor={premissaDoAno(prem, a, "E", padrao("E"))} salvar={(v) => salvarPrem(a, "e", v)} className="w-20" /></td>
+                    <td className="py-1"><CampoIndice valor={premissaDoAno(prem, a, "S", padrao("S"))} salvar={(v) => salvarPrem(a, "s", v)} className="w-20" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {([["Entradas do ano", com.E, sem.E], ["Saídas escritório", com.SE, sem.SE], ["Lucro", com.L, sem.L],

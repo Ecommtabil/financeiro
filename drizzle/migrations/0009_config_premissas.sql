@@ -1,0 +1,1 @@
+ALTER TABLE public.config ADD COLUMN IF NOT EXISTS premissas jsonb NOT NULL DEFAULT '{}'::jsonb;

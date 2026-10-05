@@ -143,6 +143,7 @@ export type Database = {
           incluir_restante: boolean
           indice_padrao_entradas: number
           indice_padrao_saidas: number
+          premissas: Json
           reajuste_mes: number
           regras_categoria: Json
           regras_item: Json
@@ -157,6 +158,7 @@ export type Database = {
           incluir_restante?: boolean
           indice_padrao_entradas?: number
           indice_padrao_saidas?: number
+          premissas?: Json
           reajuste_mes?: number
           regras_categoria?: Json
           regras_item?: Json
@@ -171,6 +173,7 @@ export type Database = {
           incluir_restante?: boolean
           indice_padrao_entradas?: number
           indice_padrao_saidas?: number
+          premissas?: Json
           reajuste_mes?: number
           regras_categoria?: Json
           regras_item?: Json

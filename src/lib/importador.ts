@@ -9,7 +9,7 @@ import { formatarBRL, normalizarBanco } from "./format";
 import { acharCabecalho, chaveMes, lerMes, lerPlanilha, norm, paraNumero } from "./importacao";
 import {
   CHAVE_CAT_PESSOAL, GRUPOS_DRE, chaveCatDRE, chaveCatEntrada, chaveCatSaida, destinoSaida, fator, grupoDRE, grupoPadraoDRE,
-  regraDo, tipoInvestimentoSugerido, valorBase, valorEntrada, valorEntradaPessoal, valorSaida,
+  regraDo, premissaDoAno, type Premissas, tipoInvestimentoSugerido, valorBase, valorEntrada, valorEntradaPessoal, valorSaida,
   type Baixa, type Bem, type Divida, type GrupoDRE, type Investimento, type Regra, type Saldo,
 } from "./calc";
 
@@ -357,11 +357,18 @@ export const TIPOS: Def[] = [
           const r = regraDo(c.cfg, it.id, it.catKey, it.tipo);
           return [nomeG(it.g), it.cat, it.nome, r.sobe === false ? "NÃO" : "SIM", Number(r.indice)];
         });
+      const prem = ((c.cfg as { premissas?: unknown }).premissas ?? {}) as Premissas;
+      const anosPrem: number[] = [];
+      for (let a = c.h.fimBase.ano + 2; a <= c.h.ultimo.ano; a++) anosPrem.push(a);
       return [
         ["CONFIGURAÇÃO", "VALOR"],
         ["MÊS DO REAJUSTE", c.cfg.reajuste_mes],
         ["ÍNDICE PADRÃO ENTRADAS %", Number(c.cfg.indice_padrao_entradas)],
         ["ÍNDICE PADRÃO SAÍDAS %", Number(c.cfg.indice_padrao_saidas)],
+        ...anosPrem.flatMap((a) => [
+          [`PREMISSA ${a} ENTRADAS %`, premissaDoAno(prem, a, "E", Number(c.cfg.indice_padrao_entradas))],
+          [`PREMISSA ${a} SAÍDAS %`, premissaDoAno(prem, a, "S", Number(c.cfg.indice_padrao_saidas))],
+        ]),
         [],
         ["GRUPO", "CATEGORIA", "NOME", "REAJUSTAR", "ÍNDICE ANUAL %"],
         ...linhas,
@@ -377,13 +384,21 @@ export const TIPOS: Def[] = [
       const nao: string[] = []; const vis: unknown[][] = [];
       let n = 0;
       if (ci.niv < 0) {
+        const prem: Premissas = { ...(((c.cfg as { premissas?: unknown }).premissas ?? {}) as Premissas) };
+        let temPrem = false;
         for (const r of rows.slice(0, h)) {
           const nome = norm(r[0]), valor = paraNumero(r[1]);
           if (valor == null) continue;
-          if (nome.includes("MES") && valor >= 1 && valor <= 12) padrao.reajuste_mes = Math.round(valor);
+          const ano = nome.match(/(20\d\d)/)?.[1];
+          if (nome.includes("PREMISSA") && ano) {
+            const p = { ...(prem[ano] ?? {}) };
+            if (nome.includes("ENTRADA")) p.e = valor; else if (nome.includes("SAIDA")) p.s = valor; else continue;
+            prem[ano] = p; temPrem = true;
+          } else if (nome.includes("MES") && valor >= 1 && valor <= 12) padrao.reajuste_mes = Math.round(valor);
           else if (nome.includes("PADRAO") && nome.includes("ENTRADA")) padrao.indice_padrao_entradas = valor;
           else if (nome.includes("PADRAO") && nome.includes("SAIDA")) padrao.indice_padrao_saidas = valor;
         }
+        if (temPrem) (padrao as { premissas?: Json }).premissas = prem as Json;
         const cfgBase = { ...c.cfg, ...padrao };
         const regrasCat = (cfgBase.regras_categoria ?? {}) as Record<string, Regra>;
         const regraSemItem = (it: ItemR): Regra => regrasCat[it.catKey] ?? {
