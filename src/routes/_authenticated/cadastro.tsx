@@ -19,6 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BotaoExcluir } from "@/components/botao-excluir";
+import { valorBase, valorSaida } from "@/lib/calc";
+import { CalendarRange } from "lucide-react";
 import { BotaoConfirmar } from "@/components/botao-confirmar";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -96,6 +98,44 @@ function CampoValor({ valor, onSalvar }: { valor: number; onSalvar: (n: number) 
       }}
       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
     />
+  );
+}
+
+/** Edita os 12 meses-base (após a base zero); depois deles o app aplica o reajuste por índice. */
+function Botao12Meses({ nome, valorDe, onSalvar }: { nome: string; valorDe: (k: string) => number; onSalvar: (v: Record<string, number>) => Promise<unknown> | void }) {
+  const { horizonte } = usePeriodo();
+  const [aberto, setAberto] = useState(false);
+  const [vals, setVals] = useState<Record<string, string>>({});
+  const ks = (horizonte?.mesesBase ?? []).map((m) => ({ k: chaveMes(m.ano, m.mes), r: formatarMes(m.ano, m.mes) }));
+  function abrir() { setVals(Object.fromEntries(ks.map(({ k }) => [k, formatarNumero(valorDe(k))]))); setAberto(true); }
+  async function salvar() {
+    const rec: Record<string, number> = {};
+    for (const { k } of ks) rec[k] = paraNumero(vals[k]) ?? 0;
+    try { await onSalvar(rec); toast.success("12 meses salvos."); setAberto(false); } catch (e) { toast.error((e as Error).message); }
+  }
+  return (
+    <>
+      <Button size="icon" variant="ghost" className="size-7" title="Editar 12 meses-base" onClick={abrir}><CalendarRange className="size-4" /></Button>
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>12 meses-base · {nome}</DialogTitle>
+            <DialogDescription>Valor de cada mês após a base zero. Depois deles, o último mês segue com o reajuste por índice (aba Projeção).</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-3 gap-2">
+            {ks.map(({ k, r }) => (
+              <label key={k} className="space-y-1 text-xs text-muted-foreground">{r}
+                <Input className="num h-8 text-right" value={vals[k] ?? ""} onChange={(e) => setVals((v) => ({ ...v, [k]: e.target.value }))} />
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { const v = vals[ks[0]?.k ?? ""] ?? ""; setVals(Object.fromEntries(ks.map(({ k }) => [k, v]))); }}>Repetir o 1º mês</Button>
+            <Button onClick={salvar}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -377,7 +417,7 @@ function Saidas({ busca }: { busca: string }) {
                 <td className={td}><CampoValor valor={valorSaidaNoMes(s, k1)} onSalvar={(n) => editarValor(s, n)} /></td>
                 <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={s.ri ?? ""} title="Vazio = desde o início do horizonte" onBlur={(ev) => { const v = ev.target.value || null; if (v !== s.ri) atualizar.mutate({ id: s.id, v: { ri: v } }); }} /></td>
                 <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={s.rf ?? ""} title="Vazio = contínua" onBlur={(ev) => { const v = ev.target.value || null; if (v !== s.rf) atualizar.mutate({ id: s.id, v: { rf: v } }); }} /></td>
-                <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(s.id)} /></td>
+                <td className={`${td} whitespace-nowrap`}><Botao12Meses nome={s.descricao} valorDe={(k) => valorSaida(s, k)} onSalvar={(rec) => atualizar.mutateAsync({ id: s.id, v: mesesSaida(s, rec) })} /><BotaoExcluir onConfirmar={() => excluir.mutate(s.id)} /></td>
               </tr>
             ))}
             {!lista.length ? <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Nenhuma saída.</td></tr> : null}
@@ -391,6 +431,20 @@ function Saidas({ busca }: { busca: string }) {
       ]} />
     </>
   );
+}
+
+/** Grava os 12 meses-base de uma saída em valores_mes, preservando o resto da vigência. */
+function mesesSaida(s: Saida, rec: Record<string, number>) {
+  const ks = Object.keys(rec).sort(), primeiro = ks[0]!, ultimo = ks[ks.length - 1]!;
+  const vm: Record<string, number> = { ...((s.valores_mes ?? {}) as Record<string, number>) };
+  if (s.valor_fixo != null && s.rf && s.rf > ultimo) {
+    let [a, m] = ultimo.split("-").map(Number) as [number, number];
+    for (;;) { m++; if (m > 12) { m = 1; a++; } const k = chaveMes(a, m); if (k > s.rf) break; vm[k] = Number(s.valor_fixo); }
+  }
+  Object.assign(vm, rec);
+  const rf = s.rf && s.rf > ultimo ? s.rf : ultimo;
+  const ri = s.ri && s.ri < primeiro ? s.ri : primeiro;
+  return { valores_mes: vm, valor_fixo: null, ri, rf };
 }
 
 function SelDestino({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -475,7 +529,7 @@ function Entradas({ busca }: { busca: string }) {
                 <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
                 <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={e.inicio ?? ""} title="Vazio = desde sempre" onBlur={(ev) => { const v = ev.target.value || null; if (v !== e.inicio) atualizar.mutate({ id: e.id, v: { inicio: v } }); }} /></td>
                 <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={e.fim ?? ""} title="Vazio = contínua" onBlur={(ev) => { const v = ev.target.value || null; if (v !== e.fim) atualizar.mutate({ id: e.id, v: { fim: v } }); }} /></td>
-                <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
+                <td className={`${td} whitespace-nowrap`}><Botao12Meses nome={e.empresa} valorDe={(k) => valorBase(e.valores_base, Number(e.valor), k)} onSalvar={(rec) => atualizar.mutateAsync({ id: e.id, v: { valores_base: rec } })} /><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
               </tr>
             ))}
             {!lista.length ? <tr><td colSpan={13} className="p-6 text-center text-muted-foreground">Nenhuma entrada.</td></tr> : null}
@@ -548,7 +602,7 @@ function Pessoais({ busca }: { busca: string }) {
                 <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={e.inicio ?? ""} title="Vazio = desde sempre" onBlur={(ev) => { const v = ev.target.value || null; if (v !== e.inicio) atualizar.mutate({ id: e.id, v: { inicio: v } }); }} /></td>
                 <td className={td}><Input className="num h-7 w-32" type="month" defaultValue={e.fim ?? ""} title="Vazio = contínua" onBlur={(ev) => { const v = ev.target.value || null; if (v !== e.fim) atualizar.mutate({ id: e.id, v: { fim: v } }); }} /></td>
                 <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
-                <td className={td}><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
+                <td className={`${td} whitespace-nowrap`}><Botao12Meses nome={e.descricao} valorDe={(k) => valorBase(e.valores_base, Number(e.valor), k)} onSalvar={(rec) => atualizar.mutateAsync({ id: e.id, v: { valores_base: rec } })} /><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
               </tr>
             ))}
             {!lista.length ? <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Nenhuma entrada pessoal.</td></tr> : null}

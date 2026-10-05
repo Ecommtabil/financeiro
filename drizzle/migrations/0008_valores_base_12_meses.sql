@@ -1,0 +1,2 @@
+ALTER TABLE public.entradas ADD COLUMN IF NOT EXISTS valores_base jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE public.entradas_pessoais ADD COLUMN IF NOT EXISTS valores_base jsonb NOT NULL DEFAULT '{}'::jsonb;
