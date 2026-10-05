@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient, useIsMutating } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Building2, Check, FileSpreadsheet, House, LogOut, Loader2 } from "lucide-react";
+import { Building2, Check, ClipboardList, FileSpreadsheet, House, LogOut, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,7 +19,6 @@ const ABAS = [
   { to: "/investimentos", label: "Investimentos", periodo: true },
   { to: "/balanco", label: "Balanço", periodo: true },
   { to: "/projecao", label: "Projeção", periodo: false, pessoal: true },
-  { to: "/cadastro", label: "Cadastro", periodo: false },
 ] as const;
 
 export type Periodo = number | "todos";
@@ -123,6 +122,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </SelectContent>
                 </Select>
               ) : null}
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/cadastro" activeProps={{ className: "border-primary text-primary" }}><ClipboardList className="size-4" />Cadastro</Link>
+              </Button>
               <Button size="sm" asChild>
                 <Link to="/importar"><FileSpreadsheet className="size-4" />Importar planilha</Link>
               </Button>

@@ -11,6 +11,7 @@
 
 # Decisões técnicas
 
+- Cadastro é um módulo comum (botão no cabeçalho, fora das abas e sem filtro de área), para servir Escritório e Pessoal.
 - Cabeçalho + abas (`src/components/app-shell.tsx`) é renderizado pelo layout `_authenticated`, não pelo `__root`, para a tela de login ficar sem o layout do app.
 - Horizonte da projeção vem só de `calcularHorizonte` em `src/lib/horizonte.ts`, para toda tela usar a mesma regra de meses/anos/Y0.
 - Período escolhido no cabeçalho é lido via `usePeriodo()` (colunas mês a mês ou por ano), para as abas não reimplementarem o seletor.
