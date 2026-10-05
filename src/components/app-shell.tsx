@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient, useIsMutating } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Building2, Check, ClipboardList, FileSpreadsheet, House, LogOut, Loader2 } from "lucide-react";
+import { BarChart3, Building2, Check, ClipboardList, FileSpreadsheet, House, LineChart, LogOut, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +18,13 @@ const ABAS = [
   { to: "/contas", label: "Contas a pagar e receber", periodo: true },
   { to: "/investimentos", label: "Investimentos", periodo: true },
   { to: "/balanco", label: "Balanço", periodo: true },
-  { to: "/projecao", label: "Projeção", periodo: false, pessoal: true },
+] as const;
+
+/** Módulos do topo: Cadastro, Projeção e Análise (Escritório | Pessoal). O Período fica sempre visível. */
+const MODULOS = [
+  { id: "cadastro", to: "/cadastro", label: "Cadastro", icon: ClipboardList },
+  { id: "projecao", to: "/projecao", label: "Projeção", icon: LineChart },
+  { id: "analise", to: "/", label: "Análise", icon: BarChart3 },
 ] as const;
 
 export type Periodo = number | "todos";
@@ -74,6 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const mesesPeriodo = useMemo(() => colunas.flatMap((c) => c.meses), [colunas]);
   const ROT_FASE: Record<Fase, string> = { base: "Período base zero", ano1: "Período 1 ano", projecao: "Período projeção" };
   const abaAtual = ABAS.find((a) => (a.to === "/" ? pathname === "/" : pathname.startsWith(a.to)));
+  const modulo = pathname.startsWith("/cadastro") ? "cadastro" : pathname.startsWith("/projecao") ? "projecao" : abaAtual ? "analise" : "outro";
   // Na área Pessoal, só Dashboard e Carteira ficam visíveis; as outras abas voltam ao Dashboard.
   const abasVisiveis = area === "PESSOAL" ? ABAS.filter((a) => "pessoal" in a && a.pessoal) : ABAS.filter((a) => !("soPessoal" in a));
   useEffect(() => {
@@ -106,25 +113,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </p>
               </div>
             </div>
-            <div className="inline-flex rounded-md border bg-background p-0.5">
-              {(["ESCRITORIO", "PESSOAL"] as const).map((a) => (
-                <button key={a} onClick={() => setArea(a)}
-                  className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium ${area === a ? (a === "ESCRITORIO" ? "bg-office text-office-foreground" : "bg-personal text-personal-foreground") : "text-muted-foreground hover:text-foreground"}`}>
-                  {a === "ESCRITORIO" ? <><Building2 className="size-4" />Escritório</> : <><House className="size-4" />Pessoal</>}
-                </button>
-              ))}
-            </div>
-            <div className="ml-auto flex flex-wrap items-center gap-2">
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                {salvando ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3" />}
-                {salvando ? "Salvando…" : "Salvo"}
-              </span>
-              <Button variant="outline" size="sm" onClick={() => setModal(true)} className="num">
-                {horizonte && config?.base_data
-                  ? `Base zero ${isoParaBR(config.base_data)} · ${faixaCurta(horizonte)}`
-                  : "Base zero —"}
-              </Button>
-              {abaAtual?.periodo && horizonte ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="label-eyebrow">Período</span>
+              {horizonte ? (
                 <>
                   <Select value={faseEf} onValueChange={(v) => setFase(v as Fase)}>
                     <SelectTrigger className="h-8 w-48"><SelectValue /></SelectTrigger>
@@ -145,8 +136,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                   ) : null}
                 </>
               ) : null}
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/cadastro" activeProps={{ className: "border-primary text-primary" }}><ClipboardList className="size-4" />Cadastro</Link>
+            </div>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                {salvando ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3" />}
+                {salvando ? "Salvando…" : "Salvo"}
+              </span>
+              <Button variant="outline" size="sm" onClick={() => setModal(true)} className="num">
+                {horizonte && config?.base_data
+                  ? `Base zero ${isoParaBR(config.base_data)} · ${faixaCurta(horizonte)}`
+                  : "Base zero —"}
               </Button>
               <Button size="sm" asChild>
                 <Link to="/importar"><FileSpreadsheet className="size-4" />Importar planilha</Link>
@@ -154,19 +153,39 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Button variant="ghost" size="icon" onClick={sair} aria-label="Sair"><LogOut className="size-4" /></Button>
             </div>
           </div>
-          <nav className="flex gap-1 overflow-x-auto px-4 lg:px-8">
-            {abasVisiveis.map((a) => (
-              <Link
-                key={a.to}
-                to={a.to}
-                activeOptions={{ exact: a.to === "/" }}
-                className="border-b-2 border-transparent px-3 py-2 text-sm font-medium whitespace-nowrap text-muted-foreground hover:text-foreground"
-                activeProps={{ className: "border-primary text-foreground" }}
-              >
-                {a.label}
+          <div className="flex flex-wrap items-center gap-2 border-t px-6 py-2 lg:px-10">
+            {MODULOS.map((m) => (
+              <Link key={m.to} to={m.to}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium ${modulo === m.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+                <m.icon className="size-4" />{m.label}
               </Link>
             ))}
-          </nav>
+            {modulo !== "cadastro" && modulo !== "outro" ? (
+              <div className="ml-2 inline-flex rounded-md border bg-background p-0.5">
+                {(["ESCRITORIO", "PESSOAL"] as const).map((a) => (
+                  <button key={a} onClick={() => setArea(a)}
+                    className={`flex items-center gap-1.5 rounded px-3 py-1 text-sm font-medium ${area === a ? (a === "ESCRITORIO" ? "bg-office text-office-foreground" : "bg-personal text-personal-foreground") : "text-muted-foreground hover:text-foreground"}`}>
+                    {a === "ESCRITORIO" ? <><Building2 className="size-4" />Escritório</> : <><House className="size-4" />Pessoal</>}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          {modulo === "analise" ? (
+            <nav className="flex gap-1 overflow-x-auto px-4 lg:px-8">
+              {abasVisiveis.map((a) => (
+                <Link
+                  key={a.to}
+                  to={a.to}
+                  activeOptions={{ exact: a.to === "/" }}
+                  className="border-b-2 border-transparent px-3 py-2 text-sm font-medium whitespace-nowrap text-muted-foreground hover:text-foreground"
+                  activeProps={{ className: "border-primary text-foreground" }}
+                >
+                  {a.label}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
         </header>
         <main className="min-w-0">{children}</main>
       </div>
