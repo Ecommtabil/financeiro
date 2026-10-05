@@ -8,7 +8,10 @@ import { useConfig } from "@/lib/config";
 import { useLista } from "@/lib/dados";
 import { formatarBRL, formatarMes, normalizarBanco } from "@/lib/format";
 import { chaveBaixa, chaveMes, contasDoMes, destinoSaida, mapaBaixas, situacaoConta, type Conta, type SituacaoConta } from "@/lib/calc";
-import { useBaixas } from "@/lib/situacao";
+import { useBaixar, useBaixas, useEstornar } from "@/lib/situacao";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { BotaoConfirmar } from "@/components/botao-confirmar";
 import { norm } from "@/lib/importacao";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +29,8 @@ export const Route = createFileRoute("/_authenticated/contas")({
   component: Contas,
 });
 
-type Linha = Conta & { exibido: number; situacao: SituacaoConta; destino: "ESCRITORIO" | "PESSOAL"; detalhe: string; grupoNome: string };
+type Linha = Conta & { exibido: number; situacao: SituacaoConta; destino: "ESCRITORIO" | "PESSOAL"; detalhe: string; grupoNome: string; baixaId: string | null };
+const chaveLinha = (l: Linha) => `${l.tipo}|${l.id}|${l.mes}`;
 const rotMes = (k: string) => { const [a, m] = k.split("-").map(Number); return formatarMes(a!, m!); };
 
 function ChipSituacao({ s }: { s: SituacaoConta }) {
@@ -44,6 +48,9 @@ function Contas() {
   const destino = useArea();
   const [sit, setSit] = useState<"todas" | SituacaoConta>("todas");
   const [busca, setBusca] = useState("");
+  const [selecao, setSelecao] = useState<Set<string>>(new Set());
+  const baixar = useBaixar(), estornar = useEstornar();
+  useEffect(() => setSelecao(new Set()), [lado, destino]);
 
   const chaves = useMemo(() => (h ? h.meses.map(chaveMes) : []), [h]);
   useEffect(() => {
@@ -68,7 +75,7 @@ function Contas() {
         if (x.tipo === "entrada") { const e = mE.get(x.id); detalhe = [e?.carteira, e?.grupo].filter(Boolean).join(" · "); grupoNome = e?.grupo?.trim() || "Sem grupo"; }
         else if (x.tipo === "pessoal") { dst = "PESSOAL"; detalhe = "Entrada pessoal"; grupoNome = "Entradas pessoais"; }
         else { const s = mS.get(x.id)!; dst = destinoSaida(s); detalhe = [s.categoria, s.pgto].filter(Boolean).join(" · "); grupoNome = s.categoria?.trim() || "Sem categoria"; }
-        out.push({ ...x, banco: x.banco ? normalizarBanco(x.banco) : null, exibido: b ? Number(b.valor) : x.valor, situacao: situacaoConta(x, mb), destino: dst, detalhe, grupoNome });
+        out.push({ ...x, banco: x.banco ? normalizarBanco(x.banco) : null, exibido: b ? Number(b.valor) : x.valor, situacao: situacaoConta(x, mb), destino: dst, detalhe, grupoNome, baixaId: b?.id ?? null });
       }
     }
     const q = norm(busca);
@@ -85,6 +92,9 @@ function Contas() {
     ["Total", soma(() => true)], ["Em aberto", soma((l) => l.situacao === "Em aberto")],
     ["Vencidas", soma((l) => l.situacao === "Vencido")], ["Baixadas", soma((l) => l.situacao === "Baixado")],
   ] as const;
+  const selLinhas = linhas.filter((l) => selecao.has(chaveLinha(l)));
+  const abertas = selLinhas.filter((l) => !l.baixaId);
+  const baixadas = selLinhas.flatMap((l) => (l.baixaId ? [l.baixaId] : []));
   const vistaEf = lado === "receber" ? vista : "venc";
   const sel = "rounded-md border bg-card px-2 py-1.5 text-sm";
   const toggle = (ativo: boolean) => cn("rounded px-3 py-1.5 text-sm font-medium", ativo ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground");
