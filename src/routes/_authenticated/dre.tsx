@@ -47,7 +47,7 @@ type Linha = { id: string; rotulo: string; v: (r: Res) => number; tipo?: "total"
 
 function DRE() {
   const area = useArea();
-  const { horizonte: h, colunas, periodo } = usePeriodo();
+  const { horizonte: h, colunas, periodo, anosPeriodo } = usePeriodo();
   const [anoMes, setAnoMes] = useState<number | null>(null);
   const { data: cfg } = useConfig();
   const salvar = useSalvarConfig();
@@ -64,10 +64,10 @@ function DRE() {
 
   if (!h || !cfg || !porMes) return <div className="px-6 py-8 text-muted-foreground lg:px-10">Carregando…</div>;
 
-  const anoEfetivo = anoMes ?? (typeof periodo === "number" ? periodo : h.anos[0]?.ano);
-  const anoObj = h.anos.find((a) => a.ano === anoEfetivo) ?? h.anos[0];
+  const anoEfetivo = anoMes ?? (typeof periodo === "number" ? periodo : anosPeriodo[0]?.ano);
+  const anoObj = anosPeriodo.find((a) => a.ano === anoEfetivo) ?? anosPeriodo[0];
   const base = vista === "ano"
-    ? h.anos.map((a) => ({ chave: `A${a.ano}`, rotulo: a.rotulo, meses: a.meses }))
+    ? anosPeriodo.map((a) => ({ chave: `A${a.ano}`, rotulo: a.rotulo, meses: a.meses }))
     : (anoObj?.meses ?? []).map((m) => ({ chave: `${m.ano}-${m.mes}`, rotulo: formatarMes(m.ano, m.mes), meses: [m] }));
   void colunas;
   const dd = { entradas: ent.data ?? [], saidas: sai.data ?? [], pessoais: pes.data ?? [] };
@@ -203,7 +203,7 @@ function DRE() {
           {vista === "mes" ? (
             <select aria-label="Ano" value={anoObj?.ano ?? ""} onChange={(e) => setAnoMes(Number(e.target.value))}
               className="h-8 rounded-md border bg-background px-2 text-sm">
-              {h.anos.map((a) => <option key={a.ano} value={a.ano}>{a.rotulo}</option>)}
+              {anosPeriodo.map((a) => <option key={a.ano} value={a.ano}>{a.rotulo}</option>)}
             </select>
           ) : null}
           <Button size="sm" variant="outline" onClick={() => pdfDRE().catch((e) => toast.error(String(e)))}><FileText className="size-4" />PDF da DRE</Button>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useConfig } from "@/lib/config";
-import { calcularHorizonte, faixaCurta, isoParaBR, type Horizonte, type MesRef } from "@/lib/horizonte";
+import { calcularHorizonte, faixaCurta, isoParaBR, type AnoHorizonte, type Horizonte, type MesRef } from "@/lib/horizonte";
 import { formatarMes } from "@/lib/format";
 import { ModalBaseZero } from "./modal-base-zero";
 
@@ -25,15 +25,22 @@ export type Periodo = number | "todos";
 export type Coluna = { chave: string; rotulo: string; meses: MesRef[] };
 
 export type Area = "ESCRITORIO" | "PESSOAL";
-type Ctx = { horizonte: Horizonte | null; periodo: Periodo; colunas: Coluna[]; area: Area };
-const PeriodoCtx = createContext<Ctx>({ horizonte: null, periodo: "todos", colunas: [], area: "ESCRITORIO" });
+export type Fase = "base" | "ano1" | "projecao";
+type Ctx = { horizonte: Horizonte | null; periodo: Periodo; colunas: Coluna[]; area: Area; fase: Fase; anosPeriodo: AnoHorizonte[]; mesesPeriodo: MesRef[] };
+const PeriodoCtx = createContext<Ctx>({ horizonte: null, periodo: "todos", colunas: [], area: "ESCRITORIO", fase: "ano1", anosPeriodo: [], mesesPeriodo: [] });
+/** Anos de cada período: base zero = ano da base; 1 ano = Y0; projeção = depois de Y0. */
+export function anosDaFase(h: Horizonte, f: Fase): AnoHorizonte[] {
+  if (f === "base") return h.anos.filter((a) => a.ano < h.y0);
+  if (f === "ano1") return h.anos.filter((a) => a.ano === h.y0);
+  return h.anos.filter((a) => a.ano > h.y0);
+}
 /** Área escolhida no topo (Escritório | Pessoal). Destino vazio conta como Escritório. */
 export const useArea = () => useContext(PeriodoCtx).area;
 export const daArea = (destino: string | null | undefined, area: Area) => (destino === "PESSOAL" ? "PESSOAL" : "ESCRITORIO") === area;
 export const usePeriodo = () => useContext(PeriodoCtx);
 
-function colunasDo(h: Horizonte, p: Periodo): Coluna[] {
-  if (p === "todos") return h.anos.map((a) => ({ chave: String(a.ano), rotulo: a.rotulo, meses: a.meses }));
+function colunasDo(h: Horizonte, p: Periodo, anos: AnoHorizonte[]): Coluna[] {
+  if (p === "todos") return anos.map((a) => ({ chave: String(a.ano), rotulo: a.rotulo, meses: a.meses }));
   const ano = h.anos.find((a) => a.ano === p);
   return (ano?.meses ?? []).map((m) => ({ chave: `${m.ano}-${m.mes}`, rotulo: formatarMes(m.ano, m.mes), meses: [m] }));
 }
@@ -42,7 +49,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { data: config, isLoading } = useConfig();
   const salvando = useIsMutating() > 0;
   const [modal, setModal] = useState(false);
-  const [periodo, setPeriodo] = useState<Periodo>("todos");
+  const [fase, setFaseSt] = useState<Fase>("ano1");
+  const [anoProj, setAnoProj] = useState<Periodo>("todos");
   const [area, setAreaSt] = useState<Area>("ESCRITORIO");
   const [areaPronta, setAreaPronta] = useState(false);
   useEffect(() => { if (localStorage.getItem("fluxo-area") === "PESSOAL") setAreaSt("PESSOAL"); setAreaPronta(true); }, []);
@@ -55,11 +63,16 @@ export function AppShell({ children }: { children: ReactNode }) {
     () => (config?.base_data ? calcularHorizonte(config.base_data, config.anos_projecao, config.incluir_restante) : null),
     [config],
   );
-  useEffect(() => {
-    if (horizonte && periodo !== "todos" && !horizonte.anos.some((a) => a.ano === periodo)) setPeriodo("todos");
-  }, [horizonte, periodo]);
-
-  const colunas = horizonte ? colunasDo(horizonte, periodo) : [];
+  const fases = horizonte ? (["base", "ano1", "projecao"] as Fase[]).filter((f) => anosDaFase(horizonte, f).length) : [];
+  const faseEf: Fase = fases.includes(fase) ? fase : (fases[0] ?? "ano1");
+  const anosPeriodo = horizonte ? anosDaFase(horizonte, faseEf) : [];
+  const periodo: Periodo = faseEf === "projecao"
+    ? (anoProj !== "todos" && anosPeriodo.some((a) => a.ano === anoProj) ? anoProj : "todos")
+    : (anosPeriodo[0]?.ano ?? "todos");
+  const setFase = (f: Fase) => { setFaseSt(f); setAnoProj("todos"); };
+  const colunas = horizonte ? colunasDo(horizonte, periodo, anosPeriodo) : [];
+  const mesesPeriodo = colunas.flatMap((c) => c.meses);
+  const ROT_FASE: Record<Fase, string> = { base: "Período base zero", ano1: "Período 1 ano", projecao: "Período projeção" };
   const abaAtual = ABAS.find((a) => (a.to === "/" ? pathname === "/" : pathname.startsWith(a.to)));
   // Na área Pessoal, só Dashboard e Carteira ficam visíveis; as outras abas voltam ao Dashboard.
   const abasVisiveis = area === "PESSOAL" ? ABAS.filter((a) => "pessoal" in a && a.pessoal) : ABAS.filter((a) => !("soPessoal" in a));
@@ -78,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <PeriodoCtx.Provider value={{ horizonte, periodo, colunas, area }}>
+    <PeriodoCtx.Provider value={{ horizonte, periodo, colunas, area, fase: faseEf, anosPeriodo, mesesPeriodo }}>
       <div className="min-h-screen">
         <header className="sticky top-0 z-30 border-b border-border bg-card">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-6 py-3 lg:px-10">
@@ -112,15 +125,25 @@ export function AppShell({ children }: { children: ReactNode }) {
                   : "Base zero —"}
               </Button>
               {abaAtual?.periodo && horizonte ? (
-                <Select value={String(periodo)} onValueChange={(v) => setPeriodo(v === "todos" ? "todos" : Number(v))}>
-                  <SelectTrigger className="h-8 w-44"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {horizonte.anos.map((a) => (
-                      <SelectItem key={a.ano} value={String(a.ano)}>{a.rotuloPeriodo}</SelectItem>
-                    ))}
-                    <SelectItem value="todos">Todos os anos</SelectItem>
-                  </SelectContent>
-                </Select>
+                <>
+                  <Select value={faseEf} onValueChange={(v) => setFase(v as Fase)}>
+                    <SelectTrigger className="h-8 w-48"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {fases.map((f) => (
+                        <SelectItem key={f} value={f}>{ROT_FASE[f]} · {anosDaFase(horizonte, f).map((a) => a.rotuloPeriodo).join(f === "projecao" ? "–" : ", ").replace(/–.*–/, "–")}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {faseEf === "projecao" && anosPeriodo.length > 1 ? (
+                    <Select value={String(periodo)} onValueChange={(v) => setAnoProj(v === "todos" ? "todos" : Number(v))}>
+                      <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {anosPeriodo.map((a) => <SelectItem key={a.ano} value={String(a.ano)}>{a.rotuloPeriodo}</SelectItem>)}
+                        <SelectItem value="todos">Todos da projeção</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : null}
+                </>
               ) : null}
               <Button variant="outline" size="sm" asChild>
                 <Link to="/cadastro" activeProps={{ className: "border-primary text-primary" }}><ClipboardList className="size-4" />Cadastro</Link>
