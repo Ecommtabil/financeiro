@@ -141,7 +141,7 @@ function Projecao() {
           <CampoIndice valor={Number(cfg.indice_padrao_saidas)} salvar={(v) => salvar.mutate({ indice_padrao_saidas: v }, ok)} className="w-24" /></label>
       </div>
 
-      {area !== "PESSOAL" && anosPremissa.length > 0 && (
+      {anosPremissa.length > 0 && (
         <section className="surface-card space-y-3 p-4">
           <div>
             <h2 className="text-sm font-semibold">Premissas de crescimento</h2>
@@ -151,7 +151,7 @@ function Projecao() {
           </div>
           <div className="overflow-x-auto">
             <table className="text-sm">
-              <thead><tr className="text-xs text-muted-foreground"><th className="pr-4 text-left font-medium">Ano</th><th className="pr-4 text-left font-medium">Entradas %</th><th className="text-left font-medium">Saídas %</th></tr></thead>
+              <thead><tr className="text-xs text-muted-foreground"><th className="pr-4 text-left font-medium">Ano</th><th className="pr-4 text-left font-medium">{area === "PESSOAL" ? "Entradas pessoais %" : "Entradas %"}</th><th className="text-left font-medium">{area === "PESSOAL" ? "Saídas pessoais %" : "Saídas %"}</th></tr></thead>
               <tbody>
                 {anosPremissa.map((a) => (
                   <tr key={a}>
