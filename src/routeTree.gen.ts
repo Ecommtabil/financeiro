@@ -16,7 +16,6 @@ import { Route as AuthenticatedBalancoRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedCadastroRouteImport } from './routes/_authenticated/cadastro'
 import { Route as AuthenticatedCarteiraRouteImport } from './routes/_authenticated/carteira'
 import { Route as AuthenticatedContasRouteImport } from './routes/_authenticated/contas'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDreRouteImport } from './routes/_authenticated/dre'
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
 import { Route as AuthenticatedInvestimentosRouteImport } from './routes/_authenticated/investimentos'
@@ -57,11 +56,6 @@ const AuthenticatedContasRoute = AuthenticatedContasRouteImport.update({
   path: '/contas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedDreRoute = AuthenticatedDreRouteImport.update({
   id: '/dre',
   path: '/dre',
@@ -96,7 +90,6 @@ export interface FileRoutesByFullPath {
   '/cadastro': typeof AuthenticatedCadastroRoute
   '/carteira': typeof AuthenticatedCarteiraRoute
   '/contas': typeof AuthenticatedContasRoute
-  '/dashboard': typeof AuthenticatedDashboardRoute
   '/dre': typeof AuthenticatedDreRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
@@ -109,7 +102,6 @@ export interface FileRoutesByTo {
   '/cadastro': typeof AuthenticatedCadastroRoute
   '/carteira': typeof AuthenticatedCarteiraRoute
   '/contas': typeof AuthenticatedContasRoute
-  '/dashboard': typeof AuthenticatedDashboardRoute
   '/dre': typeof AuthenticatedDreRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
@@ -125,7 +117,6 @@ export interface FileRoutesById {
   '/_authenticated/cadastro': typeof AuthenticatedCadastroRoute
   '/_authenticated/carteira': typeof AuthenticatedCarteiraRoute
   '/_authenticated/contas': typeof AuthenticatedContasRoute
-  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dre': typeof AuthenticatedDreRoute
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
   '/_authenticated/investimentos': typeof AuthenticatedInvestimentosRoute
@@ -142,7 +133,6 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/carteira'
     | '/contas'
-    | '/dashboard'
     | '/dre'
     | '/importar'
     | '/investimentos'
@@ -155,7 +145,6 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/carteira'
     | '/contas'
-    | '/dashboard'
     | '/dre'
     | '/importar'
     | '/investimentos'
@@ -170,7 +159,6 @@ export interface FileRouteTypes {
     | '/_authenticated/cadastro'
     | '/_authenticated/carteira'
     | '/_authenticated/contas'
-    | '/_authenticated/dashboard'
     | '/_authenticated/dre'
     | '/_authenticated/importar'
     | '/_authenticated/investimentos'
@@ -235,13 +223,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/dre': {
       id: '/_authenticated/dre'
       path: '/dre'
@@ -285,7 +266,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCadastroRoute: typeof AuthenticatedCadastroRoute
   AuthenticatedCarteiraRoute: typeof AuthenticatedCarteiraRoute
   AuthenticatedContasRoute: typeof AuthenticatedContasRoute
-  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDreRoute: typeof AuthenticatedDreRoute
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
   AuthenticatedInvestimentosRoute: typeof AuthenticatedInvestimentosRoute
@@ -299,7 +279,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCadastroRoute: AuthenticatedCadastroRoute,
   AuthenticatedCarteiraRoute: AuthenticatedCarteiraRoute,
   AuthenticatedContasRoute: AuthenticatedContasRoute,
-  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDreRoute: AuthenticatedDreRoute,
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
   AuthenticatedInvestimentosRoute: AuthenticatedInvestimentosRoute,

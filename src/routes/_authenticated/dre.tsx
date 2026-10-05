@@ -181,7 +181,7 @@ function DRE() {
       </div>
 
       {area === "ESCRITORIO" ? tabela("Resultado do escritório", escritorio) : tabela("Resultado pessoal", pessoal)}
-      <p className="text-xs text-muted-foreground">AV% = valor da linha ÷ receita bruta do período. O resultado líquido do escritório é igual ao Lucro do Panorama.</p>
+      <p className="text-xs text-muted-foreground">AV% = valor da linha ÷ receita bruta do período. O resultado líquido do escritório é igual ao Lucro do Dashboard.</p>
 
       {area === "ESCRITORIO" && <>
       <SugestaoIA cats={[...catsEsc]} cfg={cfg} aplicar={reclassificar} />

@@ -19,7 +19,7 @@ import {
 import { formatarBRL, formatarMes } from "@/lib/format";
 import type { MesRef } from "@/lib/horizonte";
 
-export const Route = createFileRoute("/_authenticated/dashboard")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
       { title: "Dashboard · Fluxo Escritório & Casa" },
