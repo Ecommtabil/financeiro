@@ -14,7 +14,9 @@ export async function gerarRelatorioEscritorio(p: {
   baixas: Baixa[];
   cfg: Tables<"config">;
   h: Horizonte;
+  area?: "ESCRITORIO" | "PESSOAL";
 }) {
+  const pes = p.area === "PESSOAL";
   const { jsPDF } = await import("jspdf");
   const autoTable = (await import("jspdf-autotable")).default;
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
@@ -24,7 +26,7 @@ export async function gerarRelatorioEscritorio(p: {
   const azul: [number, number, number] = [30, 41, 82];
 
   doc.setFontSize(16);
-  doc.text("Relatório de conferência · Escritório", 40, 46);
+  doc.text(`Relatório analítico de entradas e saídas · ${pes ? "Pessoal" : "Escritório"}`, 40, 46);
   doc.setFontSize(10);
   doc.text(`Período: ${p.rotulo}   ·   Gerado em ${new Date().toLocaleString("pt-BR")}`, 40, 64);
 
@@ -34,8 +36,8 @@ export async function gerarRelatorioEscritorio(p: {
 
   for (const m of p.meses) {
     const { receber, pagar } = contasDoMes(m, { entradas: p.entradas, saidas: p.saidas, pessoais: p.pessoais }, p.cfg, p.h);
-    const rec = receber.filter((c) => c.tipo === "entrada").sort((a, b) => (a.dia ?? 0) - (b.dia ?? 0) || a.nome.localeCompare(b.nome));
-    const pag = pagar.filter((c) => destinoSaida(catDe.get(c.id)!) !== "PESSOAL").sort((a, b) => (a.dia ?? 0) - (b.dia ?? 0) || a.nome.localeCompare(b.nome));
+    const rec = receber.filter((c) => c.tipo === (pes ? "pessoal" : "entrada")).sort((a, b) => (a.dia ?? 0) - (b.dia ?? 0) || a.nome.localeCompare(b.nome));
+    const pag = pagar.filter((c) => (destinoSaida(catDe.get(c.id)!) === "PESSOAL") === pes).sort((a, b) => (a.dia ?? 0) - (b.dia ?? 0) || a.nome.localeCompare(b.nome));
     const val = (c: (typeof rec)[number]) => { const b = bx.get(`${c.tipo}|${c.id}|${c.mes}`); return b ? Number(b.valor) : c.valor; };
     const se = rec.reduce((a, c) => a + val(c), 0), ss = pag.reduce((a, c) => a + val(c), 0);
     totE += se; totS += ss;
@@ -65,7 +67,7 @@ export async function gerarRelatorioEscritorio(p: {
   doc.text("Resumo do período", 40, 46);
   autoTable(doc, {
     startY: 60,
-    head: [["Mês", "Nº entradas", "Entradas", "Nº saídas", "Saídas", "Lucro"]],
+    head: [["Mês", "Nº entradas", "Entradas", "Nº saídas", "Saídas", pes ? "Resultado" : "Lucro"]],
     body: resumo,
     foot: [["Total", "", formatarNumero(totE), "", formatarNumero(totS), formatarNumero(totE - totS)]],
     styles: { fontSize: 9 },
@@ -81,5 +83,33 @@ export async function gerarRelatorioEscritorio(p: {
     doc.setFontSize(8);
     doc.text(`Fluxo Escritório & Casa · página ${i} de ${n}`, 40, doc.internal.pageSize.getHeight() - 20);
   }
-  doc.save(`conferencia-escritorio-${p.rotulo.replace(/[^\w]+/g, "-")}.pdf`);
+  doc.save(`analitico-${pes ? "pessoal" : "escritorio"}-${p.rotulo.replace(/[^\w]+/g, "-")}.pdf`);
+}
+
+export type LinhaPdf = { rotulo: string; nivel: number; forte?: boolean; valores: number[] };
+/** PDF de uma tabela com níveis (ex.: DRE exatamente como está expandida na tela). */
+export async function gerarPdfTabela(p: { titulo: string; subtitulo: string; colunas: string[]; linhas: LinhaPdf[]; arquivo: string }) {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
+  const doc = new jsPDF({ orientation: p.colunas.length > 6 ? "landscape" : "portrait", unit: "pt", format: "a4" });
+  const azul: [number, number, number] = [30, 41, 82];
+  doc.setFontSize(16); doc.text(p.titulo, 40, 46);
+  doc.setFontSize(10); doc.text(`${p.subtitulo}   ·   Gerado em ${new Date().toLocaleString("pt-BR")}`, 40, 64);
+  const col: Record<number, { halign: "right" }> = {};
+  p.colunas.forEach((_, i) => { col[i + 1] = { halign: "right" }; });
+  autoTable(doc, {
+    startY: 80,
+    head: [["Conta", ...p.colunas]],
+    body: p.linhas.map((l) => [
+      { content: "    ".repeat(l.nivel) + l.rotulo, styles: { fontStyle: l.forte ? "bold" : "normal", fillColor: l.forte ? [230, 233, 240] : undefined } },
+      ...l.valores.map((v) => ({ content: formatarNumero(v), styles: { fontStyle: l.forte ? "bold" : "normal", textColor: v < 0 ? [190, 30, 45] : 20, fillColor: l.forte ? [230, 233, 240] : undefined } })),
+    ]) as never,
+    styles: { fontSize: p.colunas.length > 10 ? 6.5 : 8, cellPadding: 2.5 },
+    headStyles: { fillColor: azul },
+    columnStyles: col,
+    margin: { left: 30, right: 30 },
+  });
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(8); doc.text(`Fluxo Escritório & Casa · página ${i} de ${n}`, 40, doc.internal.pageSize.getHeight() - 20); }
+  doc.save(p.arquivo);
 }
