@@ -11,6 +11,10 @@ import { sugerirDRE } from "@/lib/dre-ia.functions";
 import { useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig, useSalvarConfig, type Config } from "@/lib/config";
 import { useLista } from "@/lib/dados";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { gerarPdfTabela, gerarRelatorioEscritorio } from "@/lib/relatorio-pdf";
+import { FileText } from "lucide-react";
 import { GRUPOS_DRE, contasDoMes, destinoSaida, chaveCatDRE, chaveMes, grupoDRE, grupoPadraoDRE, somar, totaisHorizonte, type GrupoDRE, type TotaisMes } from "@/lib/calc";
 import { acharCabecalho, lerPlanilha, norm } from "@/lib/importacao";
 import { formatarBRL, formatarMes, formatarNumero } from "@/lib/format";
@@ -51,6 +55,7 @@ function DRE() {
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
   const [detalhe, setDetalhe] = useState<"sintetico" | "analitico">("sintetico");
   const [vista, setVista] = useState<"mes" | "ano">("mes");
+  const baixasQ = useQuery({ queryKey: ["baixas-pdf"], queryFn: async () => (await supabase.from("baixas").select("*")).data ?? [] });
 
   const porMes = useMemo(() => {
     if (!h || !cfg || !ent.data || !sai.data || !pes.data) return null;
@@ -115,6 +120,26 @@ function DRE() {
   const alterna = (id: string) => setAbertos((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const pct = (v: number, base: number) => (base ? `${formatarNumero((v / base) * 100, 1)}%` : "—");
 
+  const visiveis = (linhas: Linha[]) => linhas.filter((l) => {
+            if (!l.pai) return true;
+            const pai = linhas.find((x) => x.abre === l.pai);
+            const aberto = abertos.has(l.pai) || (detalhe === "analitico" && l.tipo === "sub");
+            return aberto && (!pai?.pai || abertos.has(pai.pai) || detalhe === "analitico");
+          });
+  const rotPeriodo = vista === "ano" ? "Todos os anos" : anoObj?.rotulo ?? "";
+  const pdfDRE = async () => {
+    const ls = visiveis(area === "ESCRITORIO" ? escritorio : pessoal);
+    await gerarPdfTabela({
+      titulo: area === "ESCRITORIO" ? "DRE · Escritório" : "DRE · Pessoal",
+      subtitulo: `Período: ${rotPeriodo}`,
+      colunas: [...cols.map((c) => c.rotulo), "Total"],
+      linhas: ls.map((l) => ({ rotulo: l.rotulo, nivel: l.tipo === "item" ? 2 : l.tipo === "sub" ? 1 : 0, forte: l.tipo === "total" || l.tipo === "destaque", valores: [...cols.map((c) => l.v(c.r)), l.v(total)] })),
+      arquivo: `dre-${area === "ESCRITORIO" ? "escritorio" : "pessoal"}-${rotPeriodo.replace(/[^\w]+/g, "-")}.pdf`,
+    });
+  };
+  const pdfAnalitico = async () => {
+    await gerarRelatorioEscritorio({ rotulo: rotPeriodo, meses: cols.flatMap((c) => c.meses), entradas: dd.entradas, saidas: dd.saidas, pessoais: dd.pessoais, baixas: baixasQ.data ?? [], cfg, h, area });
+  };
   const tabela = (titulo: string, linhas: Linha[]) => (
     <div className="overflow-x-auto rounded-lg border bg-card">
       <table className="w-full text-sm">
@@ -127,12 +152,7 @@ function DRE() {
           </tr>
         </thead>
         <tbody>
-          {linhas.filter((l) => {
-            if (!l.pai) return true;
-            const pai = linhas.find((x) => x.abre === l.pai);
-            const aberto = abertos.has(l.pai) || (detalhe === "analitico" && l.tipo === "sub");
-            return aberto && (!pai?.pai || abertos.has(pai.pai) || detalhe === "analitico");
-          }).map((l) => {
+          {visiveis(linhas).map((l) => {
             const tem = l.abre && linhas.some((x) => x.pai === l.abre);
             const cls = l.tipo === "destaque" ? "bg-primary/10 font-semibold" : l.tipo === "total" ? "border-t font-semibold" : l.tipo === "grupo" ? "border-t font-medium" : l.tipo === "item" ? "text-xs text-muted-foreground/80" : "text-muted-foreground";
             const tv = l.v(total);
@@ -186,6 +206,8 @@ function DRE() {
               {h.anos.map((a) => <option key={a.ano} value={a.ano}>{a.rotulo}</option>)}
             </select>
           ) : null}
+          <Button size="sm" variant="outline" onClick={() => pdfDRE().catch((e) => toast.error(String(e)))}><FileText className="size-4" />PDF da DRE</Button>
+          <Button size="sm" variant="outline" disabled={baixasQ.isLoading} onClick={() => pdfAnalitico().catch((e) => toast.error(String(e)))}><FileText className="size-4" />Analítico entradas e saídas</Button>
           <BotaoImportar cfg={cfg} cats={[...catsEsc]} salvar={(v) => salvar.mutateAsync(v)} />
         </div>
       </div>
