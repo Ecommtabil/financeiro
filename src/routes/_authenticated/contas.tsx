@@ -190,12 +190,12 @@ function PorVencimento({ linhas, lado, selecao, setSelecao }: { linhas: Linha[];
                     </tr>
                   );
                 })}
-                <tr className="border-b"><td colSpan={6} className="px-3 py-1.5 text-right text-xs text-muted-foreground">Subtotal {rotMes(k)}</td>
+                <tr className="border-b"><td colSpan={7} className="px-3 py-1.5 text-right text-xs text-muted-foreground">Subtotal {rotMes(k)}</td>
                   <td className="num px-3 py-1.5 text-right font-semibold">{formatarBRL(doMes.reduce((t, l) => t + l.exibido, 0))}</td></tr>
               </Fragment>
             );
           })}
-          <tr className="bg-muted"><td colSpan={6} className="px-3 py-2 text-right font-semibold">Total do período</td>
+          <tr className="bg-muted"><td colSpan={7} className="px-3 py-2 text-right font-semibold">Total do período</td>
             <td className="num px-3 py-2 text-right font-bold">{formatarBRL(total)}</td></tr>
         </tbody>
       </table>
