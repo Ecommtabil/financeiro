@@ -264,7 +264,7 @@ function despesasQueTerminam(saidas: Saida[], cfg: PainelProps["cfg"], h: Painel
     const [ano, mes] = fim.split("-").map(Number);
     if (!ano || !mes) return [];
     const ref = { ano, mes };
-    const libera = valorSaida(s, fim) * fator(ref, h.y0, cfg.reajuste_mes, regraDo(cfg, s.id, chaveCatSaida(s), "S"));
+    const libera = valorSaida(s, fim) * fator(ref, h, cfg.reajuste_mes, regraDo(cfg, s.id, chaveCatSaida(s), "S"));
     return [{ id: s.id, descricao: s.descricao, fim: formatarMes(ano, mes), libera }];
   }).sort((a, b) => a.fim.localeCompare(b.fim));
 }

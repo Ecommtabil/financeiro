@@ -78,12 +78,12 @@ function Projecao() {
     const linhas: LinhaItem[] = [];
     for (const it of itens) {
       const r = regraDo(cfg, it.id, it.catKey, it.tipo);
-      const fAnt = fator(dezAnt, h.y0, rm, r);
+      const fAnt = fator(dezAnt, h, rm, r);
       let total = 0, nivelAnt = 0;
-      for (const m of mesesAno) { const v = it.valor(chaveMes(m)); total += v * fator(m, h.y0, rm, r); nivelAnt += v * fAnt; }
+      for (const m of mesesAno) { const v = it.valor(chaveMes(m)); total += v * fator(m, h, rm, r); nivelAnt += v * fAnt; }
       if (!total && !nivelAnt) continue;
       const mr: MesRef = { ano, mes: rm }, vr = it.valor(chaveMes(mr));
-      linhas.push({ ...it, r, excecao: it.id in itensExt, base: vr * fAnt, novo: vr * fator(mr, h.y0, rm, r), total, impactoAno: total - nivelAnt, semValorReaj: !vr });
+      linhas.push({ ...it, r, excecao: it.id in itensExt, base: vr * fAnt, novo: vr * fator(mr, h, rm, r), total, impactoAno: total - nivelAnt, semValorReaj: !vr });
     }
     const semCfg: Config = { ...cfg, regras_item: {}, regras_categoria: {}, indice_padrao_entradas: 0, indice_padrao_saidas: 0 };
     const porMes = new Map(h.meses.map((m) => [chaveMes(m), { com: totaisDoMes(m, dados, cfg, h), sem: totaisDoMes(m, dados, semCfg, h) }]));

@@ -9,7 +9,7 @@ import { formatarBRL, normalizarBanco } from "./format";
 import { acharCabecalho, chaveMes, lerMes, lerPlanilha, norm, paraNumero } from "./importacao";
 import {
   CHAVE_CAT_PESSOAL, GRUPOS_DRE, chaveCatDRE, chaveCatEntrada, chaveCatSaida, destinoSaida, fator, grupoDRE, grupoPadraoDRE,
-  regraDo, tipoInvestimentoSugerido, valorEntrada, valorSaida,
+  regraDo, tipoInvestimentoSugerido, valorEntrada, valorEntradaPessoal, valorSaida,
   type Baixa, type Bem, type Divida, type GrupoDRE, type Investimento, type Regra, type Saldo,
 } from "./calc";
 
@@ -277,9 +277,9 @@ export const TIPOS: Def[] = [
       const cab = (rows[h] ?? []).map(norm);
       const ci = { tipo: col(cab, "TIPO"), mes: col(cab, "MES"), id: col(cab, "IDENTIFICA", "DESCRI", "EMPRESA", "NOME"), valor: col(cab, "VALOR"), data: col(cab, "DATA") };
       const { cfg, h: hz } = c;
-      const previstoE = (e: Entrada, k: string) => { const [a, m] = k.split("-").map(Number) as [number, number]; return valorEntrada(e, k) * fator({ ano: a, mes: m }, hz.y0, cfg.reajuste_mes, regraDo(cfg, e.id, chaveCatEntrada(e), "E")); };
-      const previstoP = (p: EntradaPessoal, k: string) => { const [a, m] = k.split("-").map(Number) as [number, number]; const v = (!p.inicio || k >= p.inicio) && (!p.fim || k <= p.fim) ? Number(p.valor) : 0; return v * fator({ ano: a, mes: m }, hz.y0, cfg.reajuste_mes, regraDo(cfg, p.id, CHAVE_CAT_PESSOAL, "E")); };
-      const previstoS = (s: Saida, k: string) => { const [a, m] = k.split("-").map(Number) as [number, number]; return valorSaida(s, k) * fator({ ano: a, mes: m }, hz.y0, cfg.reajuste_mes, regraDo(cfg, s.id, chaveCatSaida(s), "S")); };
+      const previstoE = (e: Entrada, k: string) => { const [a, m] = k.split("-").map(Number) as [number, number]; return valorEntrada(e, k) * fator({ ano: a, mes: m }, hz, cfg.reajuste_mes, regraDo(cfg, e.id, chaveCatEntrada(e), "E")); };
+      const previstoP = (p: EntradaPessoal, k: string) => { const [a, m] = k.split("-").map(Number) as [number, number]; const v = valorEntradaPessoal(p, k); return v * fator({ ano: a, mes: m }, hz, cfg.reajuste_mes, regraDo(cfg, p.id, CHAVE_CAT_PESSOAL, "E")); };
+      const previstoS = (s: Saida, k: string) => { const [a, m] = k.split("-").map(Number) as [number, number]; return valorSaida(s, k) * fator({ ano: a, mes: m }, hz, cfg.reajuste_mes, regraDo(cfg, s.id, chaveCatSaida(s), "S")); };
       const gk = (g: string | null) => norm(g).replace(/\s/g, "");
       const itens = new Map<string, TablesInsert<"baixas">>();
       const nao: string[] = []; const vis: unknown[][] = [];
