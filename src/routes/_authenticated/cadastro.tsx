@@ -258,6 +258,41 @@ function CabecalhoFiltro({
 type TipoCampo = "texto" | "maiusc" | "banco" | "numero" | "dia" | "mes" | "destino" | "ativo";
 type CampoLote = { k: string; l: string; t: TipoCampo };
 
+/** "2026-10" -> "10/2026" */
+function exibirMes(v: string | null): string {
+  return v ? `${v.slice(5, 7)}/${v.slice(0, 4)}` : "";
+}
+/** "10/2026" -> "2026-10"; null = vazio; undefined = inválido */
+function lerMes(t: string): string | null | undefined {
+  const limpo = t.trim();
+  if (!limpo) return null;
+  const m = limpo.match(/^(\d{1,2})\s*\/\s*(\d{4})$/);
+  if (!m || Number(m[1]) < 1 || Number(m[1]) > 12) return undefined;
+  return `${m[2]}-${m[1]!.padStart(2, "0")}`;
+}
+
+/** Campo de vigência com data numérica (mm/aaaa), sem seletor de calendário. */
+function CampoMes({ valor, onSalvar, title }: { valor: string | null; onSalvar: (v: string | null) => void; title?: string }) {
+  return (
+    <Input key={valor ?? "x"} className="num h-7 w-24" defaultValue={exibirMes(valor)} placeholder="mm/aaaa" title={title}
+      onBlur={(ev) => {
+        const v = lerMes(ev.target.value);
+        if (v === undefined) { toast.error("Use o formato mm/aaaa (ex.: 03/2027)."); ev.target.value = exibirMes(valor); return; }
+        if (v !== valor) onSalvar(v);
+      }}
+      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+  );
+}
+
+/** Texto editável em linha (descrição, empresa etc.). */
+function CampoTexto({ valor, onSalvar, className = "w-56" }: { valor: string; onSalvar: (v: string) => void; className?: string }) {
+  return (
+    <Input key={valor} className={`h-7 ${className}`} defaultValue={valor}
+      onBlur={(ev) => { const v = ev.target.value.trim(); if (v && v !== valor) onSalvar(v); else if (!v) ev.target.value = valor; }}
+      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+  );
+}
+
 function useSelecao(visiveis: string[]) {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const ids = visiveis.filter((id) => sel.has(id));
