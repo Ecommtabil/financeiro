@@ -141,7 +141,7 @@ function Projecao() {
           <CampoIndice valor={Number(cfg.indice_padrao_saidas)} salvar={(v) => salvar.mutate({ indice_padrao_saidas: v }, ok)} className="w-24" /></label>
       </div>
 
-      {anosPremissa.length > 0 && (
+      {area !== "PESSOAL" && anosPremissa.length > 0 && (
         <section className="surface-card space-y-3 p-4">
           <div>
             <h2 className="text-sm font-semibold">Premissas de crescimento</h2>
@@ -166,9 +166,9 @@ function Projecao() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {((area === "PESSOAL"
-          ? [["Entradas pessoais", com.EP, sem.EP], ["Saídas pessoais", com.SP, sem.SP], ["Resultado pessoal", com.EP - com.SP, sem.EP - sem.SP]]
+          ? [["Lucro do escritório", com.L, sem.L], ["Entradas pessoais", com.EP, sem.EP], ["Saídas pessoais", com.SP, sem.SP], ["Reserva", com.R, sem.R]]
           : [["Entradas do ano", com.E, sem.E], ["Saídas escritório", com.SE, sem.SE], ["Lucro", com.L, sem.L]]) as [string, number, number][]).map(([r, c, s]) => (
           <div key={r} className="surface-card p-4">
             <div className="label-eyebrow">{r}</div>
@@ -273,7 +273,7 @@ function Projecao() {
 
 type Linha = [string, (t: TotaisMes) => number];
 const LINHAS_ESC: Linha[] = [["Entradas", (t) => t.E], ["− Saídas escritório", (t) => t.SE], ["= Lucro", (t) => t.L]];
-const LINHAS_PES: Linha[] = [["Entradas pessoais", (t) => t.EP], ["− Saídas pessoais", (t) => t.SP], ["= Resultado pessoal", (t) => t.EP - t.SP]];
+const LINHAS_PES: Linha[] = [["Lucro do escritório", (t) => t.L], ["+ Entradas pessoais", (t) => t.EP], ["− Saídas pessoais", (t) => t.SP], ["= Reserva", (t) => t.R]];
 
 function TabelaLinhas({ titulo, colunas, acumulada, total, linhas: LINHAS }: { titulo: string; colunas: { rotulo: string; t: TotaisMes }[]; acumulada?: boolean; total?: boolean; linhas: Linha[] }) {
   let ac = 0;
@@ -296,7 +296,7 @@ function TabelaLinhas({ titulo, colunas, acumulada, total, linhas: LINHAS }: { t
               </tr>
             ))}
             {acumulada && (
-              <tr className="bg-muted font-semibold"><td className="sticky left-0 bg-muted px-3 py-1.5">{LINHAS === LINHAS_ESC ? "Lucro acumulado" : "Resultado acumulado"}</td>
+              <tr className="bg-muted font-semibold"><td className="sticky left-0 bg-muted px-3 py-1.5">{LINHAS === LINHAS_ESC ? "Lucro acumulado" : "Reserva acumulada"}</td>
                 {acum.map((v, i) => <td key={i} className={cn("num whitespace-nowrap px-3 py-1.5 text-right", v < 0 && "text-negative")}>{formatarNumero(v)}</td>)}</tr>
             )}
           </tbody>
