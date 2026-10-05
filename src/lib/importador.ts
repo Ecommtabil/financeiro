@@ -9,7 +9,7 @@ import { formatarBRL, normalizarBanco } from "./format";
 import { acharCabecalho, chaveMes, lerMes, lerPlanilha, norm, paraNumero } from "./importacao";
 import {
   CHAVE_CAT_PESSOAL, GRUPOS_DRE, chaveCatDRE, chaveCatEntrada, chaveCatSaida, destinoSaida, fator, grupoDRE, grupoPadraoDRE,
-  regraDo, tipoInvestimentoSugerido, valorBase, valorEntrada, valorEntradaPessoal, valorSaida,
+  regraDo, premissaDoAno, type Premissas, tipoInvestimentoSugerido, valorBase, valorEntrada, valorEntradaPessoal, valorSaida,
   type Baixa, type Bem, type Divida, type GrupoDRE, type Investimento, type Regra, type Saldo,
 } from "./calc";
 

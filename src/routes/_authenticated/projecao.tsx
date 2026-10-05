@@ -13,6 +13,7 @@ import { formatarBRL, formatarMes, formatarNumero } from "@/lib/format";
 import {
   CHAVE_CAT_PESSOAL, chaveCatEntrada, chaveCatSaida, chaveMes, destinoSaida, fator, regraDo, somar, totaisDoMes,
   valorEntrada, valorEntradaPessoal, valorSaida, type Regra, type TotaisMes,
+  premissaDoAno, type Premissas,
 } from "@/lib/calc";
 import type { MesRef } from "@/lib/horizonte";
 import { acharCabecalho, lerPlanilha, norm, paraNumero } from "@/lib/importacao";
