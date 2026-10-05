@@ -167,9 +167,9 @@ function Projecao() {
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {(area === "PESSOAL"
+        {((area === "PESSOAL"
           ? [["Entradas pessoais", com.EP, sem.EP], ["Saídas pessoais", com.SP, sem.SP], ["Resultado pessoal", com.EP - com.SP, sem.EP - sem.SP]]
-          : [["Entradas do ano", com.E, sem.E], ["Saídas escritório", com.SE, sem.SE], ["Lucro", com.L, sem.L]]).map(([r, c, s]) => (
+          : [["Entradas do ano", com.E, sem.E], ["Saídas escritório", com.SE, sem.SE], ["Lucro", com.L, sem.L]]) as [string, number, number][]).map(([r, c, s]) => (
           <div key={r} className="surface-card p-4">
             <div className="label-eyebrow">{r}</div>
             <div className="num mt-1 text-lg font-semibold">{formatarBRL(c)}</div>
