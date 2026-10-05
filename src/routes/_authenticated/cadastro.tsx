@@ -55,16 +55,16 @@ const sel = "h-8 rounded-md border border-input bg-background px-2 text-sm";
 
 function Cadastro() {
   const [busca, setBusca] = useState("");
-  const area = useArea();
   return (
-    <div key={area} className="px-6 py-8 lg:px-10">
+    <div className="px-6 py-8 lg:px-10">
       <h1 className="text-2xl font-semibold">Cadastro</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Cadastre na tela ou importe por planilha. Reimportar substitui só o que veio de planilha.</p>
-      <Tabs defaultValue={area === "ESCRITORIO" ? "entradas" : "pessoais"} className="mt-6">
+      <p className="mt-1 text-sm text-muted-foreground">Módulo comum ao Escritório e ao Pessoal. Cadastre na tela ou importe por planilha. Reimportar substitui só o que veio de planilha.</p>
+      <Tabs defaultValue="entradas" className="mt-6">
         <div className="flex flex-wrap items-center gap-3">
           <TabsList>
-            {area === "ESCRITORIO" ? <TabsTrigger value="entradas">Entradas</TabsTrigger> : <TabsTrigger value="pessoais">Entradas pessoais</TabsTrigger>}
+            <TabsTrigger value="entradas">Entradas</TabsTrigger>
             <TabsTrigger value="saidas">Saídas</TabsTrigger>
+            <TabsTrigger value="pessoais">Entradas pessoais</TabsTrigger>
           </TabsList>
           <div className="relative ml-auto w-72">
             <Search className="absolute top-2 left-2 size-4 text-muted-foreground" />
@@ -358,11 +358,10 @@ function Saidas({ busca }: { busca: string }) {
   const [cat, setCat] = useState("");
   const p = horizonte?.primeiro;
   const k1 = p ? chaveMes(p.ano, p.mes) : "";
-  const vazio = { descricao: "", categoria: "", banco: "", dia: "", destino: useArea() as string, valor: "", ri: k1, rf: "" };
+  const vazio = { descricao: "", categoria: "", banco: "", dia: "", destino: "", valor: "", ri: k1, rf: "" };
   const [f, setF] = useState(vazio);
   const categorias = useMemo(() => opcoesDe(data, (s) => s.categoria), [data]);
-  const area = useArea();
-  const listaBase = data.filter((s) => daArea(s.destino, area) && (!semDestino || !s.destino) && (!cat || chaveFiltro(s.categoria) === cat) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
+  const listaBase = data.filter((s) => (!semDestino || !s.destino) && (!cat || chaveFiltro(s.categoria) === cat) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
   const lista = ordenar(listaBase, ordem, (s) => s.descricao, (s) => valorSaidaNoMes(s, k1), (s) => s.dia);
   const selS = useSelecao(lista.map((x) => x.id));
 
