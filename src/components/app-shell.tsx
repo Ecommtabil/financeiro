@@ -153,24 +153,24 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Button variant="ghost" size="icon" onClick={sair} aria-label="Sair"><LogOut className="size-4" /></Button>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 border-t px-6 py-2 lg:px-10">
+          <nav className="flex items-center gap-1 overflow-x-auto border-t px-6 py-2 lg:px-10">
             {MODULOS.map((m) => (
               <Link key={m.to} to={m.to}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium ${modulo === m.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap ${modulo === m.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
                 <m.icon className="size-4" />{m.label}
               </Link>
             ))}
             {modulo !== "cadastro" && modulo !== "outro" ? (
-              <div className="ml-2 inline-flex rounded-md border bg-background p-0.5">
+              <div className="ml-auto inline-flex shrink-0 rounded-md border bg-background p-0.5">
                 {(["ESCRITORIO", "PESSOAL"] as const).map((a) => (
                   <button key={a} onClick={() => setArea(a)}
-                    className={`flex items-center gap-1.5 rounded px-3 py-1 text-sm font-medium ${area === a ? (a === "ESCRITORIO" ? "bg-office text-office-foreground" : "bg-personal text-personal-foreground") : "text-muted-foreground hover:text-foreground"}`}>
+                    className={`flex items-center gap-1.5 rounded px-3 py-1 text-sm font-medium whitespace-nowrap ${area === a ? (a === "ESCRITORIO" ? "bg-office text-office-foreground" : "bg-personal text-personal-foreground") : "text-muted-foreground hover:text-foreground"}`}>
                     {a === "ESCRITORIO" ? <><Building2 className="size-4" />Escritório</> : <><House className="size-4" />Pessoal</>}
                   </button>
                 ))}
               </div>
             ) : null}
-          </div>
+          </nav>
           {modulo === "analise" ? (
             <nav className="flex gap-1 overflow-x-auto px-4 lg:px-8">
               {abasVisiveis.map((a) => (
