@@ -100,7 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <PeriodoCtx.Provider value={{ horizonte, periodo, colunas, area, fase: faseEf, anosPeriodo, mesesPeriodo }}>
       <div className="min-h-screen">
-        <header className="sticky top-0 z-30 border-b border-border bg-card">
+        <header className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur-md">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-6 py-3 lg:px-10">
             <div className="flex items-center gap-3">
               <div className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground">
