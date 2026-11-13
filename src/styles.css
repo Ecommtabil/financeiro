@@ -69,20 +69,20 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --shadow-card: 0 1px 2px oklch(0.22 0.05 260 / 6%), 0 8px 24px oklch(0.22 0.05 260 / 6%);
+  --shadow-card: 0 1px 2px oklch(0.35 0.08 258 / 5%), 0 10px 30px -8px oklch(0.35 0.08 258 / 12%);
 }
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 
-  --background: oklch(0.985 0.005 255);
+  --background: oklch(0.972 0.012 250);
   --foreground: oklch(0.22 0.05 260);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.22 0.05 260);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.22 0.05 260);
 
-  --primary: oklch(0.30 0.10 262);
+  --primary: oklch(0.48 0.17 258);
   --primary-foreground: oklch(0.985 0.005 255);
   --secondary: oklch(0.955 0.015 258);
   --secondary-foreground: oklch(0.28 0.08 262);
@@ -100,20 +100,20 @@
   --negative-foreground: oklch(0.99 0.002 214);
   --warning: oklch(0.561 0.112 75.8);
   --warning-foreground: oklch(0.99 0.002 214);
-  --office: oklch(0.30 0.10 262);
+  --office: oklch(0.48 0.17 258);
   --office-foreground: oklch(0.99 0.002 214);
   --personal: oklch(0.47 0.10 300);
   --personal-foreground: oklch(0.99 0.002 214);
 
   --border: oklch(0.918 0.014 258);
   --input: oklch(0.918 0.014 258);
-  --ring: oklch(0.30 0.10 262);
+  --ring: oklch(0.48 0.17 258);
 
-  --chart-1: oklch(0.32 0.10 262);
-  --chart-2: oklch(0.74 0.08 265);
-  --chart-3: oklch(0.60 0.16 25);
-  --chart-4: oklch(0.62 0.09 220);
-  --chart-5: oklch(0.65 0.10 300);
+  --chart-1: oklch(0.55 0.19 258);
+  --chart-2: oklch(0.68 0.13 230);
+  --chart-3: oklch(0.70 0.14 185);
+  --chart-4: oklch(0.62 0.04 255);
+  --chart-5: oklch(0.80 0.08 240);
 
   --sidebar: oklch(0.20 0.06 262);
   --sidebar-foreground: oklch(0.95 0.010 258);
@@ -231,6 +231,8 @@
 
   body {
     background-color: var(--color-background);
+    background-image: radial-gradient(1200px 500px at 100% -10%, color-mix(in oklab, var(--color-chart-2) 14%, transparent), transparent 70%), radial-gradient(900px 400px at -10% 0%, color-mix(in oklab, var(--color-primary) 8%, transparent), transparent 70%);
+    background-attachment: fixed;
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
