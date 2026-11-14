@@ -255,15 +255,15 @@ function DRE() {
         <Ind rotulo="Reserva" v={total.t.R} forte />
       </div>
 
-      {area === "ESCRITORIO" ? <Cascata itens={[
-        { r: "Receita bruta", v: total.RB, c: "bg-positive" },
-        ...GRUPOS_DRE.map((g) => ({ r: rotuloGrupo(g.id), v: -total.g[g.id], c: "bg-negative/80" })),
-        { r: "Resultado líquido", v: total.RLiq, c: "bg-primary" },
-      ]} /> : <Cascata itens={[
-        { r: "Resultado do escritório", v: total.RLiq, c: "bg-primary" },
-        { r: "Entradas pessoais", v: total.t.EP, c: "bg-positive" },
-        { r: "Saídas pessoais", v: -total.t.SP, c: "bg-negative/80" },
-        { r: "Reserva", v: total.t.R, c: "bg-primary" },
+      {area === "ESCRITORIO" ? <Cascata aoDetalhar={setDetalheCascata} itens={[
+        { id: "RB", r: "Receita bruta", v: total.RB, c: "bg-positive" },
+        ...GRUPOS_DRE.map((g) => ({ id: g.id, r: rotuloGrupo(g.id), v: -total.g[g.id], c: "bg-negative/80" })),
+        { id: "RLIQ", r: "Resultado líquido", v: total.RLiq, c: "bg-primary" },
+      ]} /> : <Cascata aoDetalhar={setDetalheCascata} itens={[
+        { id: "P0", r: "Resultado do escritório", v: total.RLiq, c: "bg-primary" },
+        { id: "EP", r: "Entradas pessoais", v: total.t.EP, c: "bg-positive" },
+        { id: "SP", r: "Saídas pessoais", v: -total.t.SP, c: "bg-negative/80" },
+        { id: "R", r: "Reserva", v: total.t.R, c: "bg-primary" },
       ]} />}
 
       {area === "ESCRITORIO" ? tabela("Resultado do escritório", escritorio) : tabela("Resultado pessoal", pessoal)}
