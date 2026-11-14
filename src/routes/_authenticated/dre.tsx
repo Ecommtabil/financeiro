@@ -122,6 +122,29 @@ function DRE() {
     { id: "R", rotulo: "= Reserva", v: (r) => r.t.R, tipo: "destaque" },
   ];
 
+  const detalheDoGrafico = (id: string): DetalheCascata | null => {
+    if (id === "RLIQ" || id === "P0" || id === "R") {
+      const fonte = id === "R" ? pessoal : escritorio;
+      const excluir = id === "R" ? "R" : "RLIQ";
+      return {
+        titulo: id === "R" ? "Composição da reserva" : "Composição do resultado do escritório",
+        valor: id === "R" ? total.t.R : total.RLiq,
+        raizes: fonte.filter((l) => !l.pai && l.id !== excluir),
+        todas: fonte,
+      };
+    }
+    const fonte = id === "EP" || id === "SP" ? pessoal : escritorio;
+    const raiz = fonte.find((l) => l.id === id);
+    if (!raiz) return null;
+    return {
+      titulo: raiz.rotulo.replace(/^\([+−]\)\s*/, ""),
+      valor: raiz.v(total),
+      raizes: fonte.filter((l) => l.pai === id),
+      todas: fonte,
+    };
+  };
+  const detalheAtual = detalheCascata ? detalheDoGrafico(detalheCascata) : null;
+
   const alterna = (id: string) => setAbertos((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const pct = (v: number, base: number) => (base ? `${formatarNumero((v / base) * 100, 1)}%` : "—");
 
