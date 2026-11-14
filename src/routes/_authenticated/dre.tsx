@@ -54,7 +54,8 @@ function DRE() {
   const ent = useLista("entradas"), sai = useLista("saidas"), pes = useLista("entradas_pessoais");
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
   const [detalhe, setDetalhe] = useState<"sintetico" | "analitico">("sintetico");
-  const [vista, setVista] = useState<"mes" | "ano">("mes");
+  const [vista, setVista] = useState<"mes" | "ano" | "unico">("mes");
+  const [mesSel, setMesSel] = useState<string>("");
   const baixasQ = useQuery({ queryKey: ["baixas-pdf"], queryFn: async () => (await supabase.from("baixas").select("*")).data ?? [] });
 
   const porMes = useMemo(() => {
@@ -68,7 +69,9 @@ function DRE() {
   const anoObj = anosPeriodo.find((a) => a.ano === anoEfetivo) ?? anosPeriodo[0];
   const base = vista === "ano"
     ? anosPeriodo.map((a) => ({ chave: `A${a.ano}`, rotulo: a.rotulo, meses: a.meses }))
-    : (anoObj?.meses ?? []).map((m) => ({ chave: `${m.ano}-${m.mes}`, rotulo: formatarMes(m.ano, m.mes), meses: [m] }));
+    : vista === "unico"
+      ? (() => { const ms = anoObj?.meses ?? []; const m = ms.find((x) => `${x.ano}-${x.mes}` === mesSel) ?? ms[0]; return m ? [{ chave: `${m.ano}-${m.mes}`, rotulo: formatarMes(m.ano, m.mes), meses: [m] }] : []; })()
+      : (anoObj?.meses ?? []).map((m) => ({ chave: `${m.ano}-${m.mes}`, rotulo: formatarMes(m.ano, m.mes), meses: [m] }));
   void colunas;
   const dd = { entradas: ent.data ?? [], saidas: sai.data ?? [], pessoais: pes.data ?? [] };
   const itensDe = (ms: typeof base[number]["meses"]) => {
@@ -126,7 +129,7 @@ function DRE() {
             const aberto = abertos.has(l.pai) || (detalhe === "analitico" && l.tipo === "sub");
             return aberto && (!pai?.pai || abertos.has(pai.pai) || detalhe === "analitico");
           });
-  const rotPeriodo = vista === "ano" ? "Todos os anos" : anoObj?.rotulo ?? "";
+  const rotPeriodo = vista === "ano" ? "Todos os anos" : vista === "unico" ? cols[0]?.rotulo ?? "" : anoObj?.rotulo ?? "";
   const pdfDRE = async () => {
     const ls = visiveis(area === "ESCRITORIO" ? escritorio : pessoal);
     await gerarPdfTabela({
@@ -142,9 +145,9 @@ function DRE() {
   };
   const tabela = (titulo: string, linhas: Linha[]) => (
     <div className="overflow-x-auto rounded-lg border bg-card">
-      <table className="w-full text-sm">
+      <table className="w-full text-base">
         <thead>
-          <tr className="border-b text-muted-foreground">
+          <tr className="border-b bg-primary/10 text-sm uppercase tracking-wide text-muted-foreground">
             <th className="sticky left-0 min-w-64 bg-card px-3 py-2 text-left font-medium text-foreground">{titulo}</th>
             {cols.map((c) => <th key={c.chave} className="px-3 py-2 text-right font-medium">{c.rotulo}</th>)}
             <th className="px-3 py-2 text-right font-semibold text-foreground">Total</th>
@@ -154,20 +157,20 @@ function DRE() {
         <tbody>
           {visiveis(linhas).map((l) => {
             const tem = l.abre && linhas.some((x) => x.pai === l.abre);
-            const cls = l.tipo === "destaque" ? "bg-primary/10 font-semibold" : l.tipo === "total" ? "border-t font-semibold" : l.tipo === "grupo" ? "border-t font-medium" : l.tipo === "item" ? "text-xs text-muted-foreground/80" : "text-muted-foreground";
+            const cls = l.tipo === "destaque" ? "bg-primary text-primary-foreground text-lg font-bold [&_td]:bg-primary [&_.text-negative]:text-primary-foreground" : l.tipo === "total" ? "border-t-2 border-primary/40 bg-primary/5 font-semibold text-primary" : l.tipo === "grupo" ? "border-t font-semibold" : l.tipo === "item" ? "text-sm text-muted-foreground/80" : "text-muted-foreground";
             const tv = l.v(total);
             return (
               <tr key={l.id} className={cls}>
-                <td className={`sticky left-0 bg-card px-3 py-1.5 ${l.tipo === "sub" ? "pl-9" : l.tipo === "item" ? "pl-16" : ""}`}>
+                <td className={`sticky left-0 bg-card px-4 py-2.5 ${l.tipo === "sub" ? "pl-9" : l.tipo === "item" ? "pl-16" : ""}`}>
                   {tem ? (
                     <button onClick={() => alterna(l.abre!)} className="inline-flex items-center gap-1 text-left">
                       {abertos.has(l.abre!) ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}{l.rotulo}
                     </button>
                   ) : <span className={l.abre ? "pl-[1.125rem]" : ""}>{l.rotulo}</span>}
                 </td>
-                {cols.map((c) => { const v = l.v(c.r); return <td key={c.chave} className={`num px-3 py-1.5 text-right ${v < 0 ? "text-negative" : ""}`}>{formatarNumero(v)}</td>; })}
-                <td className={`num px-3 py-1.5 text-right font-medium ${tv < 0 ? "text-negative" : ""}`}>{formatarNumero(tv)}</td>
-                <td className="num px-3 py-1.5 text-right text-muted-foreground">{pct(tv, total.RB)}</td>
+                {cols.map((c) => { const v = l.v(c.r); return <td key={c.chave} className={`num px-4 py-2.5 text-right ${v < 0 ? "text-negative" : ""}`}>{formatarNumero(v)}</td>; })}
+                <td className={`num px-4 py-2.5 text-right font-medium ${tv < 0 ? "text-negative" : ""}`}>{formatarNumero(tv)}</td>
+                <td className="num px-4 py-2.5 text-right text-muted-foreground">{pct(tv, total.RB)}</td>
               </tr>
             );
           })}
@@ -186,7 +189,7 @@ function DRE() {
   return (
     <div className="space-y-5 px-6 py-6 lg:px-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">DRE</h1>
+        <div><h1 className="text-3xl font-bold tracking-tight">DRE · {area === "ESCRITORIO" ? "Escritório" : "Pessoal"}</h1><p className="text-sm text-muted-foreground">Demonstrativo de resultado · {rotPeriodo}</p></div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-md border">
             {([["sintetico", "Sintético"], ["analitico", "Analítico"]] as const).map(([v, r]) => (
@@ -195,12 +198,18 @@ function DRE() {
             ))}
           </div>
           <div className="flex rounded-md border">
-            {([["mes", "Mês a mês"], ["ano", "Por ano"]] as const).map(([v, r]) => (
+            {([["ano", "Por ano"], ["mes", "Mês a mês"], ["unico", "Mês específico"]] as const).map(([v, r]) => (
               <button key={v} onClick={() => setVista(v)}
                 className={`px-3 py-1.5 text-sm ${vista === v ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{r}</button>
             ))}
           </div>
-          {vista === "mes" ? (
+          {vista === "unico" ? (
+            <select aria-label="Mês" value={cols[0]?.chave ?? ""} onChange={(e) => setMesSel(e.target.value)}
+              className="h-8 rounded-md border bg-background px-2 text-sm">
+              {(anoObj?.meses ?? []).map((m) => <option key={`${m.ano}-${m.mes}`} value={`${m.ano}-${m.mes}`}>{formatarMes(m.ano, m.mes)}</option>)}
+            </select>
+          ) : null}
+          {vista !== "ano" ? (
             <select aria-label="Ano" value={anoObj?.ano ?? ""} onChange={(e) => setAnoMes(Number(e.target.value))}
               className="h-8 rounded-md border bg-background px-2 text-sm">
               {anosPeriodo.map((a) => <option key={a.ano} value={a.ano}>{a.rotulo}</option>)}
@@ -219,6 +228,17 @@ function DRE() {
         <Ind rotulo="Resultado líquido" v={total.RLiq} extra={`margem ${pct(total.RLiq, total.RB)}`} forte />
         <Ind rotulo="Reserva" v={total.t.R} forte />
       </div>
+
+      {area === "ESCRITORIO" ? <Cascata itens={[
+        { r: "Receita bruta", v: total.RB, c: "bg-positive" },
+        ...GRUPOS_DRE.map((g) => ({ r: rotuloGrupo(g.id), v: -total.g[g.id], c: "bg-negative/80" })),
+        { r: "Resultado líquido", v: total.RLiq, c: "bg-primary" },
+      ]} /> : <Cascata itens={[
+        { r: "Resultado do escritório", v: total.RLiq, c: "bg-primary" },
+        { r: "Entradas pessoais", v: total.t.EP, c: "bg-positive" },
+        { r: "Saídas pessoais", v: -total.t.SP, c: "bg-negative/80" },
+        { r: "Reserva", v: total.t.R, c: "bg-primary" },
+      ]} />}
 
       {area === "ESCRITORIO" ? tabela("Resultado do escritório", escritorio) : tabela("Resultado pessoal", pessoal)}
       <p className="text-xs text-muted-foreground">AV% = valor da linha ÷ receita bruta do período. O resultado líquido do escritório é igual ao Lucro do Dashboard.</p>
@@ -304,11 +324,27 @@ function SugestaoIA({ cats, cfg, aplicar }: { cats: string[]; cfg: Config; aplic
   );
 }
 
+function Cascata({ itens }: { itens: { r: string; v: number; c: string }[] }) {
+  const max = Math.max(1, ...itens.map((i) => Math.abs(i.v)));
+  return (
+    <div className="surface-card space-y-2.5 rounded-xl border bg-card px-5 py-5">
+      <h2 className="text-lg font-semibold">Da receita ao resultado</h2>
+      {itens.map((i) => (
+        <div key={i.r} className="grid grid-cols-[12rem_1fr_9rem] items-center gap-3 text-base">
+          <span className="truncate text-muted-foreground">{i.r}</span>
+          <div className="h-6 rounded-full bg-muted"><div className={`h-6 rounded-full ${i.v < 0 && i.c === "bg-primary" ? "bg-negative" : i.c}`} style={{ width: `${(Math.abs(i.v) / max) * 100}%` }} /></div>
+          <span className={`num text-right font-medium ${i.v < 0 ? "text-negative" : ""}`}>{formatarBRL(i.v)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Ind({ rotulo, v, extra, forte }: { rotulo: string; v: number; extra?: string; forte?: boolean }) {
   return (
     <div>
       <div className="text-xs text-muted-foreground">{rotulo}</div>
-      <div className={`num ${forte ? "text-xl font-semibold" : "text-lg"} ${v < 0 ? "text-negative" : forte ? "text-primary" : ""}`}>{formatarBRL(v)}</div>
+      <div className={`num ${forte ? "text-2xl font-bold" : "text-xl font-semibold"} ${v < 0 ? "text-negative" : forte ? "text-primary" : ""}`}>{formatarBRL(v)}</div>
       {extra && <div className="num text-xs text-muted-foreground">{extra}</div>}
     </div>
   );
