@@ -57,6 +57,7 @@ function DRE() {
   const [detalhe, setDetalhe] = useState<"sintetico" | "analitico">("sintetico");
   const [vista, setVista] = useState<"mes" | "ano" | "unico">("mes");
   const [mesSel, setMesSel] = useState<string>("");
+  const [detalheCascata, setDetalheCascata] = useState<string | null>(null);
   const baixasQ = useQuery({ queryKey: ["baixas-pdf"], queryFn: async () => (await supabase.from("baixas").select("*")).data ?? [] });
 
   const porMes = useMemo(() => {
