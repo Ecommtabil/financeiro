@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LinkImportar } from "@/components/link-importar";
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sparkles } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { sugerirDRE } from "@/lib/dre-ia.functions";
