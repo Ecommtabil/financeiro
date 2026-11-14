@@ -45,6 +45,7 @@ function calcular(t: TotaisMes, cfg: Config, it: Record<string, number> = {}): R
 }
 
 type Linha = { id: string; rotulo: string; v: (r: Res) => number; tipo?: "total" | "destaque" | "sub" | "grupo" | "item"; abre?: string; pai?: string };
+type DetalheCascata = { titulo: string; valor: number; raizes: Linha[]; todas: Linha[] };
 
 function DRE() {
   const area = useArea();
