@@ -299,6 +299,17 @@ function DRE() {
         </table>
       </div>
       </>}
+
+      {detalheAtual && (
+        <DetalheCascataDialog
+          key={`${area}-${detalheCascata}`}
+          detalhe={detalheAtual}
+          periodo={rotPeriodo}
+          cols={cols}
+          total={total}
+          aoFechar={() => setDetalheCascata(null)}
+        />
+      )}
     </div>
   );
 }
