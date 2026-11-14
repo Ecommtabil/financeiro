@@ -361,19 +361,117 @@ function SugestaoIA({ cats, cfg, aplicar }: { cats: string[]; cfg: Config; aplic
   );
 }
 
-function Cascata({ itens }: { itens: { r: string; v: number; c: string }[] }) {
+function Cascata({ itens, aoDetalhar }: { itens: { id: string; r: string; v: number; c: string }[]; aoDetalhar: (id: string) => void }) {
   const max = Math.max(1, ...itens.map((i) => Math.abs(i.v)));
   return (
     <div className="surface-card space-y-2.5 rounded-xl border bg-card px-5 py-5">
-      <h2 className="text-lg font-semibold">Da receita ao resultado</h2>
+      <div>
+        <h2 className="text-lg font-semibold">Da receita ao resultado</h2>
+        <p className="text-sm text-muted-foreground">Clique em uma linha para abrir o detalhamento e expandir suas categorias.</p>
+      </div>
       {itens.map((i) => (
-        <div key={i.r} className="grid grid-cols-[12rem_1fr_9rem] items-center gap-3 text-base">
-          <span className="truncate text-muted-foreground">{i.r}</span>
-          <div className="h-6 rounded-full bg-muted"><div className={`h-6 rounded-full ${i.v < 0 && i.c === "bg-primary" ? "bg-negative" : i.c}`} style={{ width: `${(Math.abs(i.v) / max) * 100}%` }} /></div>
+        <button
+          type="button"
+          key={i.id}
+          onClick={() => aoDetalhar(i.id)}
+          aria-label={`Detalhar ${i.r}`}
+          className="group grid w-full grid-cols-[12rem_1fr_9rem] items-center gap-3 rounded-lg px-2 py-1.5 text-left text-base transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="flex min-w-0 items-center gap-1 text-muted-foreground group-hover:text-foreground">
+            <span className="truncate">{i.r}</span>
+            <ChevronRight className="size-4 shrink-0 opacity-40 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100" />
+          </span>
+          <div className="h-6 rounded-full bg-muted"><div className={`h-6 rounded-full transition-[width] ${i.v < 0 && i.c === "bg-primary" ? "bg-negative" : i.c}`} style={{ width: `${(Math.abs(i.v) / max) * 100}%` }} /></div>
           <span className={`num text-right font-medium ${i.v < 0 ? "text-negative" : ""}`}>{formatarBRL(i.v)}</span>
-        </div>
+        </button>
       ))}
     </div>
+  );
+}
+
+function DetalheCascataDialog({ detalhe, periodo, cols, total, aoFechar }: {
+  detalhe: DetalheCascata;
+  periodo: string;
+  cols: { chave: string; rotulo: string; r: Res }[];
+  total: Res;
+  aoFechar: () => void;
+}) {
+  const [abertos, setAbertos] = useState<Set<string>>(new Set());
+  const filhosDe = (l: Linha) => l.abre ? detalhe.todas.filter((x) => x.pai === l.abre) : [];
+  const expansivos = detalhe.todas.filter((l) => filhosDe(l).length > 0).map((l) => l.abre!);
+  const alterna = (id: string) => setAbertos((atual) => {
+    const novo = new Set(atual);
+    if (novo.has(id)) novo.delete(id); else novo.add(id);
+    return novo;
+  });
+
+  const renderLinhas = (linhas: Linha[], nivel = 0): React.ReactNode => linhas.map((l) => {
+    const filhos = filhosDe(l);
+    const aberto = l.abre ? abertos.has(l.abre) : false;
+    const tv = l.v(total);
+    return (
+      <Fragment key={l.id}>
+        <tr className={`border-b last:border-0 ${l.tipo === "total" ? "bg-primary/5 font-semibold text-primary" : l.tipo === "grupo" ? "bg-muted/40 font-semibold" : l.tipo === "item" ? "text-sm text-muted-foreground" : ""}`}>
+          <td className="sticky left-0 min-w-72 bg-card px-4 py-3" style={{ paddingLeft: `${1 + nivel * 1.5}rem` }}>
+            {filhos.length ? (
+              <button type="button" onClick={() => alterna(l.abre!)} className="inline-flex items-center gap-2 text-left hover:text-primary" aria-label={`${aberto ? "Recolher" : "Expandir"} ${l.rotulo}`}>
+                {aberto ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
+                <span>{l.rotulo}</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">{filhos.length}</span>
+              </button>
+            ) : <span>{l.rotulo}</span>}
+          </td>
+          {cols.map((c) => {
+            const v = l.v(c.r);
+            return <td key={c.chave} className={`num whitespace-nowrap px-4 py-3 text-right ${v < 0 ? "text-negative" : ""}`}>{formatarNumero(v)}</td>;
+          })}
+          <td className={`num whitespace-nowrap px-4 py-3 text-right font-semibold ${tv < 0 ? "text-negative" : ""}`}>{formatarNumero(tv)}</td>
+        </tr>
+        {aberto && renderLinhas(filhos, nivel + 1)}
+      </Fragment>
+    );
+  });
+
+  return (
+    <Dialog open onOpenChange={(aberto) => { if (!aberto) aoFechar(); }}>
+      <DialogContent className="flex h-[92vh] w-[96vw] max-w-[1600px] flex-col gap-0 overflow-hidden p-0">
+        <div className="border-b px-6 py-5 pr-14">
+          <Button type="button" variant="ghost" size="sm" onClick={aoFechar} className="-ml-2 mb-3">
+            <ArrowLeft className="size-4" />Voltar à DRE
+          </Button>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">{detalhe.titulo}</DialogTitle>
+              <DialogDescription>DRE · {periodo} · detalhamento interativo</DialogDescription>
+            </DialogHeader>
+            <div className="text-right">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Total do período</div>
+              <div className={`num text-3xl font-bold ${detalhe.valor < 0 ? "text-negative" : "text-primary"}`}>{formatarBRL(detalhe.valor)}</div>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/20 px-6 py-3">
+          <p className="text-sm text-muted-foreground">Use as setas para navegar entre grupos, categorias e itens.</p>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => setAbertos(new Set(expansivos))}>Expandir tudo</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setAbertos(new Set())}>Recolher</Button>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto">
+          <table className="w-full border-collapse text-base">
+            <thead className="sticky top-0 z-10 bg-card shadow-sm">
+              <tr className="border-b text-sm uppercase tracking-wide text-muted-foreground">
+                <th className="sticky left-0 bg-card px-4 py-3 text-left font-medium">Categoria / item</th>
+                {cols.map((c) => <th key={c.chave} className="whitespace-nowrap px-4 py-3 text-right font-medium">{c.rotulo}</th>)}
+                <th className="whitespace-nowrap px-4 py-3 text-right font-semibold text-foreground">Total</th>
+              </tr>
+            </thead>
+            <tbody>{renderLinhas(detalhe.raizes)}</tbody>
+          </table>
+          {!detalhe.raizes.length && <div className="px-6 py-12 text-center text-muted-foreground">Nenhum item com valor neste período.</div>}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
