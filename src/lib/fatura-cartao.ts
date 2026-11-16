@@ -65,11 +65,11 @@ export function extrairLancamentosFatura(linhas: string[]): ResultadoLeituraFatu
     const m = linha.match(re);
     if (!m) continue;
     const data = m[1]!.replaceAll("-", "/"), descricao = m[2]!.trim();
-    if (!descricao || IGNORAR.test(norm(descricao))) continue;
     const valor = valorDoTexto(m[3]!);
     if (valor == null) continue;
     // Créditos, estornos e pagamentos não são despesas da fatura.
     if (valor <= 0) { ignorados++; continue; }
+    if (!descricao || IGNORAR.test(norm(descricao))) continue;
     const tipo = tipoDaDescricao(descricao), parcela = parcelaDaDescricao(descricao);
     itens.push({
       id: `fatura-${itens.length + 1}`, data, descricao, valor, tipo,

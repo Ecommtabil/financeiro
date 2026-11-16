@@ -36,10 +36,10 @@ describe("importação de fatura de cartão", () => {
     expect(valor("PONTUAL", "2027-01")).toBe(0);
   });
 
-  it("parcela 2/4 projeta novembro e dezembro e zera em janeiro", () => {
+  it("parcela 2/4 projeta três meses e zera depois da última", () => {
     expect(valor("PARCELA", "2026-11")).toBe(100);
     expect(valor("PARCELA", "2026-12")).toBe(100);
-    expect(valor("PARCELA", "2027-01")).toBe(0);
+    expect(valor("PARCELA", "2027-01")).toBe(100);
     expect(valor("PARCELA", "2027-02")).toBe(0);
   });
 
