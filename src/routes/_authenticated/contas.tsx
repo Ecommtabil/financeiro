@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Pencil, Search } from "lucide-react";
+import { useEditorDemonstrativo } from "@/components/editor-demonstrativo";
 import { Input } from "@/components/ui/input";
 import { useArea, usePeriodo } from "@/components/app-shell";
 import { ChipDestino } from "@/components/valor";
@@ -158,6 +159,7 @@ function Contas() {
 }
 
 function PorVencimento({ linhas, lado, selecao, setSelecao }: { linhas: Linha[]; lado: "receber" | "pagar"; selecao: Set<string>; setSelecao: (s: Set<string>) => void }) {
+  const { abrirEditor } = useEditorDemonstrativo();
   const meses = [...new Set(linhas.map((l) => l.mes))];
   const total = linhas.reduce((t, l) => t + l.exibido, 0);
   const marcar = (ks: string[], on: boolean) => { const n = new Set(selecao); ks.forEach((k) => (on ? n.add(k) : n.delete(k))); setSelecao(n); };
@@ -191,7 +193,7 @@ function PorVencimento({ linhas, lado, selecao, setSelecao }: { linhas: Linha[];
                     <tr key={ck} className={cn("border-b last:border-0", novoDia && "border-t", selecao.has(ck) && "bg-primary/5")}>
                       <td className="px-3 py-1.5"><input type="checkbox" checked={selecao.has(ck)} onChange={(e) => marcar([ck], e.target.checked)} /></td>
                       <td className="num px-3 py-1.5">{novoDia ? (l.dia ? `${String(l.dia).padStart(2, "0")}/${m}` : "—") : ""}</td>
-                      <td className="px-3 py-1.5">{l.nome}</td>
+                      <td className="px-3 py-1.5"><span className="inline-flex items-center gap-2">{l.nome}<button type="button" className="text-primary" aria-label={`Editar ${l.nome}`} onClick={() => abrirEditor({ id: l.id, tabela: l.tipo === "entrada" ? "entradas" : l.tipo === "pessoal" ? "entradas_pessoais" : "saidas" })}><Pencil className="size-3.5" /></button></span></td>
                       <td className="px-3 py-1.5 text-muted-foreground">{l.detalhe || "—"}</td>
                       <td className="px-3 py-1.5">{l.banco ?? "—"}</td>
                       <td className="px-3 py-1.5"><ChipDestino destino={l.destino} /></td>
