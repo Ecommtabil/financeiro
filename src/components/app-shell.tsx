@@ -9,6 +9,7 @@ import { useConfig } from "@/lib/config";
 import { calcularHorizonte, faixaCurta, isoParaBR, type AnoHorizonte, type Horizonte, type MesRef } from "@/lib/horizonte";
 import { formatarMes } from "@/lib/format";
 import { ModalBaseZero } from "./modal-base-zero";
+import { BotaoEditorDemonstrativo, EditorDemonstrativoProvider } from "./editor-demonstrativo";
 
 const ABAS = [
   { to: "/", label: "Dashboard", periodo: true, pessoal: true },
@@ -99,6 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <PeriodoCtx.Provider value={{ horizonte, periodo, colunas, area, fase: faseEf, anosPeriodo, mesesPeriodo }}>
+      <EditorDemonstrativoProvider area={area} horizonte={horizonte} mesesPeriodo={mesesPeriodo}>
       <div className="min-h-screen">
         <header className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur-md">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-6 py-3 lg:px-10">
@@ -161,13 +163,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             ))}
             {modulo !== "cadastro" && modulo !== "outro" ? (
-              <div className="ml-auto inline-flex shrink-0 rounded-md border bg-background p-0.5">
-                {(["ESCRITORIO", "PESSOAL"] as const).map((a) => (
-                  <button key={a} onClick={() => setArea(a)}
-                    className={`flex items-center gap-1.5 rounded px-3 py-1 text-sm font-medium whitespace-nowrap ${area === a ? (a === "ESCRITORIO" ? "bg-office text-office-foreground" : "bg-personal text-personal-foreground") : "text-muted-foreground hover:text-foreground"}`}>
-                    {a === "ESCRITORIO" ? <><Building2 className="size-4" />Escritório</> : <><House className="size-4" />Pessoal</>}
-                  </button>
-                ))}
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <BotaoEditorDemonstrativo />
+                <div className="inline-flex shrink-0 rounded-md border bg-background p-0.5">
+                  {(["ESCRITORIO", "PESSOAL"] as const).map((a) => (
+                    <button key={a} onClick={() => setArea(a)}
+                      className={`flex items-center gap-1.5 rounded px-3 py-1 text-sm font-medium whitespace-nowrap ${area === a ? (a === "ESCRITORIO" ? "bg-office text-office-foreground" : "bg-personal text-personal-foreground") : "text-muted-foreground hover:text-foreground"}`}>
+                      {a === "ESCRITORIO" ? <><Building2 className="size-4" />Escritório</> : <><House className="size-4" />Pessoal</>}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
           </nav>
@@ -190,6 +195,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="min-w-0">{children}</main>
       </div>
       <ModalBaseZero aberto={obrigatorio || modal} obrigatorio={obrigatorio} config={config} onFechar={() => setModal(false)} />
+      </EditorDemonstrativoProvider>
     </PeriodoCtx.Provider>
   );
 }
