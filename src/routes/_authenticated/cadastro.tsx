@@ -396,7 +396,7 @@ function EdicaoLote({ tabela, s, campos }: { tabela: "entradas" | "saidas" | "en
 }
 
 /* ---------------- Saídas ---------------- */
-function Saidas({ busca }: { busca: string }) {
+function Saidas({ busca, area }: { busca: string; area: Area }) {
   const { data = [] } = useLista("saidas");
   const { horizonte } = usePeriodo();
   const atualizar = useAtualizar("saidas");
@@ -407,10 +407,13 @@ function Saidas({ busca }: { busca: string }) {
   const [cat, setCat] = useState("");
   const p = horizonte?.primeiro;
   const k1 = p ? chaveMes(p.ano, p.mes) : "";
-  const vazio = { descricao: "", categoria: "", pgto: "", banco: "", dia: "", destino: "", valor: "", ri: k1, rf: "" };
+  const doEscritorio = area === "ESCRITORIO";
+  const rotulo = doEscritorio ? "do escritório" : "pessoais";
+  const vazio = { descricao: "", categoria: "", pgto: "", banco: "", dia: "", destino: area, valor: "", ri: k1, rf: "" };
   const [f, setF] = useState(vazio);
-  const categorias = useMemo(() => opcoesDe(data, (s) => s.categoria), [data]);
-  const listaBase = data.filter((s) => (!semDestino || !s.destino) && (!cat || chaveFiltro(s.categoria) === cat) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
+  const noArea = useMemo(() => data.filter((s) => daArea(s.destino, area)), [data, area]);
+  const categorias = useMemo(() => opcoesDe(noArea, (s) => s.categoria), [noArea]);
+  const listaBase = noArea.filter((s) => (!semDestino || !s.destino) && (!cat || chaveFiltro(s.categoria) === cat) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
   const lista = ordenar(listaBase, ordem, (s) => s.descricao, (s) => valorSaidaNoMes(s, k1), (s) => s.dia);
   const selS = useSelecao(lista.map((x) => x.id));
 
