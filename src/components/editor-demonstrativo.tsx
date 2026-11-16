@@ -44,7 +44,7 @@ export function EditorDemonstrativoProvider({ children, area, horizonte, mesesPe
 
 type Registro = Entrada | Saida | EntradaPessoal;
 type Item = { id: string; tabela: Tabela; nome: string; categoria: string; grupo: string; valor: number; registro: Registro };
-type Grupo = { chave: string; nome: string; tabela: Tabela; itens: Item[]; total: number };
+type Grupo = { chave: string; nome: string; tabela: Tabela; itens: Item[]; todosIds: string[]; total: number };
 
 function EditorDemonstrativo({ area, horizonte: h, mesesPeriodo, inicial, aoFechar }: {
   area: "ESCRITORIO" | "PESSOAL";
@@ -82,12 +82,14 @@ function EditorDemonstrativo({ area, horizonte: h, mesesPeriodo, inicial, aoFech
     if (area === "PESSOAL") for (const p of pes.data) {
       itens.push({ id: p.id, tabela: "entradas_pessoais", nome: p.descricao, categoria: "Entradas pessoais", grupo: "entradas_pessoais|Entradas pessoais", valor: projetado("entradas_pessoais", p, CHAVE_CAT_PESSOAL), registro: p });
     }
+    const idsPorGrupo = new Map<string, string[]>();
+    for (const i of itens) idsPorGrupo.set(i.grupo, [...(idsPorGrupo.get(i.grupo) ?? []), i.id]);
     const q = norm(busca);
     const filtrados = itens.filter((i) => !q || norm(`${i.nome} ${i.categoria} ${i.tabela === "entradas" ? `${(i.registro as Entrada).grupo ?? ""} ${(i.registro as Entrada).setor ?? ""}` : ""}`).includes(q));
     const mapa = new Map<string, Item[]>();
     for (const i of filtrados) mapa.set(i.grupo, [...(mapa.get(i.grupo) ?? []), i]);
     return [...mapa.entries()].map(([chave, lista]) => ({
-      chave, nome: lista[0]!.categoria, tabela: lista[0]!.tabela,
+      chave, nome: lista[0]!.categoria, tabela: lista[0]!.tabela, todosIds: idsPorGrupo.get(chave) ?? [],
       itens: lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")), total: lista.reduce((t, i) => t + i.valor, 0),
     })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR") || a.tabela.localeCompare(b.tabela));
   }, [cfg, ent.data, sai.data, pes.data, area, meses, h, busca]);
@@ -149,18 +151,18 @@ function RenomearGrupo({ grupo }: { grupo: Grupo }) {
       if (!limpo) throw new Error("Informe o novo nome da categoria.");
       const campo = grupo.tabela === "entradas" ? "carteira" : "categoria";
       const valor = campo === "categoria" ? limpo.toUpperCase() : limpo;
-      const { error } = await supabase.from(grupo.tabela).update({ [campo]: valor } as never).in("id", grupo.itens.map((i) => i.id));
+      const { error } = await supabase.from(grupo.tabela).update({ [campo]: valor } as never).in("id", grupo.todosIds);
       if (error) throw error;
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: [grupo.tabela] });
-      toast.success(`Categoria atualizada em ${grupo.itens.length} ${grupo.itens.length === 1 ? "lançamento" : "lançamentos"}.`);
+      toast.success(`Categoria atualizada em ${grupo.todosIds.length} ${grupo.todosIds.length === 1 ? "lançamento" : "lançamentos"}.`);
       setEditando(false);
     },
     onError: (e) => toast.error(e.message),
   });
   if (!editando) return <Button type="button" size="sm" variant="ghost" onClick={() => setEditando(true)}><Pencil className="size-3.5" />Renomear categoria</Button>;
-  return <div className="flex w-full items-center gap-2 pt-1"><Input className="h-8 max-w-72" value={nome} onChange={(e) => setNome(e.target.value)} placeholder={grupo.tabela === "entradas" ? "Nova carteira" : "Nova categoria"} /><Button type="button" size="sm" disabled={salvar.isPending} onClick={() => salvar.mutate()}>Aplicar a {grupo.itens.length}</Button><Button type="button" size="sm" variant="ghost" onClick={() => setEditando(false)}>Cancelar</Button></div>;
+  return <div className="flex w-full items-center gap-2 pt-1"><Input className="h-8 max-w-72" value={nome} onChange={(e) => setNome(e.target.value)} placeholder={grupo.tabela === "entradas" ? "Nova carteira" : "Nova categoria"} /><Button type="button" size="sm" disabled={salvar.isPending} onClick={() => salvar.mutate()}>Aplicar a {grupo.todosIds.length}</Button><Button type="button" size="sm" variant="ghost" onClick={() => setEditando(false)}>Cancelar</Button></div>;
 }
 
 function ItemEditor({ item, horizonte: h, aberto, alternar }: { item: Item; horizonte: Horizonte; aberto: boolean; alternar: () => void }) {
