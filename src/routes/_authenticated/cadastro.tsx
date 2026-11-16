@@ -414,7 +414,13 @@ function Saidas({ busca }: { busca: string }) {
 
   function editarValor(s: Saida, n: number) {
     if (s.valor_fixo != null) atualizar.mutate({ id: s.id, v: { valor_fixo: n } });
-    else atualizar.mutate({ id: s.id, v: { valores_mes: { ...(s.valores_mes as Record<string, number>), [k1]: n } } });
+    else {
+      // Novo valor/mês vale do 1º mês em diante (mantém meses anteriores e a vigência).
+      const vm: Record<string, number> = { ...((s.valores_mes ?? {}) as Record<string, number>) };
+      for (const k of Object.keys(vm)) if (k >= k1 && Number(vm[k]) !== 0) vm[k] = n;
+      vm[k1] = n;
+      atualizar.mutate({ id: s.id, v: { valores_mes: vm } });
+    }
   }
 
   return (
@@ -573,7 +579,7 @@ function Entradas({ busca }: { busca: string }) {
                 <td className={td}><SelLista lista="cad_regimes" value={e.regime} onChange={(v) => atualizar.mutate({ id: e.id, v: { regime: v } })} /></td>
                 <td className={td}><SelDia value={e.dia} onChange={(v) => atualizar.mutate({ id: e.id, v: { dia: v } })} /></td>
                 <td className={td}><Checkbox checked={e.ativo} onCheckedChange={(v) => atualizar.mutate({ id: e.id, v: { ativo: !!v } })} /></td>
-                <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
+                <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n, valores_base: {} } })} /></td>
                 <td className={td}><CampoMes valor={e.inicio} title="Vazio = desde sempre" onSalvar={(v) => atualizar.mutate({ id: e.id, v: { inicio: v } })} /></td>
                 <td className={td}><CampoMes valor={e.fim} title="Vazio = contínua" onSalvar={(v) => atualizar.mutate({ id: e.id, v: { fim: v } })} /></td>
                 <td className={`${td} whitespace-nowrap`}><Botao12Meses nome={e.empresa} valorDe={(k) => valorBase(e.valores_base, Number(e.valor), k)} onSalvar={(rec) => atualizar.mutateAsync({ id: e.id, v: { valores_base: rec } })} /><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
@@ -648,7 +654,7 @@ function Pessoais({ busca }: { busca: string }) {
                 <td className={td}><SelLista lista="cad_bancos" value={e.banco} onChange={(v) => atualizar.mutate({ id: e.id, v: { banco: v } })} /></td>
                 <td className={td}><CampoMes valor={e.inicio} title="Vazio = desde sempre" onSalvar={(v) => atualizar.mutate({ id: e.id, v: { inicio: v } })} /></td>
                 <td className={td}><CampoMes valor={e.fim} title="Vazio = contínua" onSalvar={(v) => atualizar.mutate({ id: e.id, v: { fim: v } })} /></td>
-                <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n } })} /></td>
+                <td className={td}><CampoValor valor={Number(e.valor)} onSalvar={(n) => atualizar.mutate({ id: e.id, v: { valor: n, valores_base: {} } })} /></td>
                 <td className={`${td} whitespace-nowrap`}><Botao12Meses nome={e.descricao} valorDe={(k) => valorBase(e.valores_base, Number(e.valor), k)} onSalvar={(rec) => atualizar.mutateAsync({ id: e.id, v: { valores_base: rec } })} /><BotaoExcluir onConfirmar={() => excluir.mutate(e.id)} /></td>
               </tr>
             ))}
