@@ -197,7 +197,7 @@ function DRE() {
                   ) : l.tipo === "item" ? (
                     <span className="inline-flex items-center gap-2">
                       {l.rotulo}
-                      <button type="button" className="text-primary hover:underline" aria-label={`Editar ${l.rotulo}`} onClick={() => abrirEditor({ id: l.id.split("|").at(-1), tabela: l.id.startsWith("RB|") ? "entradas" : "saidas" })}><Pencil className="size-3.5" /></button>
+                      <button type="button" className="text-primary hover:underline" aria-label={`Editar ${l.rotulo}`} onClick={() => abrirEditor({ id: l.id.split("|").at(-1)!, tabela: l.id.startsWith("RB|") ? "entradas" : "saidas" })}><Pencil className="size-3.5" /></button>
                     </span>
                   ) : <span className={l.abre ? "pl-[1.125rem]" : ""}>{l.rotulo}</span>}
                 </td>
@@ -428,7 +428,7 @@ function DetalheCascataDialog({ detalhe, periodo, cols, total, aoFechar }: {
                 <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">{filhos.length}</span>
               </button>
             ) : l.tipo === "item" ? (
-              <span className="inline-flex items-center gap-2">{l.rotulo}<button type="button" className="text-primary" aria-label={`Editar ${l.rotulo}`} onClick={() => abrirEditor({ id: l.id.split("|").at(-1), tabela: l.id.startsWith("RB|") ? "entradas" : "saidas" })}><Pencil className="size-3.5" /></button></span>
+              <span className="inline-flex items-center gap-2">{l.rotulo}<button type="button" className="text-primary" aria-label={`Editar ${l.rotulo}`} onClick={() => abrirEditor({ id: l.id.split("|").at(-1)!, tabela: l.id.startsWith("RB|") ? "entradas" : "saidas" })}><Pencil className="size-3.5" /></button></span>
             ) : <span>{l.rotulo}</span>}
           </td>
           {cols.map((c) => {
