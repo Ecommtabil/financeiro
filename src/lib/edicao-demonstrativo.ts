@@ -16,15 +16,24 @@ export function lerMesNumerico(texto: string): string | null | undefined {
 }
 
 /** Entradas: um novo valor/mês substitui os meses-base, como no Cadastro. */
-export function atualizacaoValorEntrada(valor: number): Pick<TablesUpdate<"entradas">, "valor" | "valores_base"> {
+export function atualizacaoValorEntrada(
+  valor: number,
+): Pick<TablesUpdate<"entradas">, "valor" | "valores_base"> {
   return { valor, valores_base: {} };
 }
 
 /** Saídas: atualiza os meses não zerados do primeiro mês em diante, preservando parcelas encerradas. */
-export function atualizacaoValorSaida(s: Saida, valor: number, primeiroMes: string): Pick<TablesUpdate<"saidas">, "valor_fixo" | "valores_mes"> {
+export function atualizacaoValorSaida(
+  s: Saida,
+  valor: number,
+  primeiroMes: string,
+): Pick<TablesUpdate<"saidas">, "valor_fixo" | "valores_mes"> {
   if (s.valor_fixo != null) return { valor_fixo: valor };
-  const valores_mes: Record<string, number> = { ...((s.valores_mes ?? {}) as Record<string, number>) };
-  for (const k of Object.keys(valores_mes)) if (k >= primeiroMes && Number(valores_mes[k]) !== 0) valores_mes[k] = valor;
+  const valores_mes: Record<string, number> = {
+    ...((s.valores_mes ?? {}) as Record<string, number>),
+  };
+  for (const k of Object.keys(valores_mes))
+    if (k >= primeiroMes && Number(valores_mes[k]) !== 0) valores_mes[k] = valor;
   valores_mes[primeiroMes] = valor;
   return { valores_mes };
 }
