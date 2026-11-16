@@ -190,7 +190,7 @@ export function FaturaCartao({ busca }: { busca: string }) {
         await salvarConfig.mutateAsync({ regras_item: regras as never });
       }
       await qc.invalidateQueries({ queryKey: ["saidas"] });
-      const msg = `${novas.length} lançamentos importados${jaControlados ? ` · ${jaControlados} já controlados não foram duplicados` : ""}.`;
+      const msg = `${novas.length} ${novas.length === 1 ? "lançamento importado" : "lançamentos importados"}${jaControlados ? ` · ${jaControlados} já ${jaControlados === 1 ? "controlado não foi duplicado" : "controlados não foram duplicados"}` : ""}.`;
       setResultado(msg); toast.success(msg);
     } catch (e) { setErro(`Não foi possível importar: ${(e as Error).message}`); }
     finally { setOcupado(false); }
@@ -242,7 +242,7 @@ export function FaturaCartao({ busca }: { busca: string }) {
           {([undefined, "PONTUAL", "PARCELA", "ASSINATURA"] as const).map((t) => <div key={t ?? "TOTAL"} className="surface-card p-4">
             <p className="label-eyebrow">{t === "PONTUAL" ? "Gastos pontuais" : t === "PARCELA" ? "Parcelas" : t === "ASSINATURA" ? "Assinaturas" : "Total desta fatura"}</p>
             <p className="num mt-2 text-xl font-semibold">{formatarBRL(total(t))}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{selecionados.filter((i) => !t || i.tipo === t).length} lançamentos</p>
+            <p className="mt-1 text-xs text-muted-foreground">{selecionados.filter((i) => !t || i.tipo === t).length} {selecionados.filter((i) => !t || i.tipo === t).length === 1 ? "lançamento" : "lançamentos"}</p>
           </div>)}
         </div>
 
