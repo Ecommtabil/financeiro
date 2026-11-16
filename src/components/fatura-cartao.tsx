@@ -12,7 +12,8 @@ import { useConfig, useSalvarConfig } from "@/lib/config";
 import { chaveMes, norm, paraNumero } from "@/lib/importacao";
 import { formatarBRL, formatarMes, formatarNumero } from "@/lib/format";
 import { usePeriodo } from "@/components/app-shell";
-import { valorSaida, type Regra, type Saida } from "@/lib/calc";
+import { valorSaida, type Regra } from "@/lib/calc";
+import type { Saida } from "@/lib/dados";
 import {
   chaveAssinaturaFatura, chaveDaCompetencia, chaveParcelaFatura, extrairLancamentosFatura,
   gerarSaidasFatura, mesFaturaValido, origemFatura, somarMeses,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { valorSaida, type Saida } from "./calc";
+import { valorSaida } from "./calc";
+import type { Saida } from "./dados";
 import { extrairLancamentosFatura, gerarSaidasFatura, somarMeses } from "./fatura-cartao";
 
 function item(tipo: "PONTUAL" | "PARCELA" | "ASSINATURA") {
