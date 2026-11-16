@@ -39,7 +39,10 @@ export function useListasCadastro() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [cfg, saidas, entradas, pessoais]);
   const gravar = (k: ChaveLista, l: string[]) => salvar.mutateAsync({ carteira_listas: { ...todas, [k]: unicos(k, l) } as never });
-  return { listas, salvas, gravar, limpar };
+  const gravarTodas = (novas: Record<ChaveLista, string[]>) => salvar.mutateAsync({
+    carteira_listas: { ...todas, ...Object.fromEntries((Object.keys(novas) as ChaveLista[]).map((k) => [k, unicos(k, novas[k])])) } as never,
+  });
+  return { listas, salvas, gravar, gravarTodas, limpar };
 }
 
 /** Select ligado ao pré-cadastro; "+ novo…" adiciona à lista e já escolhe. */
