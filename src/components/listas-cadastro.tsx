@@ -79,7 +79,7 @@ export function SelDia({ value, onChange }: { value: number | null; onChange: (v
 
 /** Botão + janela para editar o pré-cadastro (um item por linha). */
 export function BotaoListas() {
-  const { listas, gravar } = useListasCadastro();
+  const { listas, gravarTodas } = useListasCadastro();
   const [aberto, setAberto] = useState(false);
   const [txt, setTxt] = useState<Record<ChaveLista, string>>({} as Record<ChaveLista, string>);
   const abrir = () => {
