@@ -25,7 +25,7 @@ import { CalendarRange } from "lucide-react";
 import { BotaoConfirmar } from "@/components/botao-confirmar";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePeriodo } from "@/components/app-shell";
+import { daArea, usePeriodo, type Area } from "@/components/app-shell";
 import { useConfig } from "@/lib/config";
 import { formatarBRL, formatarMes, formatarNumero, normalizarBanco } from "@/lib/format";
 import { baixarModelo, chaveMes, lerImportacao, norm, paraNumero, type Previa, type TipoImport } from "@/lib/importacao";
@@ -60,12 +60,13 @@ function Cadastro() {
     <div className="px-6 py-8 lg:px-10">
       <h1 className="text-2xl font-semibold">Cadastro</h1>
       <p className="mt-1 text-sm text-muted-foreground">Módulo comum ao Escritório e ao Pessoal. Cadastre na tela ou importe por planilha. Reimportar substitui só o que veio de planilha.</p>
-      <Tabs defaultValue="entradas" className="mt-6">
+      <Tabs defaultValue="entradas-esc" className="mt-6">
         <div className="flex flex-wrap items-center gap-3">
-          <TabsList>
-            <TabsTrigger value="entradas">Entradas</TabsTrigger>
-            <TabsTrigger value="saidas">Saídas</TabsTrigger>
-            <TabsTrigger value="pessoais">Entradas pessoais</TabsTrigger>
+          <TabsList className="flex-wrap">
+            <TabsTrigger value="entradas-esc">Entradas do escritório</TabsTrigger>
+            <TabsTrigger value="entradas-pes">Entradas pessoais</TabsTrigger>
+            <TabsTrigger value="saidas-esc">Saídas do escritório</TabsTrigger>
+            <TabsTrigger value="saidas-pes">Saídas pessoais</TabsTrigger>
           </TabsList>
           <div className="ml-auto"><BotaoListas /></div>
           <div className="relative w-72">
@@ -73,9 +74,10 @@ function Cadastro() {
             <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar…" className="h-8 pl-8" />
           </div>
         </div>
-        <TabsContent value="saidas"><Saidas busca={busca} /></TabsContent>
-        <TabsContent value="entradas"><Entradas busca={busca} /></TabsContent>
-        <TabsContent value="pessoais"><Pessoais busca={busca} /></TabsContent>
+        <TabsContent value="entradas-esc"><Entradas busca={busca} /></TabsContent>
+        <TabsContent value="entradas-pes"><Pessoais busca={busca} /></TabsContent>
+        <TabsContent value="saidas-esc"><Saidas busca={busca} area="ESCRITORIO" /></TabsContent>
+        <TabsContent value="saidas-pes"><Saidas busca={busca} area="PESSOAL" /></TabsContent>
       </Tabs>
     </div>
   );
@@ -394,7 +396,7 @@ function EdicaoLote({ tabela, s, campos }: { tabela: "entradas" | "saidas" | "en
 }
 
 /* ---------------- Saídas ---------------- */
-function Saidas({ busca }: { busca: string }) {
+function Saidas({ busca, area }: { busca: string; area: Area }) {
   const { data = [] } = useLista("saidas");
   const { horizonte } = usePeriodo();
   const atualizar = useAtualizar("saidas");
@@ -405,10 +407,13 @@ function Saidas({ busca }: { busca: string }) {
   const [cat, setCat] = useState("");
   const p = horizonte?.primeiro;
   const k1 = p ? chaveMes(p.ano, p.mes) : "";
-  const vazio = { descricao: "", categoria: "", pgto: "", banco: "", dia: "", destino: "", valor: "", ri: k1, rf: "" };
+  const doEscritorio = area === "ESCRITORIO";
+  const rotulo = doEscritorio ? "do escritório" : "pessoais";
+  const vazio = { descricao: "", categoria: "", pgto: "", banco: "", dia: "", destino: area as string, valor: "", ri: k1, rf: "" };
   const [f, setF] = useState(vazio);
-  const categorias = useMemo(() => opcoesDe(data, (s) => s.categoria), [data]);
-  const listaBase = data.filter((s) => (!semDestino || !s.destino) && (!cat || chaveFiltro(s.categoria) === cat) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
+  const noArea = useMemo(() => data.filter((s) => daArea(s.destino, area)), [data, area]);
+  const categorias = useMemo(() => opcoesDe(noArea, (s) => s.categoria), [noArea]);
+  const listaBase = noArea.filter((s) => (!semDestino || !s.destino) && (!cat || chaveFiltro(s.categoria) === cat) && contem(busca, s.descricao, s.categoria, s.banco, s.pgto));
   const lista = ordenar(listaBase, ordem, (s) => s.descricao, (s) => valorSaidaNoMes(s, k1), (s) => s.dia);
   const selS = useSelecao(lista.map((x) => x.id));
 
@@ -425,8 +430,8 @@ function Saidas({ busca }: { busca: string }) {
 
   return (
     <>
-      <Barra total={`${lista.length} saídas · ${formatarBRL(lista.reduce((t, s) => t + valorSaidaNoMes(s, k1), 0))} em ${mesDeChave(k1)}`}>
-        <label className="flex items-center gap-2 text-sm"><Checkbox checked={semDestino} onCheckedChange={(v) => setSemDestino(!!v)} />Mostrar só as sem destino</label>
+      <Barra total={`${lista.length} saídas ${rotulo} · ${formatarBRL(lista.reduce((t, s) => t + valorSaidaNoMes(s, k1), 0))} em ${mesDeChave(k1)}`}>
+        {doEscritorio ? <label className="flex items-center gap-2 text-sm"><Checkbox checked={semDestino} onCheckedChange={(v) => setSemDestino(!!v)} />Mostrar só as sem destino</label> : null}
         <Importar tipo="saidas" rotulo="saídas" />
       </Barra>
       <Form onSubmit={() => {
@@ -466,14 +471,17 @@ function Saidas({ busca }: { busca: string }) {
                 <td className={td}><SelLista lista="cad_pgtos" value={s.pgto} onChange={(v) => atualizar.mutate({ id: s.id, v: { pgto: v } })} /></td>
                 <td className={td}><SelLista lista="cad_bancos" value={s.banco} onChange={(v) => atualizar.mutate({ id: s.id, v: { banco: v } })} /></td>
                 <td className={td}><SelDia value={s.dia} onChange={(v) => atualizar.mutate({ id: s.id, v: { dia: v } })} /></td>
-                <td className={td}><SelDestino value={s.destino ?? ""} onChange={(v) => atualizar.mutate({ id: s.id, v: { destino: (v || null) as Saida["destino"] } })} /></td>
+                <td className={td}><SelDestino value={s.destino ?? ""} onChange={(v) => {
+                  atualizar.mutate({ id: s.id, v: { destino: (v || null) as Saida["destino"] } });
+                  if (!daArea(v, area)) toast.info(v === "PESSOAL" ? "Movida para o Pessoal." : "Movida para o escritório.");
+                }} /></td>
                 <td className={td}><CampoValor valor={valorSaidaNoMes(s, k1)} onSalvar={(n) => editarValor(s, n)} /></td>
                 <td className={td}><CampoMes valor={s.ri} title="Vazio = desde o início do horizonte" onSalvar={(v) => atualizar.mutate({ id: s.id, v: { ri: v } })} /></td>
                 <td className={td}><CampoMes valor={s.rf} title="Vazio = contínua" onSalvar={(v) => atualizar.mutate({ id: s.id, v: { rf: v } })} /></td>
                 <td className={`${td} whitespace-nowrap`}><Botao12Meses nome={s.descricao} valorDe={(k) => valorSaida(s, k)} onSalvar={(rec) => atualizar.mutateAsync({ id: s.id, v: mesesSaida(s, rec) })} /><BotaoExcluir onConfirmar={() => excluir.mutate(s.id)} /></td>
               </tr>
             ))}
-            {!lista.length ? <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Nenhuma saída.</td></tr> : null}
+            {!lista.length ? <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Nenhuma saída {doEscritorio ? "do escritório" : "pessoal"}.</td></tr> : null}
           </tbody>
         </table>
       </div>
