@@ -88,7 +88,7 @@ export function BotaoListas() {
   };
   const salvar = async () => {
     try {
-      for (const k of Object.keys(txt) as ChaveLista[]) await gravar(k, txt[k].split("\n"));
+      await gravarTodas(Object.fromEntries((Object.keys(txt) as ChaveLista[]).map((k) => [k, txt[k].split("\n")])) as Record<ChaveLista, string[]>);
       toast.success("Listas salvas.");
       setAberto(false);
     } catch (e) { toast.error(`Não foi possível salvar: ${(e as Error).message}`); }
