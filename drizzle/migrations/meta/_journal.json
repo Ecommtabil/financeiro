@@ -71,6 +71,13 @@
       "when": 1791217261743,
       "tag": "0009_config_premissas",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794832554003,
+      "tag": "0010_permitir_origem_fatura_cartao",
+      "breakpoints": true
     }
   ]
 }
