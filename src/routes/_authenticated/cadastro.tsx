@@ -23,6 +23,7 @@ import { BotaoListas, SelDia, SelLista } from "@/components/listas-cadastro";
 import { valorBase, valorSaida } from "@/lib/calc";
 import { CalendarRange } from "lucide-react";
 import { BotaoConfirmar } from "@/components/botao-confirmar";
+import { FaturaCartao } from "@/components/fatura-cartao";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { daArea, usePeriodo, type Area } from "@/components/app-shell";
@@ -35,9 +36,9 @@ export const Route = createFileRoute("/_authenticated/cadastro")({
   head: () => ({
     meta: [
       { title: "Cadastro · Fluxo Escritório & Casa" },
-      { name: "description", content: "Cadastre entradas, saídas e contas na tela ou importe por planilha." },
+      { name: "description", content: "Cadastre entradas e saídas, importe planilhas e revise faturas de cartão em PDF." },
       { property: "og:title", content: "Cadastro · Fluxo Escritório & Casa" },
-      { property: "og:description", content: "Cadastre entradas, saídas e contas na tela ou importe por planilha." },
+      { property: "og:description", content: "Cadastre entradas e saídas, importe planilhas e revise faturas de cartão em PDF." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -67,6 +68,7 @@ function Cadastro() {
             <TabsTrigger value="entradas-pes">Entradas pessoais</TabsTrigger>
             <TabsTrigger value="saidas-esc">Saídas do escritório</TabsTrigger>
             <TabsTrigger value="saidas-pes">Saídas pessoais</TabsTrigger>
+            <TabsTrigger value="fatura-cartao">Fatura de cartão</TabsTrigger>
           </TabsList>
           <div className="ml-auto"><BotaoListas /></div>
           <div className="relative w-72">
@@ -78,6 +80,7 @@ function Cadastro() {
         <TabsContent value="entradas-pes"><Pessoais busca={busca} /></TabsContent>
         <TabsContent value="saidas-esc"><Saidas busca={busca} area="ESCRITORIO" /></TabsContent>
         <TabsContent value="saidas-pes"><Saidas busca={busca} area="PESSOAL" /></TabsContent>
+        <TabsContent value="fatura-cartao"><FaturaCartao busca={busca} /></TabsContent>
       </Tabs>
     </div>
   );
