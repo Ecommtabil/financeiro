@@ -180,6 +180,8 @@ function ItemEditor({ item, horizonte: h, aberto, alternar }: { item: Item; hori
   const [destino, setDestino] = useState(item.tabela === "saidas" ? (r as Saida).destino ?? "" : "");
   const [ativo, setAtivo] = useState(item.tabela === "entradas" ? (r as Entrada).ativo : true);
   const qc = useQueryClient();
+  const raiz = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (aberto) raiz.current?.scrollIntoView({ block: "nearest" }); }, [aberto]);
   const salvar = useMutation({
     mutationFn: async () => {
       if (!nome.trim()) throw new Error("Preencha a descrição.");
