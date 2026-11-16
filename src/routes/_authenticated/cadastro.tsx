@@ -409,7 +409,7 @@ function Saidas({ busca, area }: { busca: string; area: Area }) {
   const k1 = p ? chaveMes(p.ano, p.mes) : "";
   const doEscritorio = area === "ESCRITORIO";
   const rotulo = doEscritorio ? "do escritório" : "pessoais";
-  const vazio = { descricao: "", categoria: "", pgto: "", banco: "", dia: "", destino: area, valor: "", ri: k1, rf: "" };
+  const vazio = { descricao: "", categoria: "", pgto: "", banco: "", dia: "", destino: area as string, valor: "", ri: k1, rf: "" };
   const [f, setF] = useState(vazio);
   const noArea = useMemo(() => data.filter((s) => daArea(s.destino, area)), [data, area]);
   const categorias = useMemo(() => opcoesDe(noArea, (s) => s.categoria), [noArea]);
