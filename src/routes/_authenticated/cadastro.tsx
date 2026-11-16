@@ -25,7 +25,7 @@ import { CalendarRange } from "lucide-react";
 import { BotaoConfirmar } from "@/components/botao-confirmar";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePeriodo } from "@/components/app-shell";
+import { daArea, usePeriodo, type Area } from "@/components/app-shell";
 import { useConfig } from "@/lib/config";
 import { formatarBRL, formatarMes, formatarNumero, normalizarBanco } from "@/lib/format";
 import { baixarModelo, chaveMes, lerImportacao, norm, paraNumero, type Previa, type TipoImport } from "@/lib/importacao";
@@ -60,12 +60,13 @@ function Cadastro() {
     <div className="px-6 py-8 lg:px-10">
       <h1 className="text-2xl font-semibold">Cadastro</h1>
       <p className="mt-1 text-sm text-muted-foreground">Módulo comum ao Escritório e ao Pessoal. Cadastre na tela ou importe por planilha. Reimportar substitui só o que veio de planilha.</p>
-      <Tabs defaultValue="entradas" className="mt-6">
+      <Tabs defaultValue="entradas-esc" className="mt-6">
         <div className="flex flex-wrap items-center gap-3">
-          <TabsList>
-            <TabsTrigger value="entradas">Entradas</TabsTrigger>
-            <TabsTrigger value="saidas">Saídas</TabsTrigger>
-            <TabsTrigger value="pessoais">Entradas pessoais</TabsTrigger>
+          <TabsList className="flex-wrap">
+            <TabsTrigger value="entradas-esc">Entradas do escritório</TabsTrigger>
+            <TabsTrigger value="entradas-pes">Entradas pessoais</TabsTrigger>
+            <TabsTrigger value="saidas-esc">Saídas do escritório</TabsTrigger>
+            <TabsTrigger value="saidas-pes">Saídas pessoais</TabsTrigger>
           </TabsList>
           <div className="ml-auto"><BotaoListas /></div>
           <div className="relative w-72">
@@ -73,9 +74,10 @@ function Cadastro() {
             <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar…" className="h-8 pl-8" />
           </div>
         </div>
-        <TabsContent value="saidas"><Saidas busca={busca} /></TabsContent>
-        <TabsContent value="entradas"><Entradas busca={busca} /></TabsContent>
-        <TabsContent value="pessoais"><Pessoais busca={busca} /></TabsContent>
+        <TabsContent value="entradas-esc"><Entradas busca={busca} /></TabsContent>
+        <TabsContent value="entradas-pes"><Pessoais busca={busca} /></TabsContent>
+        <TabsContent value="saidas-esc"><Saidas busca={busca} area="ESCRITORIO" /></TabsContent>
+        <TabsContent value="saidas-pes"><Saidas busca={busca} area="PESSOAL" /></TabsContent>
       </Tabs>
     </div>
   );
