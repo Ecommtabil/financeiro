@@ -123,7 +123,7 @@ export function FaturaCartao({ busca }: { busca: string }) {
       setCompetencia(r.competencia ?? padrao);
       setAvisos([
         `${r.itens.length} lançamentos encontrados. Revise a classificação antes de importar.`,
-        ...(r.ignorados ? [`${r.ignorados} créditos ou pagamentos foram deixados de fora.`] : []),
+        ...(r.ignorados ? [`${r.ignorados} ${r.ignorados === 1 ? "crédito ou pagamento foi deixado" : "créditos ou pagamentos foram deixados"} de fora.`] : []),
         ...(!r.competencia ? ["Não identifiquei o vencimento: informe a competência da fatura."] : []),
       ]);
     } catch (e) {
@@ -240,7 +240,7 @@ export function FaturaCartao({ busca }: { busca: string }) {
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {([undefined, "PONTUAL", "PARCELA", "ASSINATURA"] as const).map((t) => <div key={t ?? "TOTAL"} className="surface-card p-4">
-            <p className="label-eyebrow">{t ? `${tipos.find((x) => x.id === t)?.rotulo}s` : "Total desta fatura"}</p>
+            <p className="label-eyebrow">{t === "PONTUAL" ? "Gastos pontuais" : t === "PARCELA" ? "Parcelas" : t === "ASSINATURA" ? "Assinaturas" : "Total desta fatura"}</p>
             <p className="num mt-2 text-xl font-semibold">{formatarBRL(total(t))}</p>
             <p className="mt-1 text-xs text-muted-foreground">{selecionados.filter((i) => !t || i.tipo === t).length} lançamentos</p>
           </div>)}
