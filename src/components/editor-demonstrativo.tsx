@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Pencil, Save, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -189,9 +189,16 @@ function ItemEditor({ item, horizonte: h, aberto, alternar }: { item: Item; hori
       if (ini === undefined || f === undefined) throw new Error("Use datas no formato mm/aaaa (ex.: 03/2027).");
       if (ini && f && ini > f) throw new Error("A data final deve ser igual ou posterior à inicial.");
       const v: Record<string, unknown> = { dia };
-      if (item.tabela === "entradas") Object.assign(v, { empresa: nome.trim(), carteira: categoria, inicio: ini, fim: f, ativo }, atualizacaoValorEntrada(n));
-      else if (item.tabela === "entradas_pessoais") Object.assign(v, { descricao: nome.trim(), inicio: ini, fim: f }, atualizacaoValorEntrada(n));
-      else Object.assign(v, { descricao: nome.trim(), categoria: categoria?.trim().toUpperCase() || null, destino: destino || null, ri: ini, rf: f }, atualizacaoValorSaida(r as Saida, n, k1));
+      if (item.tabela === "entradas") {
+        Object.assign(v, { empresa: nome.trim(), carteira: categoria, inicio: ini, fim: f, ativo });
+        if (n !== valorInicial) Object.assign(v, atualizacaoValorEntrada(n));
+      } else if (item.tabela === "entradas_pessoais") {
+        Object.assign(v, { descricao: nome.trim(), inicio: ini, fim: f });
+        if (n !== valorInicial) Object.assign(v, atualizacaoValorEntrada(n));
+      } else {
+        Object.assign(v, { descricao: nome.trim(), categoria: categoria?.trim().toUpperCase() || null, destino: destino || null, ri: ini, rf: f });
+        if (n !== valorInicial) Object.assign(v, atualizacaoValorSaida(r as Saida, n, k1));
+      }
       const { error } = await supabase.from(item.tabela).update(v as never).eq("id", item.id);
       if (error) throw error;
     },
@@ -202,7 +209,7 @@ function ItemEditor({ item, horizonte: h, aberto, alternar }: { item: Item; hori
     onError: (e) => toast.error(e.message),
   });
 
-  return <div className="px-4 py-2">
+  return <div ref={raiz} className="px-4 py-2">
     <div className="flex items-center gap-2">
       <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={alternar} aria-label={`${aberto ? "Recolher" : "Editar"} ${item.nome}`}>
         {aberto ? <ChevronDown className="size-4 shrink-0 text-primary" /> : <ChevronRight className="size-4 shrink-0" />}
