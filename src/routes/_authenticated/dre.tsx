@@ -3,7 +3,8 @@ import { LinkImportar } from "@/components/link-importar";
 import { Fragment, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronDown, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Download, FileSpreadsheet, Pencil } from "lucide-react";
+import { useEditorDemonstrativo } from "@/components/editor-demonstrativo";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sparkles } from "lucide-react";
@@ -48,6 +49,7 @@ type Linha = { id: string; rotulo: string; v: (r: Res) => number; tipo?: "total"
 type DetalheCascata = { titulo: string; valor: number; raizes: Linha[]; todas: Linha[] };
 
 function DRE() {
+  const { abrirEditor } = useEditorDemonstrativo();
   const area = useArea();
   const { horizonte: h, colunas, periodo, anosPeriodo } = usePeriodo();
   const [anoMes, setAnoMes] = useState<number | null>(null);
@@ -192,6 +194,11 @@ function DRE() {
                     <button onClick={() => alterna(l.abre!)} className="inline-flex items-center gap-1 text-left">
                       {abertos.has(l.abre!) ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}{l.rotulo}
                     </button>
+                  ) : l.tipo === "item" ? (
+                    <span className="inline-flex items-center gap-2">
+                      {l.rotulo}
+                      <button type="button" className="text-primary hover:underline" aria-label={`Editar ${l.rotulo}`} onClick={() => abrirEditor({ id: l.id.split("|").at(-1)!, tabela: l.id.startsWith("RB|") ? "entradas" : "saidas" })}><Pencil className="size-3.5" /></button>
+                    </span>
                   ) : <span className={l.abre ? "pl-[1.125rem]" : ""}>{l.rotulo}</span>}
                 </td>
                 {cols.map((c) => { const v = l.v(c.r); return <td key={c.chave} className={`num px-4 py-2.5 text-right ${v < 0 ? "text-negative" : ""}`}>{formatarNumero(v)}</td>; })}
@@ -396,6 +403,7 @@ function DetalheCascataDialog({ detalhe, periodo, cols, total, aoFechar }: {
   total: Res;
   aoFechar: () => void;
 }) {
+  const { abrirEditor } = useEditorDemonstrativo();
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
   const filhosDe = (l: Linha) => l.abre ? detalhe.todas.filter((x) => x.pai === l.abre) : [];
   const expansivos = detalhe.todas.filter((l) => filhosDe(l).length > 0).map((l) => l.abre!);
@@ -419,6 +427,8 @@ function DetalheCascataDialog({ detalhe, periodo, cols, total, aoFechar }: {
                 <span>{l.rotulo}</span>
                 <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">{filhos.length}</span>
               </button>
+            ) : l.tipo === "item" ? (
+              <span className="inline-flex items-center gap-2">{l.rotulo}<button type="button" className="text-primary" aria-label={`Editar ${l.rotulo}`} onClick={() => abrirEditor({ id: l.id.split("|").at(-1)!, tabela: l.id.startsWith("RB|") ? "entradas" : "saidas" })}><Pencil className="size-3.5" /></button></span>
             ) : <span>{l.rotulo}</span>}
           </td>
           {cols.map((c) => {

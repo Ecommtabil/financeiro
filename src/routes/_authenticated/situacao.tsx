@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LinkImportar } from "@/components/link-importar";
 import { useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Download, FileSpreadsheet, Plus, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FileSpreadsheet, Pencil, Plus, Search } from "lucide-react";
+import { useEditorDemonstrativo } from "@/components/editor-demonstrativo";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -219,6 +220,7 @@ function ListaContas({ titulo, verbo, contas, mb, hoje, comGrupo }: { titulo: st
 }
 
 function LinhaConta({ c, mb, s, verbo, recuo }: { c: Conta; mb: Map<string, Baixa>; s: SituacaoConta; verbo: string; recuo?: boolean }) {
+  const { abrirEditor } = useEditorDemonstrativo();
   const baixar = useBaixar(), estornar = useEstornar(), editar = useEditarBaixa();
   const bx = mb.get(chaveBaixa(c.tipo, c.id, c.mes));
   return (
@@ -227,6 +229,7 @@ function LinhaConta({ c, mb, s, verbo, recuo }: { c: Conta; mb: Map<string, Baix
         <div className="truncate">{c.nome} {c.tipo === "pessoal" && <span className="chip-pessoal ml-1">pessoal</span>}</div>
         <div className="text-xs text-muted-foreground">{c.banco ?? "Sem banco"}{c.dia && recuo ? ` · dia ${c.dia}` : ""}</div>
       </div>
+      <Button size="icon" variant="ghost" className="size-7 shrink-0" aria-label={`Editar ${c.nome}`} onClick={() => abrirEditor({ id: c.id, tabela: c.tipo === "entrada" ? "entradas" : c.tipo === "pessoal" ? "entradas_pessoais" : "saidas" })}><Pencil className="size-3.5" /></Button>
       <Chip s={s} />
       {bx
         ? <CampoNum valor={Number(bx.valor)} onSalvar={(n) => editar.mutate({ id: bx.id, valor: n })} className="w-28" />

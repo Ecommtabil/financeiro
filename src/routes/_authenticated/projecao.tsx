@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LinkImportar } from "@/components/link-importar";
 import { Fragment, useMemo, useRef, useState } from "react";
-import { Download, FileSpreadsheet, Search } from "lucide-react";
+import { Download, FileSpreadsheet, Pencil, Search } from "lucide-react";
+import { useEditorDemonstrativo } from "@/components/editor-demonstrativo";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ type LinhaItem = Item & { r: Required<Regra>; excecao: boolean; base: number; no
 const sinal = (v: number) => (v > 0 ? "+" : "") + formatarNumero(v);
 
 function Projecao() {
+  const { abrirEditor } = useEditorDemonstrativo();
   const { horizonte: h } = usePeriodo();
   const { data: cfg } = useConfig();
   const salvar = useSalvarConfig();
@@ -276,7 +278,7 @@ function Projecao() {
                           </tr>
                           {ls.map((l) => (
                             <tr key={l.id} className={cn("border-b", l.excecao && "border-l-4 border-l-[var(--warning,oklch(0.6_0.12_75))]")}>
-                              <td className="px-3 py-1.5 pl-6">{l.nome}{l.semValorReaj && <span className="chip-base ml-2 text-muted-foreground">termina antes de {MESES[cfg.reajuste_mes - 1]!.slice(0, 3).toLowerCase()}</span>}</td>
+                              <td className="px-3 py-1.5 pl-6"><span className="inline-flex items-center gap-2">{l.nome}<button type="button" className="text-primary" aria-label={`Editar ${l.nome}`} onClick={() => abrirEditor({ id: l.id, tabela: l.g === "E" ? "entradas" : l.g === "EP" ? "entradas_pessoais" : "saidas" })}><Pencil className="size-3.5" /></button>{l.semValorReaj && <span className="chip-base ml-2 text-muted-foreground">termina antes de {MESES[cfg.reajuste_mes - 1]!.slice(0, 3).toLowerCase()}</span>}</span></td>
                               <td className="px-3 py-1.5"><input type="checkbox" checked={l.r.sobe} onChange={(e) => mudarItem(l, { sobe: e.target.checked })} /></td>
                               <td className="px-3 py-1.5"><div className="flex items-center gap-1.5">
                                 <CampoIndice valor={l.r.indice} salvar={(v) => mudarItem(l, { indice: v })} className="w-20" />
