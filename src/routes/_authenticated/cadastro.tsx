@@ -430,8 +430,8 @@ function Saidas({ busca, area }: { busca: string; area: Area }) {
 
   return (
     <>
-      <Barra total={`${lista.length} saídas · ${formatarBRL(lista.reduce((t, s) => t + valorSaidaNoMes(s, k1), 0))} em ${mesDeChave(k1)}`}>
-        <label className="flex items-center gap-2 text-sm"><Checkbox checked={semDestino} onCheckedChange={(v) => setSemDestino(!!v)} />Mostrar só as sem destino</label>
+      <Barra total={`${lista.length} saídas ${rotulo} · ${formatarBRL(lista.reduce((t, s) => t + valorSaidaNoMes(s, k1), 0))} em ${mesDeChave(k1)}`}>
+        {doEscritorio ? <label className="flex items-center gap-2 text-sm"><Checkbox checked={semDestino} onCheckedChange={(v) => setSemDestino(!!v)} />Mostrar só as sem destino</label> : null}
         <Importar tipo="saidas" rotulo="saídas" />
       </Barra>
       <Form onSubmit={() => {
@@ -471,14 +471,17 @@ function Saidas({ busca, area }: { busca: string; area: Area }) {
                 <td className={td}><SelLista lista="cad_pgtos" value={s.pgto} onChange={(v) => atualizar.mutate({ id: s.id, v: { pgto: v } })} /></td>
                 <td className={td}><SelLista lista="cad_bancos" value={s.banco} onChange={(v) => atualizar.mutate({ id: s.id, v: { banco: v } })} /></td>
                 <td className={td}><SelDia value={s.dia} onChange={(v) => atualizar.mutate({ id: s.id, v: { dia: v } })} /></td>
-                <td className={td}><SelDestino value={s.destino ?? ""} onChange={(v) => atualizar.mutate({ id: s.id, v: { destino: (v || null) as Saida["destino"] } })} /></td>
+                <td className={td}><SelDestino value={s.destino ?? ""} onChange={(v) => {
+                  atualizar.mutate({ id: s.id, v: { destino: (v || null) as Saida["destino"] } });
+                  if (!daArea(v, area)) toast.info(v === "PESSOAL" ? "Movida para o Pessoal." : "Movida para o escritório.");
+                }} /></td>
                 <td className={td}><CampoValor valor={valorSaidaNoMes(s, k1)} onSalvar={(n) => editarValor(s, n)} /></td>
                 <td className={td}><CampoMes valor={s.ri} title="Vazio = desde o início do horizonte" onSalvar={(v) => atualizar.mutate({ id: s.id, v: { ri: v } })} /></td>
                 <td className={td}><CampoMes valor={s.rf} title="Vazio = contínua" onSalvar={(v) => atualizar.mutate({ id: s.id, v: { rf: v } })} /></td>
                 <td className={`${td} whitespace-nowrap`}><Botao12Meses nome={s.descricao} valorDe={(k) => valorSaida(s, k)} onSalvar={(rec) => atualizar.mutateAsync({ id: s.id, v: mesesSaida(s, rec) })} /><BotaoExcluir onConfirmar={() => excluir.mutate(s.id)} /></td>
               </tr>
             ))}
-            {!lista.length ? <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Nenhuma saída.</td></tr> : null}
+            {!lista.length ? <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Nenhuma saída {doEscritorio ? "do escritório" : "pessoal"}.</td></tr> : null}
           </tbody>
         </table>
       </div>
