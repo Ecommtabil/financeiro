@@ -86,10 +86,7 @@ function Projecao() {
         extra: {
           titulo: "Premissas de crescimento",
           cabecalho: ["Ano", area === "PESSOAL" ? "Entradas pessoais %" : "Entradas %", area === "PESSOAL" ? "Saídas pessoais %" : "Saídas %"],
-          linhas: [
-            [String(h.y0), "Reajustes por item", "Reajustes por item"],
-            ...anosPremissa.map((a) => [String(a), formatarNumero(premissaDoAno(prem, a, "E", padrao("E"))), formatarNumero(premissaDoAno(prem, a, "S", padrao("S")))]),
-          ],
+          linhas: anosPremissa.map((a) => [String(a), formatarNumero(premissaDoAno(prem, a, "E", padrao("E"))), formatarNumero(premissaDoAno(prem, a, "S", padrao("S")))]),
         },
       });
     } catch (e) { toast.error((e as Error).message); }
