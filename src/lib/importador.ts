@@ -34,6 +34,9 @@ type Def = {
   colunas: [string, string][];
   exportar: (c: Ctx) => unknown[][];
   ler: (rows: unknown[][], c: Ctx) => Previa;
+  /** O backup completo preserva todos os dados, mesmo quando o modelo avulso é mais restrito. */
+  exportarBackup?: (c: Ctx) => unknown[][];
+  lerBackup?: (rows: unknown[][], c: Ctx) => Previa;
 };
 
 // ---------- utilidades ----------
@@ -150,6 +153,123 @@ function acharLinhaDRE(v: unknown): GrupoDRE | null {
   if (t.includes("FINANC") || t.includes("INVEST")) return "FIN";
   if (t.includes("DESPESA") || t.includes("OPERAC") || t.includes("ADMIN")) return "DESP";
   return null;
+}
+
+// ---------- reajustes: modelo avulso só com entradas; backup completo com todos os grupos ----------
+function exportarReajustes(c: Ctx, somenteEntradas: boolean): unknown[][] {
+  const nomeG = (g: string) => GRUPOS_REAJ.find((x) => x.g === g)?.nome ?? g;
+  const linhas = itensReaj(c)
+    .filter((it) => !somenteEntradas || it.g === "E")
+    .sort((a, b) => nomeG(a.g).localeCompare(nomeG(b.g), "pt-BR") || a.cat.localeCompare(b.cat, "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR"))
+    .map((it) => {
+      const r = regraDo(c.cfg, it.id, it.catKey, it.tipo);
+      return [nomeG(it.g), it.cat, it.nome, r.sobe === false ? "NÃO" : "SIM", Number(r.indice)];
+    });
+  const prem = ((c.cfg as { premissas?: unknown }).premissas ?? {}) as Premissas;
+  const anosPrem: number[] = [];
+  for (let a = c.h.fimBase.ano + 2; a <= c.h.ultimo.ano; a++) anosPrem.push(a);
+  const topo: unknown[][] = [
+    ["CONFIGURAÇÃO", "VALOR"],
+    ["MÊS DO REAJUSTE", c.cfg.reajuste_mes],
+    ["ÍNDICE PADRÃO ENTRADAS %", Number(c.cfg.indice_padrao_entradas)],
+  ];
+  if (!somenteEntradas) topo.push(["ÍNDICE PADRÃO SAÍDAS %", Number(c.cfg.indice_padrao_saidas)]);
+  for (const a of anosPrem) {
+    topo.push([`PREMISSA ${a} ENTRADAS %`, premissaDoAno(prem, a, "E", Number(c.cfg.indice_padrao_entradas))]);
+    if (!somenteEntradas) topo.push([`PREMISSA ${a} SAÍDAS %`, premissaDoAno(prem, a, "S", Number(c.cfg.indice_padrao_saidas))]);
+  }
+  return [...topo, [], ["GRUPO", "CATEGORIA", "NOME", "REAJUSTAR", "ÍNDICE ANUAL %"], ...linhas];
+}
+
+function lerReajustes(rows: unknown[][], c: Ctx, somenteEntradas: boolean): Previa {
+  const h = acharCabecalho(rows, ["GRUPO", "NOME"]);
+  const cab = (rows[h] ?? []).map(norm);
+  const ci = { niv: col(cab, "NIVEL"), g: col(cab, "GRUPO"), nome: col(cab, "NOME"), sobe: col(cab, "SOBE", "REAJUST"), ind: col(cab, "INDICE") };
+  const its = itensReaj(c).filter((it) => !somenteEntradas || it.g === "E");
+  const rc = { ...((c.cfg.regras_categoria ?? {}) as Record<string, Regra>) }, ri = { ...((c.cfg.regras_item ?? {}) as Record<string, Regra>) };
+  const padrao: Partial<Config> = {};
+  const nao: string[] = [], ignorados: string[] = [], vis: unknown[][] = [];
+  let n = 0;
+  const avisos = () => [
+    ...(nao.length ? [`Não reconhecidos: ${nao.slice(0, 20).join(", ")}`] : []),
+    ...(ignorados.length ? [`Somente entradas são alteradas; demais itens ignorados: ${ignorados.slice(0, 20).join(", ")}`] : []),
+  ];
+  if (ci.niv < 0) {
+    const prem: Premissas = { ...(((c.cfg as { premissas?: unknown }).premissas ?? {}) as Premissas) };
+    let temPrem = false;
+    for (const r of rows.slice(0, h)) {
+      const nome = norm(r[0]), valor = paraNumero(r[1]);
+      if (valor == null) continue;
+      const ano = nome.match(/(20\d\d)/)?.[1];
+      if (nome.includes("PREMISSA") && ano) {
+        if (somenteEntradas && nome.includes("SAIDA")) continue;
+        const p = { ...(prem[ano] ?? {}) };
+        if (nome.includes("ENTRADA")) p.e = valor; else if (nome.includes("SAIDA")) p.s = valor; else continue;
+        prem[ano] = p; temPrem = true;
+      } else if (nome.includes("MES") && valor >= 1 && valor <= 12) padrao.reajuste_mes = Math.round(valor);
+      else if (nome.includes("PADRAO") && nome.includes("ENTRADA")) padrao.indice_padrao_entradas = valor;
+      else if (!somenteEntradas && nome.includes("PADRAO") && nome.includes("SAIDA")) padrao.indice_padrao_saidas = valor;
+    }
+    if (temPrem) (padrao as { premissas?: Json }).premissas = prem as Json;
+    const cfgBase = { ...c.cfg, ...padrao };
+    const regrasCat = (cfgBase.regras_categoria ?? {}) as Record<string, Regra>;
+    const regraSemItem = (it: ItemR): Regra => regrasCat[it.catKey] ?? {
+      sobe: true,
+      indice: it.tipo === "E" ? Number(cfgBase.indice_padrao_entradas) : Number(cfgBase.indice_padrao_saidas),
+    };
+    for (const r of rows.slice(h + 1)) {
+      const g = grupoReajDe(r[ci.g]), nome = txt(r, ci.nome), nn = norm(nome), ind = num(r, ci.ind);
+      if (!g || !nome || ind == null) continue;
+      if (somenteEntradas && g !== "E") { ignorados.push(nome); continue; }
+      const it = its.find((i) => i.g === g && norm(i.nome) === nn);
+      if (!it) { nao.push(nome); continue; }
+      const regra: Regra = { sobe: ci.sobe < 0 || !txt(r, ci.sobe) ? true : sim(r[ci.sobe]), indice: ind };
+      const herdada = regraSemItem(it);
+      if (regra.sobe === herdada.sobe && Number(regra.indice) === Number(herdada.indice)) delete ri[it.id];
+      else ri[it.id] = regra;
+      vis.push([GRUPOS_REAJ.find((x) => x.g === g)?.nome ?? g, it.cat, it.nome, regra.sobe ? "SIM" : "NÃO", ind]);
+      n++;
+    }
+    return {
+      resumo: `${n} ${n === 1 ? "item de reajuste" : "itens de reajuste"}`, avisos: avisos(),
+      ...amostra(["Grupo", "Categoria", "Nome", "Reajustar", "Índice anual %"], vis),
+      aplicar: async () => { await salvarConfig({ ...padrao, regras_categoria: rc as Json, regras_item: ri as Json }); return `${n} reajustes`; },
+    };
+  }
+  for (const r of rows.slice(h + 1)) {
+    const niv = norm(r[ci.niv]), nome = txt(r, ci.nome), nn = norm(nome), ind = num(r, ci.ind);
+    if (!niv || !nome) continue;
+    const sobe = ci.sobe < 0 || !txt(r, ci.sobe) ? true : sim(r[ci.sobe]);
+    if (niv.startsWith("PADR")) {
+      if (nn.includes("MES")) { if (ind && ind >= 1 && ind <= 12) padrao.reajuste_mes = Math.round(ind); else { nao.push(nome); continue; } }
+      else if (nn.includes("ENTRADA") && ind != null) padrao.indice_padrao_entradas = ind;
+      else if (nn.includes("SAIDA") && ind != null && !somenteEntradas) padrao.indice_padrao_saidas = ind;
+      else if (somenteEntradas && nn.includes("SAIDA")) continue;
+      else { nao.push(nome); continue; }
+      vis.push(["Padrão", "", nome, "", ind]); n++; continue;
+    }
+    const g = grupoReajDe(r[ci.g]);
+    if (!g) { nao.push(nome); continue; }
+    if (somenteEntradas && g !== "E") { ignorados.push(nome); continue; }
+    const regra: Regra = { sobe, ...(ind != null ? { indice: ind } : {}) };
+    if (niv.startsWith("CAT")) {
+      const doCat = its.filter((i) => i.g === g && (g === "EP" || norm(i.cat) === nn));
+      const ck = doCat[0]?.catKey ?? chaveCatDe(g, nome);
+      rc[ck] = regra;
+      for (const i of doCat) delete ri[i.id];
+      vis.push(["Categoria", GRUPOS_REAJ.find((x) => x.g === g)!.nome, nome, sobe ? "SIM" : "NÃO", ind]); n++;
+    } else {
+      const it = its.find((i) => i.g === g && norm(i.nome) === nn);
+      if (!it) { nao.push(nome); continue; }
+      ri[it.id] = regra;
+      vis.push(["Item", GRUPOS_REAJ.find((x) => x.g === g)!.nome, nome, sobe ? "SIM" : "NÃO", ind]); n++;
+    }
+  }
+  return {
+    resumo: `${n} ${n === 1 ? "regra de reajuste" : "regras de reajuste"}`, avisos: avisos(),
+    ...amostra(["Nível", "Grupo", "Nome", "Sobe", "Índice %"], vis),
+    aplicar: async () => { await salvarConfig({ ...padrao, regras_categoria: rc as Json, regras_item: ri as Json }); return `${n} reajustes`; },
+  };
 }
 
 // ---------- definições ----------
@@ -347,115 +467,12 @@ export const TIPOS: Def[] = [
     },
   },
   {
-    id: "reajustes", titulo: "Reajustes", aba: "REAJUSTES", chaves: ["GRUPO", "NOME"], contagem: "reajustes",
-    colunas: [["Configuração (no topo)", "Mês do reajuste e índices padrão de entradas e saídas"], ["GRUPO", "Entradas, Saídas escritório, Saídas pessoais ou Entradas pessoais"], ["CATEGORIA", "Carteira ou categoria do cadastro"], ["NOME", "Empresa, despesa ou entrada pessoal já cadastrada"], ["REAJUSTAR", "SIM ou NÃO"], ["ÍNDICE ANUAL %", "Percentual ao ano (5 = 5%)"]],
-    exportar: (c) => {
-      const nomeG = (g: string) => GRUPOS_REAJ.find((x) => x.g === g)?.nome ?? g;
-      const linhas = itensReaj(c)
-        .sort((a, b) => nomeG(a.g).localeCompare(nomeG(b.g), "pt-BR") || a.cat.localeCompare(b.cat, "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR"))
-        .map((it) => {
-          const r = regraDo(c.cfg, it.id, it.catKey, it.tipo);
-          return [nomeG(it.g), it.cat, it.nome, r.sobe === false ? "NÃO" : "SIM", Number(r.indice)];
-        });
-      const prem = ((c.cfg as { premissas?: unknown }).premissas ?? {}) as Premissas;
-      const anosPrem: number[] = [];
-      for (let a = c.h.fimBase.ano + 2; a <= c.h.ultimo.ano; a++) anosPrem.push(a);
-      return [
-        ["CONFIGURAÇÃO", "VALOR"],
-        ["MÊS DO REAJUSTE", c.cfg.reajuste_mes],
-        ["ÍNDICE PADRÃO ENTRADAS %", Number(c.cfg.indice_padrao_entradas)],
-        ["ÍNDICE PADRÃO SAÍDAS %", Number(c.cfg.indice_padrao_saidas)],
-        ...anosPrem.flatMap((a) => [
-          [`PREMISSA ${a} ENTRADAS %`, premissaDoAno(prem, a, "E", Number(c.cfg.indice_padrao_entradas))],
-          [`PREMISSA ${a} SAÍDAS %`, premissaDoAno(prem, a, "S", Number(c.cfg.indice_padrao_saidas))],
-        ]),
-        [],
-        ["GRUPO", "CATEGORIA", "NOME", "REAJUSTAR", "ÍNDICE ANUAL %"],
-        ...linhas,
-      ];
-    },
-    ler: (rows, c) => {
-      const h = acharCabecalho(rows, ["GRUPO", "NOME"]);
-      const cab = (rows[h] ?? []).map(norm);
-      const ci = { niv: col(cab, "NIVEL"), g: col(cab, "GRUPO"), nome: col(cab, "NOME"), sobe: col(cab, "SOBE", "REAJUST"), ind: col(cab, "INDICE") };
-      const its = itensReaj(c);
-      const rc = { ...((c.cfg.regras_categoria ?? {}) as Record<string, Regra>) }, ri = { ...((c.cfg.regras_item ?? {}) as Record<string, Regra>) };
-      const padrao: Partial<Config> = {};
-      const nao: string[] = []; const vis: unknown[][] = [];
-      let n = 0;
-      if (ci.niv < 0) {
-        const prem: Premissas = { ...(((c.cfg as { premissas?: unknown }).premissas ?? {}) as Premissas) };
-        let temPrem = false;
-        for (const r of rows.slice(0, h)) {
-          const nome = norm(r[0]), valor = paraNumero(r[1]);
-          if (valor == null) continue;
-          const ano = nome.match(/(20\d\d)/)?.[1];
-          if (nome.includes("PREMISSA") && ano) {
-            const p = { ...(prem[ano] ?? {}) };
-            if (nome.includes("ENTRADA")) p.e = valor; else if (nome.includes("SAIDA")) p.s = valor; else continue;
-            prem[ano] = p; temPrem = true;
-          } else if (nome.includes("MES") && valor >= 1 && valor <= 12) padrao.reajuste_mes = Math.round(valor);
-          else if (nome.includes("PADRAO") && nome.includes("ENTRADA")) padrao.indice_padrao_entradas = valor;
-          else if (nome.includes("PADRAO") && nome.includes("SAIDA")) padrao.indice_padrao_saidas = valor;
-        }
-        if (temPrem) (padrao as { premissas?: Json }).premissas = prem as Json;
-        const cfgBase = { ...c.cfg, ...padrao };
-        const regrasCat = (cfgBase.regras_categoria ?? {}) as Record<string, Regra>;
-        const regraSemItem = (it: ItemR): Regra => regrasCat[it.catKey] ?? {
-          sobe: true,
-          indice: it.tipo === "E" ? Number(cfgBase.indice_padrao_entradas) : Number(cfgBase.indice_padrao_saidas),
-        };
-        for (const r of rows.slice(h + 1)) {
-          const g = grupoReajDe(r[ci.g]), nome = txt(r, ci.nome), nn = norm(nome), ind = num(r, ci.ind);
-          if (!g || !nome || ind == null) continue;
-          const it = its.find((i) => i.g === g && norm(i.nome) === nn);
-          if (!it) { nao.push(nome); continue; }
-          const regra: Regra = { sobe: ci.sobe < 0 || !txt(r, ci.sobe) ? true : sim(r[ci.sobe]), indice: ind };
-          const herdada = regraSemItem(it);
-          if (regra.sobe === herdada.sobe && Number(regra.indice) === Number(herdada.indice)) delete ri[it.id];
-          else ri[it.id] = regra;
-          vis.push([GRUPOS_REAJ.find((x) => x.g === g)?.nome ?? g, it.cat, it.nome, regra.sobe ? "SIM" : "NÃO", ind]);
-          n++;
-        }
-        return {
-          resumo: `${n} itens de reajuste`, avisos: nao.length ? [`Não reconhecidos: ${nao.slice(0, 20).join(", ")}`] : [],
-          ...amostra(["Grupo", "Categoria", "Nome", "Reajustar", "Índice anual %"], vis),
-          aplicar: async () => { await salvarConfig({ ...padrao, regras_categoria: rc as Json, regras_item: ri as Json }); return `${n} reajustes`; },
-        };
-      }
-      for (const r of rows.slice(h + 1)) {
-        const niv = norm(r[ci.niv]), nome = txt(r, ci.nome), nn = norm(nome), ind = num(r, ci.ind);
-        if (!niv || !nome) continue;
-        const sobe = ci.sobe < 0 || !txt(r, ci.sobe) ? true : sim(r[ci.sobe]);
-        if (niv.startsWith("PADR")) {
-          if (nn.includes("MES")) { if (ind && ind >= 1 && ind <= 12) padrao.reajuste_mes = Math.round(ind); else { nao.push(nome); continue; } }
-          else if (nn.includes("ENTRADA") && ind != null) padrao.indice_padrao_entradas = ind;
-          else if (nn.includes("SAIDA") && ind != null) padrao.indice_padrao_saidas = ind;
-          else { nao.push(nome); continue; }
-          vis.push(["Padrão", "", nome, "", ind]); n++; continue;
-        }
-        const g = grupoReajDe(r[ci.g]);
-        if (!g) { nao.push(nome); continue; }
-        const regra: Regra = { sobe, ...(ind != null ? { indice: ind } : {}) };
-        if (niv.startsWith("CAT")) {
-          const doCat = its.filter((i) => i.g === g && (g === "EP" || norm(i.cat) === nn));
-          const ck = doCat[0]?.catKey ?? chaveCatDe(g, nome);
-          rc[ck] = regra;
-          for (const i of doCat) delete ri[i.id];
-          vis.push(["Categoria", GRUPOS_REAJ.find((x) => x.g === g)!.nome, nome, sobe ? "SIM" : "NÃO", ind]); n++;
-        } else {
-          const it = its.find((i) => i.g === g && norm(i.nome) === nn);
-          if (!it) { nao.push(nome); continue; }
-          ri[it.id] = regra;
-          vis.push(["Item", GRUPOS_REAJ.find((x) => x.g === g)!.nome, nome, sobe ? "SIM" : "NÃO", ind]); n++;
-        }
-      }
-      return {
-        resumo: `${n} regras de reajuste`, avisos: nao.length ? [`Não reconhecidas: ${nao.slice(0, 20).join(", ")}`] : [],
-        ...amostra(["Nível", "Grupo", "Nome", "Sobe", "Índice %"], vis),
-        aplicar: async () => { await salvarConfig({ ...padrao, regras_categoria: rc as Json, regras_item: ri as Json }); return `${n} reajustes`; },
-      };
-    },
+    id: "reajustes", titulo: "Reajustes das entradas", aba: "REAJUSTES", chaves: ["GRUPO", "NOME"], contagem: "reajustes",
+    colunas: [["Configuração (no topo)", "Mês do reajuste, índice padrão e premissas das entradas"], ["GRUPO", "Somente ENTRADAS"], ["CATEGORIA", "Carteira do cadastro"], ["NOME", "Empresa já cadastrada"], ["REAJUSTAR", "SIM ou NÃO"], ["ÍNDICE ANUAL %", "Percentual ao ano (5 = 5%)"]],
+    exportar: (c) => exportarReajustes(c, true),
+    ler: (rows, c) => lerReajustes(rows, c, true),
+    exportarBackup: (c) => exportarReajustes(c, false),
+    lerBackup: (rows, c) => lerReajustes(rows, c, false),
   },
   {
     id: "dre", titulo: "Classificação da DRE", aba: "DRE", aliases: ["CLASSIFICACAO"], chaves: ["CATEGORIA", "LINHA"], contagem: "classificações",
@@ -627,7 +644,7 @@ export function baixarModeloTipo(tipo: TipoImp, c: Ctx) {
 
 export function baixarBackup(c: Ctx) {
   const wb = XLSX.utils.book_new();
-  for (const d of TIPOS) { const aoa = d.exportar(c); XLSX.utils.book_append_sheet(wb, larguras(XLSX.utils.aoa_to_sheet(aoa), aoa), d.aba); }
+  for (const d of TIPOS) { const aoa = (d.exportarBackup ?? d.exportar)(c); XLSX.utils.book_append_sheet(wb, larguras(XLSX.utils.aoa_to_sheet(aoa), aoa), d.aba); }
   const aj: unknown[][] = [["COMO PREENCHER — BACKUP COMPLETO"], ["Cada aba tem o nome de um tipo. Reimportar este arquivo em \"Importar backup completo\" restaura tudo."], []];
   for (const d of TIPOS) aj.push([`ABA ${d.aba}`], ...d.colunas, []);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aj), "COMO PREENCHER");
@@ -645,7 +662,7 @@ export async function importarBackup(wb: XLSX.WorkBook, tipos: Def[]): Promise<s
   const feitos: string[] = [];
   for (const d of tipos) {
     const c = await carregarCtx();
-    try { feitos.push(await d.ler(rowsDe(wb, abaExata(wb, d)!), c).aplicar()); }
+    try { feitos.push(await (d.lerBackup ?? d.ler)(rowsDe(wb, abaExata(wb, d)!), c).aplicar()); }
     catch (e) { throw new Error(`${feitos.length ? `Importado: ${feitos.join(", ")}. ` : ""}Parou na aba ${d.aba}: ${(e as Error).message}`); }
   }
   return `Importado: ${feitos.join(", ")}.`;

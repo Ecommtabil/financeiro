@@ -32,7 +32,7 @@ const COMPORTA: Record<TipoImp, string> = {
   pessoais: "Substitui as importadas e mantém as cadastradas na tela.",
   saldos: "Atualiza o saldo dos bancos listados.",
   baixas: "Soma às baixas existentes (mesma conta e mês é atualizada).",
-  reajustes: "Lista todas as empresas e demais itens cadastrados para ajustar SIM/NÃO e o índice anual.",
+  reajustes: "Lista somente as entradas do escritório para definir SIM/NÃO e o índice anual por planilha.",
   dre: "Atualiza a linha das categorias listadas.",
   investimentos: "Substitui a lista inteira.",
   bens: "Substitui a lista inteira.",
@@ -133,7 +133,12 @@ function Tipo({ tipo }: { tipo: TipoImp }) {
   async function confirmar() {
     if (!previa) return;
     setOcupado(true);
-    try { toast.success(`Importado: ${await previa.aplicar()}.`); setPrevia(null); qc.invalidateQueries(); }
+    try {
+      const resultado = await previa.aplicar();
+      await qc.invalidateQueries();
+      toast.success(`Importado: ${resultado}.`);
+      setPrevia(null);
+    }
     catch (e) { setErro((e as Error).message); }
     finally { setOcupado(false); }
   }

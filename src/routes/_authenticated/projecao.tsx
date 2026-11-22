@@ -97,7 +97,7 @@ function Projecao() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Projeção {area === "PESSOAL" ? "pessoal" : "do escritório"} {h.y0}–{ultimo}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Consulta dos valores projetados. Os reajustes por item são definidos somente na tela Reajustes.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Consulta dos valores projetados. Os percentuais das entradas vêm da planilha importada em Reajustes.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={gerarPdf}><Download className="mr-1 h-4 w-4" />PDF da projeção</Button>
