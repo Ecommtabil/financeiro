@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { atualizacoesValorEmLote, regrasComReajusteEmLote } from "./reajuste-lote";
-import type { Saida } from "./dados";
+import { atualizacoesValorBaseEmLote, atualizacoesValorEmLote, regrasComReajusteEmLote, type ItemValorBase } from "./reajuste-lote";
+import type { Entrada, EntradaPessoal, Saida } from "./dados";
 
 describe("reajuste em lote das saídas", () => {
   it("aplica 5,92% somente às saídas escolhidas e ativa o reajuste", () => {
@@ -31,5 +31,19 @@ describe("valor mensal base em lote", () => {
     expect(r[0]).toEqual({ id: "s1", atualizacao: { valor_fixo: 150.75 } });
     expect(r[1]).toEqual({ id: "s2", atualizacao: { valores_mes: { "2026-12": 90, "2027-01": 150.75, "2027-02": 0, "2027-03": 150.75 } } });
     expect(saidas[2]!.valor_fixo).toBe(300);
+  });
+
+  it("atualiza entradas do escritório, pessoais e saídas com a regra correta de cada cadastro", () => {
+    const itens: ItemValorBase[] = [
+      { tabela: "entradas", id: "e1", registro: { id: "e1" } as Entrada },
+      { tabela: "entradas_pessoais", id: "p1", registro: { id: "p1" } as EntradaPessoal },
+      { tabela: "saidas", id: "s1", registro: { id: "s1", valor_fixo: 100, valores_mes: {} } as Saida },
+      { tabela: "entradas", id: "e2", registro: { id: "e2" } as Entrada },
+    ];
+    const r = atualizacoesValorBaseEmLote(itens, ["e1", "p1", "s1"], 250.5, "2027-01");
+    expect(r).toHaveLength(3);
+    expect(r[0]).toMatchObject({ tabela: "entradas", id: "e1", atualizacao: { valor: 250.5, valores_base: {} } });
+    expect(r[1]).toMatchObject({ tabela: "entradas_pessoais", id: "p1", atualizacao: { valor: 250.5, valores_base: {} } });
+    expect(r[2]).toMatchObject({ tabela: "saidas", id: "s1", atualizacao: { valor_fixo: 250.5 } });
   });
 });

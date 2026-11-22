@@ -8,3 +8,7 @@
 - [x] Criar tela Reajustes com todas as saídas, percentuais e valores base editáveis.
 - [x] Adicionar acesso direto no menu e ajustes em lote por percentual ou valor.
 - [x] Validar edição individual, ajuste em lote e atualização dos demonstrativos.
+- [x] Incluir entradas do escritório na tela Reajustes.
+- [x] Permitir reajuste percentual e valor base em lote para entradas e saídas.
+- [x] Validar filtros, cálculos e integração com a Projeção.
+- [x] Restringir Reajustes a entradas e saídas do escritório, sem entradas pessoais.
