@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient, useIsMutating } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { BarChart3, Building2, Check, ClipboardList, FileSpreadsheet, House, LineChart, LogOut, Loader2 } from "lucide-react";
+import { BarChart3, Building2, Check, ClipboardList, FileSpreadsheet, House, LineChart, LogOut, Loader2, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,9 +21,10 @@ const ABAS = [
   { to: "/balanco", label: "Balanço", periodo: true },
 ] as const;
 
-/** Módulos do topo: Cadastro, Projeção e Análise (Escritório | Pessoal). O Período fica sempre visível. */
+/** Módulos do topo: Cadastro, Reajustes, Projeção e Análise (Escritório | Pessoal). O Período fica sempre visível. */
 const MODULOS = [
   { id: "cadastro", to: "/cadastro", label: "Cadastro", icon: ClipboardList },
+  { id: "reajustes", to: "/reajustes", label: "Reajustes", icon: Percent },
   { id: "projecao", to: "/projecao", label: "Projeção", icon: LineChart },
   { id: "analise", to: "/", label: "Análise", icon: BarChart3 },
 ] as const;
@@ -81,7 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const mesesPeriodo = useMemo(() => colunas.flatMap((c) => c.meses), [colunas]);
   const ROT_FASE: Record<Fase, string> = { base: "Período base zero", ano1: "Período 1 ano", projecao: "Período projeção" };
   const abaAtual = ABAS.find((a) => (a.to === "/" ? pathname === "/" : pathname.startsWith(a.to)));
-  const modulo = pathname.startsWith("/cadastro") ? "cadastro" : pathname.startsWith("/projecao") ? "projecao" : abaAtual ? "analise" : "outro";
+  const modulo = pathname.startsWith("/cadastro") ? "cadastro" : pathname.startsWith("/reajustes") ? "reajustes" : pathname.startsWith("/projecao") ? "projecao" : abaAtual ? "analise" : "outro";
   // Na área Pessoal, só Dashboard e Carteira ficam visíveis; as outras abas voltam ao Dashboard.
   const abasVisiveis = area === "PESSOAL" ? ABAS.filter((a) => "pessoal" in a && a.pessoal) : ABAS.filter((a) => !("soPessoal" in a));
   useEffect(() => {
@@ -162,7 +163,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <m.icon className="size-4" />{m.label}
               </Link>
             ))}
-            {modulo !== "cadastro" && modulo !== "outro" ? (
+            {modulo !== "cadastro" && modulo !== "reajustes" && modulo !== "outro" ? (
               <div className="ml-auto flex shrink-0 items-center gap-2">
                 <BotaoEditorDemonstrativo />
                 <div className="inline-flex shrink-0 rounded-md border bg-background p-0.5">

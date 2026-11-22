@@ -20,6 +20,7 @@ import { Route as AuthenticatedDreRouteImport } from './routes/_authenticated/dr
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
 import { Route as AuthenticatedInvestimentosRouteImport } from './routes/_authenticated/investimentos'
 import { Route as AuthenticatedProjecaoRouteImport } from './routes/_authenticated/projecao'
+import { Route as AuthenticatedReajustesRouteImport } from './routes/_authenticated/reajustes'
 import { Route as AuthenticatedSituacaoRouteImport } from './routes/_authenticated/situacao'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -77,6 +78,11 @@ const AuthenticatedProjecaoRoute = AuthenticatedProjecaoRouteImport.update({
   path: '/projecao',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedReajustesRoute = AuthenticatedReajustesRouteImport.update({
+  id: '/reajustes',
+  path: '/reajustes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSituacaoRoute = AuthenticatedSituacaoRouteImport.update({
   id: '/situacao',
   path: '/situacao',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/importar': typeof AuthenticatedImportarRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
   '/projecao': typeof AuthenticatedProjecaoRoute
+  '/reajustes': typeof AuthenticatedReajustesRoute
   '/situacao': typeof AuthenticatedSituacaoRoute
 }
 export interface FileRoutesByTo {
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/importar': typeof AuthenticatedImportarRoute
   '/investimentos': typeof AuthenticatedInvestimentosRoute
   '/projecao': typeof AuthenticatedProjecaoRoute
+  '/reajustes': typeof AuthenticatedReajustesRoute
   '/situacao': typeof AuthenticatedSituacaoRoute
   '/': typeof AuthenticatedIndexRoute
 }
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
   '/_authenticated/investimentos': typeof AuthenticatedInvestimentosRoute
   '/_authenticated/projecao': typeof AuthenticatedProjecaoRoute
+  '/_authenticated/reajustes': typeof AuthenticatedReajustesRoute
   '/_authenticated/situacao': typeof AuthenticatedSituacaoRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
 }
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/importar'
     | '/investimentos'
     | '/projecao'
+    | '/reajustes'
     | '/situacao'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/importar'
     | '/investimentos'
     | '/projecao'
+    | '/reajustes'
     | '/situacao'
     | '/'
   id:
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/_authenticated/importar'
     | '/_authenticated/investimentos'
     | '/_authenticated/projecao'
+    | '/_authenticated/reajustes'
     | '/_authenticated/situacao'
     | '/_authenticated/'
   fileRoutesById: FileRoutesById
@@ -251,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjecaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/reajustes': {
+      id: '/_authenticated/reajustes'
+      path: '/reajustes'
+      fullPath: '/reajustes'
+      preLoaderRoute: typeof AuthenticatedReajustesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/situacao': {
       id: '/_authenticated/situacao'
       path: '/situacao'
@@ -270,6 +289,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
   AuthenticatedInvestimentosRoute: typeof AuthenticatedInvestimentosRoute
   AuthenticatedProjecaoRoute: typeof AuthenticatedProjecaoRoute
+  AuthenticatedReajustesRoute: typeof AuthenticatedReajustesRoute
   AuthenticatedSituacaoRoute: typeof AuthenticatedSituacaoRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
@@ -283,6 +303,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
   AuthenticatedInvestimentosRoute: AuthenticatedInvestimentosRoute,
   AuthenticatedProjecaoRoute: AuthenticatedProjecaoRoute,
+  AuthenticatedReajustesRoute: AuthenticatedReajustesRoute,
   AuthenticatedSituacaoRoute: AuthenticatedSituacaoRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
