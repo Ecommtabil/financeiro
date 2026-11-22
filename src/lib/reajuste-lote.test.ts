@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { regrasComReajusteEmLote } from "./reajuste-lote";
+import { atualizacoesValorEmLote, regrasComReajusteEmLote } from "./reajuste-lote";
+import type { Saida } from "./dados";
 
 describe("reajuste em lote das saídas", () => {
   it("aplica 5,92% somente às saídas escolhidas e ativa o reajuste", () => {
@@ -15,5 +16,20 @@ describe("reajuste em lote das saídas", () => {
     expect(resultado["s1"]).toEqual({ indice: 2.5, sobe: true });
     expect(resultado["s2"]).toEqual({ indice: 4, sobe: false });
     expect(atuais.s1).toEqual({ indice: 5.92, sobe: true });
+  });
+});
+
+describe("valor mensal base em lote", () => {
+  it("atualiza somente as saídas escolhidas e preserva meses anteriores e parcelas zeradas", () => {
+    const saidas = [
+      { id: "s1", valor_fixo: 100, valores_mes: {}, ri: "2027-01", rf: "2027-12" },
+      { id: "s2", valor_fixo: null, valores_mes: { "2026-12": 90, "2027-01": 100, "2027-02": 0, "2027-03": 100 } },
+      { id: "s3", valor_fixo: 300, valores_mes: {} },
+    ] as Saida[];
+    const r = atualizacoesValorEmLote(saidas, ["s1", "s2"], 150.75, "2027-01");
+    expect(r).toHaveLength(2);
+    expect(r[0]).toEqual({ id: "s1", atualizacao: { valor_fixo: 150.75 } });
+    expect(r[1]).toEqual({ id: "s2", atualizacao: { valores_mes: { "2026-12": 90, "2027-01": 150.75, "2027-02": 0, "2027-03": 150.75 } } });
+    expect(saidas[2]!.valor_fixo).toBe(300);
   });
 });

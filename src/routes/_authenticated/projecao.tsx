@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { LinkImportar } from "@/components/link-importar";
 import { Fragment, useMemo, useRef, useState } from "react";
 import { Download, FileSpreadsheet, Pencil, Search } from "lucide-react";
@@ -9,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig, useSalvarConfig, type Config } from "@/lib/config";
-import { useLista } from "@/lib/dados";
+import { useLista, type Saida } from "@/lib/dados";
 import { formatarBRL, formatarMes, formatarNumero } from "@/lib/format";
 import {
   CHAVE_CAT_PESSOAL, chaveCatEntrada, chaveCatSaida, chaveMes, destinoSaida, fator, regraDo, somar, totaisDoMes,
@@ -18,7 +20,7 @@ import {
 } from "@/lib/calc";
 import type { MesRef } from "@/lib/horizonte";
 import { acharCabecalho, lerPlanilha, norm, paraNumero } from "@/lib/importacao";
-import { regrasComReajusteEmLote } from "@/lib/reajuste-lote";
+import { atualizacoesValorEmLote, regrasComReajusteEmLote } from "@/lib/reajuste-lote";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/projecao")({
@@ -46,12 +48,27 @@ type Item = { id: string; nome: string; g: string; tipo: "E" | "S"; cat: string;
 type LinhaItem = Item & { r: Required<Regra>; excecao: boolean; base: number; novo: number; total: number; impactoAno: number; semValorReaj: boolean };
 
 const sinal = (v: number) => (v > 0 ? "+" : "") + formatarNumero(v);
+const ATALHOS_REAJUSTE = [2.5, 5, 5.92, 10];
 
 function Projecao() {
   const { abrirEditor } = useEditorDemonstrativo();
   const { horizonte: h } = usePeriodo();
   const { data: cfg } = useConfig();
   const salvar = useSalvarConfig();
+  const qc = useQueryClient();
+  const salvarValores = useMutation({
+    mutationFn: async ({ saidas, ids, valor, primeiroMes }: { saidas: Saida[]; ids: string[]; valor: number; primeiroMes: string }) => {
+      const atualizacoes = atualizacoesValorEmLote(saidas, ids, valor, primeiroMes);
+      const resultados = await Promise.all(atualizacoes.map(({ id, atualizacao }) => supabase.from("saidas").update(atualizacao).eq("id", id)));
+      const erro = resultados.find((r) => r.error)?.error;
+      if (erro) throw erro;
+    },
+    onSuccess: async (_d, v) => {
+      await qc.invalidateQueries({ queryKey: ["saidas"] });
+      toast.success(`Valor de ${formatarBRL(v.valor)} aplicado a ${v.ids.length} ${v.ids.length === 1 ? "saída" : "saídas"}.`);
+    },
+    onError: (e) => toast.error(`Não foi possível atualizar todos os valores: ${e.message}`),
+  });
   const ent = useLista("entradas"), sai = useLista("saidas"), pes = useLista("entradas_pessoais");
   const [anoSel, setAnoSel] = useState<number | null>(null);
   const [grupoF, setGrupoF] = useState("todos");
@@ -61,6 +78,8 @@ function Projecao() {
   const [busca, setBusca] = useState("");
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [indiceLote, setIndiceLote] = useState("5");
+  const [valorLote, setValorLote] = useState("");
+  const [modoAjuste, setModoAjuste] = useState<"percentual" | "valor">("percentual");
 
   const dados = useMemo(() => (ent.data && sai.data && pes.data ? { entradas: ent.data, saidas: sai.data, pessoais: pes.data } : null), [ent.data, sai.data, pes.data]);
 
@@ -124,6 +143,11 @@ function Projecao() {
   const selecionadasArea = saidasArea.filter((l) => selecionadas.has(l.id));
   const todasVisiveis = saidasVisiveis.length > 0 && saidasVisiveis.every((l) => selecionadas.has(l.id));
   const indiceLoteNumero = paraNumero(indiceLote);
+  const valorLoteNumero = paraNumero(valorLote);
+  const aplicarValorLote = () => {
+    if (!selecionadasArea.length || valorLoteNumero == null || valorLoteNumero < 0) return;
+    salvarValores.mutate({ saidas: dados!.saidas, ids: selecionadasArea.map((l) => l.id), valor: valorLoteNumero, primeiroMes: chaveMes(h.primeiro) });
+  };
   const alternarSaida = (id: string) => setSelecionadas((atuais) => {
     const novas = new Set(atuais);
     if (novas.has(id)) novas.delete(id); else novas.add(id);
@@ -134,15 +158,14 @@ function Projecao() {
     for (const l of saidasVisiveis) if (marcar) novas.add(l.id); else novas.delete(l.id);
     return novas;
   });
-  const aplicarLote = () => {
-    if (!selecionadasArea.length || indiceLoteNumero == null || indiceLoteNumero < 0) return;
-    const regras_item = regrasComReajusteEmLote(regrasItem, selecionadasArea.map((l) => l.id), indiceLoteNumero);
+  const aplicarLote = (atalho?: number) => {
+    const indice = atalho ?? indiceLoteNumero;
+    if (!selecionadasArea.length || indice == null || indice < 0) return;
+    if (atalho != null) setIndiceLote(String(atalho).replace(".", ","));
+    const regras_item = regrasComReajusteEmLote(regrasItem, selecionadasArea.map((l) => l.id), indice);
     salvar.mutate({ regras_item }, {
       ...ok,
-      onSuccess: () => {
-        toast.success(`Reajuste de ${formatarNumero(indiceLoteNumero)}% aplicado a ${selecionadasArea.length} ${selecionadasArea.length === 1 ? "saída" : "saídas"}.`);
-        setSelecionadas(new Set());
-      },
+      onSuccess: () => toast.success(`Reajuste de ${formatarNumero(indice)}% aplicado a ${selecionadasArea.length} ${selecionadasArea.length === 1 ? "saída" : "saídas"}.`),
     });
   };
   const com = calc.doAno(ano, "com"), sem = calc.doAno(ano, "sem");
@@ -269,17 +292,36 @@ function Projecao() {
             <Input className="pl-8" placeholder="Buscar item ou categoria" value={busca} onChange={(e) => setBusca(e.target.value)} />
           </div>
         </div>
-        <div className="surface-card flex flex-wrap items-end gap-3 p-3">
-          <div className="mr-auto">
-            <div className="text-sm font-semibold">Reajuste em lote das saídas</div>
-            <div className="text-xs text-muted-foreground">{selecionadasArea.length} {selecionadasArea.length === 1 ? "saída selecionada" : "saídas selecionadas"}. O % será salvo individualmente em cada uma.</div>
+        <div className="surface-card sticky top-3 z-20 space-y-2 p-3 shadow-lg">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="mr-auto min-w-48">
+              <div className="text-sm font-semibold">Ajuste rápido das saídas</div>
+              <div className="text-xs text-muted-foreground">{selecionadasArea.length} {selecionadasArea.length === 1 ? "selecionada" : "selecionadas"} · a seleção fica ativa para o próximo ajuste</div>
+            </div>
+            <div className="inline-flex rounded-md border bg-background p-0.5" aria-label="Modo de ajuste">
+              <Button type="button" size="sm" variant={modoAjuste === "percentual" ? "default" : "ghost"} onClick={() => setModoAjuste("percentual")}>Percentual</Button>
+              <Button type="button" size="sm" variant={modoAjuste === "valor" ? "default" : "ghost"} onClick={() => setModoAjuste("valor")}>Valor final</Button>
+            </div>
+            <div className="flex items-center gap-1" aria-label="Opções de seleção">
+              <Button type="button" variant="outline" size="sm" onClick={() => marcarTodasVisiveis(true)}>Visíveis</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setSelecionadas(new Set(saidasArea.map((l) => l.id)))}>Todas</Button>
+              <Button type="button" variant="ghost" size="sm" disabled={!selecionadasArea.length} onClick={() => setSelecionadas(new Set())}>Nenhuma</Button>
+            </div>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => setSelecionadas(new Set(saidasArea.map((l) => l.id)))}>Marcar todas as saídas</Button>
-          {selecionadasArea.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => setSelecionadas(new Set())}>Limpar</Button>}
-          <label className="text-xs text-muted-foreground">Aumento (%)<br />
-            <Input aria-label="Percentual do reajuste em lote" inputMode="decimal" className="num mt-1 h-8 w-24" value={indiceLote} onChange={(e) => setIndiceLote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && aplicarLote()} />
-          </label>
-          <Button type="button" size="sm" disabled={!selecionadasArea.length || indiceLoteNumero == null || indiceLoteNumero < 0 || salvar.isPending} onClick={aplicarLote}>Aplicar às selecionadas</Button>
+          {modoAjuste === "percentual" ? (
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="mr-1 text-xs text-muted-foreground">Atalhos:</span>
+              {ATALHOS_REAJUSTE.map((v) => <Button key={v} type="button" variant="secondary" size="sm" className="num px-2.5" disabled={!selecionadasArea.length || salvar.isPending} onClick={() => aplicarLote(v)}>{formatarNumero(v)}%</Button>)}
+              <Input aria-label="Percentual do reajuste em lote" inputMode="decimal" placeholder="Outro %" className="num ml-2 h-8 w-24" value={indiceLote} onChange={(e) => setIndiceLote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && aplicarLote()} />
+              <Button type="button" size="sm" disabled={!selecionadasArea.length || indiceLoteNumero == null || indiceLoteNumero < 0 || salvar.isPending} onClick={() => aplicarLote()}>Aplicar</Button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input aria-label="Novo valor mensal das saídas" inputMode="decimal" placeholder="Ex.: 1.234,56" className="num h-8 w-36" value={valorLote} onChange={(e) => setValorLote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && aplicarValorLote()} />
+              <Button type="button" size="sm" disabled={!selecionadasArea.length || valorLoteNumero == null || valorLoteNumero < 0 || salvarValores.isPending} onClick={aplicarValorLote}>Definir valor/mês</Button>
+              <span className="text-xs text-muted-foreground">Altera o valor/mês base, mantendo vigências, parcelas encerradas e reajustes.</span>
+            </div>
+          )}
         </div>
         <div className="surface-card overflow-x-auto">
           <table className="w-full text-sm">
@@ -320,7 +362,7 @@ function Projecao() {
                             <td className="num px-3 py-1.5 text-right">{sinal(s((l) => l.impactoAno))}</td>
                           </tr>
                           {ls.map((l) => (
-                            <tr key={l.id} className={cn("border-b", l.excecao && "border-l-4 border-l-[var(--warning,oklch(0.6_0.12_75))]")}>
+                            <tr key={l.id} className={cn("border-b transition-colors", selecionadas.has(l.id) && "bg-primary/5", l.excecao && "border-l-4 border-l-[var(--warning,oklch(0.6_0.12_75))]")}>
                               <td className="px-3 py-1.5">{l.tipo === "S" && <input type="checkbox" aria-label={`Selecionar ${l.nome}`} checked={selecionadas.has(l.id)} onChange={() => alternarSaida(l.id)} />}</td>
                               <td className="px-3 py-1.5 pl-6"><span className="inline-flex items-center gap-2">{l.nome}<button type="button" className="text-primary" aria-label={`Editar ${l.nome}`} onClick={() => abrirEditor({ id: l.id, tabela: l.g === "E" ? "entradas" : l.g === "EP" ? "entradas_pessoais" : "saidas" })}><Pencil className="size-3.5" /></button>{l.semValorReaj && <span className="chip-base ml-2 text-muted-foreground">termina antes de {MESES[cfg.reajuste_mes - 1]!.slice(0, 3).toLowerCase()}</span>}</span></td>
                               <td className="px-3 py-1.5"><input type="checkbox" checked={l.r.sobe} onChange={(e) => mudarItem(l, { sobe: e.target.checked })} /></td>

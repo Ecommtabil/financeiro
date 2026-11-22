@@ -1,5 +1,7 @@
 # Roadmap
 
-- [x] Adicionar seleção de saídas e ação para aplicar um percentual de reajuste em lote.
-- [x] Manter percentuais individuais por saída, com seleção total e por filtro.
-- [x] Testar 5,92% e 2,5%, persistência e atualização dos demonstrativos sem deixar dados de teste.
+- [x] Adicionar atalhos de percentual e aplicar com um clique ou Enter.
+- [x] Manter a seleção para ajustes consecutivos e facilitar selecionar visíveis, todas ou nenhuma.
+- [x] Deixar os controles acessíveis durante a rolagem e destacar as saídas selecionadas.
+- [x] Validar na tela os ajustes consecutivos e a persistência sem deixar dados temporários.
+- [x] Adicionar modo de valor mensal base em lote, preservando vigências e reajustes individuais.
