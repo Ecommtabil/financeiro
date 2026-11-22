@@ -18,6 +18,7 @@ import {
 } from "@/lib/calc";
 import type { MesRef } from "@/lib/horizonte";
 import { acharCabecalho, lerPlanilha, norm, paraNumero } from "@/lib/importacao";
+import { regrasComReajusteEmLote } from "@/lib/reajuste-lote";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/projecao")({
@@ -58,6 +59,8 @@ function Projecao() {
   const gruposArea = area === "PESSOAL" ? ["SP", "EP"] : ["E", "SE"];
   const LINHAS = area === "PESSOAL" ? LINHAS_PES : LINHAS_ESC;
   const [busca, setBusca] = useState("");
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
+  const [indiceLote, setIndiceLote] = useState("5");
 
   const dados = useMemo(() => (ent.data && sai.data && pes.data ? { entradas: ent.data, saidas: sai.data, pessoais: pes.data } : null), [ent.data, sai.data, pes.data]);
 
@@ -116,6 +119,32 @@ function Projecao() {
 
   const q = norm(busca);
   const visiveis = calc.linhas.filter((l) => gruposArea.includes(l.g) && (grupoF === "todos" || l.g === grupoF) && (!q || norm(`${l.nome} ${l.cat}`).includes(q)));
+  const saidasArea = calc.linhas.filter((l) => gruposArea.includes(l.g) && l.tipo === "S");
+  const saidasVisiveis = visiveis.filter((l) => l.tipo === "S");
+  const selecionadasArea = saidasArea.filter((l) => selecionadas.has(l.id));
+  const todasVisiveis = saidasVisiveis.length > 0 && saidasVisiveis.every((l) => selecionadas.has(l.id));
+  const indiceLoteNumero = paraNumero(indiceLote);
+  const alternarSaida = (id: string) => setSelecionadas((atuais) => {
+    const novas = new Set(atuais);
+    if (novas.has(id)) novas.delete(id); else novas.add(id);
+    return novas;
+  });
+  const marcarTodasVisiveis = (marcar: boolean) => setSelecionadas((atuais) => {
+    const novas = new Set(atuais);
+    for (const l of saidasVisiveis) if (marcar) novas.add(l.id); else novas.delete(l.id);
+    return novas;
+  });
+  const aplicarLote = () => {
+    if (!selecionadasArea.length || indiceLoteNumero == null || indiceLoteNumero < 0) return;
+    const regras_item = regrasComReajusteEmLote(regrasItem, selecionadasArea.map((l) => l.id), indiceLoteNumero);
+    salvar.mutate({ regras_item }, {
+      ...ok,
+      onSuccess: () => {
+        toast.success(`Reajuste de ${formatarNumero(indiceLoteNumero)}% aplicado a ${selecionadasArea.length} ${selecionadasArea.length === 1 ? "saída" : "saídas"}.`);
+        setSelecionadas(new Set());
+      },
+    });
+  };
   const com = calc.doAno(ano, "com"), sem = calc.doAno(ano, "sem");
   const ultimo = h.anos[h.anos.length - 1]!.ano;
   const sel = "rounded-md border bg-card px-2 py-1.5 text-sm";
@@ -240,10 +269,23 @@ function Projecao() {
             <Input className="pl-8" placeholder="Buscar item ou categoria" value={busca} onChange={(e) => setBusca(e.target.value)} />
           </div>
         </div>
+        <div className="surface-card flex flex-wrap items-end gap-3 p-3">
+          <div className="mr-auto">
+            <div className="text-sm font-semibold">Reajuste em lote das saídas</div>
+            <div className="text-xs text-muted-foreground">{selecionadasArea.length} {selecionadasArea.length === 1 ? "saída selecionada" : "saídas selecionadas"}. O % será salvo individualmente em cada uma.</div>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => setSelecionadas(new Set(saidasArea.map((l) => l.id)))}>Marcar todas as saídas</Button>
+          {selecionadasArea.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => setSelecionadas(new Set())}>Limpar</Button>}
+          <label className="text-xs text-muted-foreground">Aumento (%)<br />
+            <Input aria-label="Percentual do reajuste em lote" inputMode="decimal" className="num mt-1 h-8 w-24" value={indiceLote} onChange={(e) => setIndiceLote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && aplicarLote()} />
+          </label>
+          <Button type="button" size="sm" disabled={!selecionadasArea.length || indiceLoteNumero == null || indiceLoteNumero < 0 || salvar.isPending} onClick={aplicarLote}>Aplicar às selecionadas</Button>
+        </div>
         <div className="surface-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr className="border-b text-right">
+                <th className="w-10 px-3 py-2 text-left"><input type="checkbox" aria-label="Selecionar todas as saídas visíveis" checked={todasVisiveis} onChange={(e) => marcarTodasVisiveis(e.target.checked)} /></th>
                 <th className="px-3 py-2 text-left">Item</th><th className="px-3 py-2 text-left">Sobe</th><th className="px-3 py-2 text-left">Índice %</th>
                 <th className="px-3 py-2">Base/mês</th><th className="px-3 py-2">Novo/mês</th><th className="px-3 py-2">Impacto/mês</th>
                 <th className="px-3 py-2">Total do ano</th><th className="px-3 py-2">Impacto no ano</th>
@@ -256,7 +298,7 @@ function Projecao() {
                 const cats = [...new Set(doG.map((l) => l.catKey))];
                 return (
                   <Fragment key={G.g}>
-                    <tr className="bg-muted"><td colSpan={8} className="px-3 py-2 font-bold">{G.nome}</td></tr>
+                    <tr className="bg-muted"><td colSpan={9} className="px-3 py-2 font-bold">{G.nome}</td></tr>
                     {cats.map((ck) => {
                       const ls = doG.filter((l) => l.catKey === ck).sort((a, b) => a.nome.localeCompare(b.nome));
                       const rc = regrasCat[ck], rcEf = { indice: rc?.indice ?? padrao(G.tipo), sobe: rc?.sobe ?? true };
@@ -264,6 +306,7 @@ function Projecao() {
                       return (
                         <Fragment key={ck}>
                           <tr className="border-b bg-muted/40 font-semibold">
+                            <td className="px-3 py-1.5">{G.tipo === "S" && <input type="checkbox" aria-label={`Selecionar saídas da categoria ${ls[0]!.cat}`} checked={ls.every((l) => selecionadas.has(l.id))} onChange={(e) => setSelecionadas((atuais) => { const novas = new Set(atuais); for (const l of ls) if (e.target.checked) novas.add(l.id); else novas.delete(l.id); return novas; })} />}</td>
                             <td className="px-3 py-1.5">{ls[0]!.cat}</td>
                             <td className="px-3 py-1.5"><label className="flex items-center gap-1.5 text-xs font-normal"><input type="checkbox" checked={rcEf.sobe} onChange={(e) => mudarCat(ck, G.tipo, { sobe: e.target.checked })} />Todos sobem</label></td>
                             <td className="px-3 py-1.5"><div className="flex items-center gap-1.5">
@@ -278,6 +321,7 @@ function Projecao() {
                           </tr>
                           {ls.map((l) => (
                             <tr key={l.id} className={cn("border-b", l.excecao && "border-l-4 border-l-[var(--warning,oklch(0.6_0.12_75))]")}>
+                              <td className="px-3 py-1.5">{l.tipo === "S" && <input type="checkbox" aria-label={`Selecionar ${l.nome}`} checked={selecionadas.has(l.id)} onChange={() => alternarSaida(l.id)} />}</td>
                               <td className="px-3 py-1.5 pl-6"><span className="inline-flex items-center gap-2">{l.nome}<button type="button" className="text-primary" aria-label={`Editar ${l.nome}`} onClick={() => abrirEditor({ id: l.id, tabela: l.g === "E" ? "entradas" : l.g === "EP" ? "entradas_pessoais" : "saidas" })}><Pencil className="size-3.5" /></button>{l.semValorReaj && <span className="chip-base ml-2 text-muted-foreground">termina antes de {MESES[cfg.reajuste_mes - 1]!.slice(0, 3).toLowerCase()}</span>}</span></td>
                               <td className="px-3 py-1.5"><input type="checkbox" checked={l.r.sobe} onChange={(e) => mudarItem(l, { sobe: e.target.checked })} /></td>
                               <td className="px-3 py-1.5"><div className="flex items-center gap-1.5">
@@ -297,7 +341,7 @@ function Projecao() {
                   </Fragment>
                 );
               })}
-              {!visiveis.length && <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">Nenhum item com valor em {ano}.</td></tr>}
+              {!visiveis.length && <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground">Nenhum item com valor em {ano}.</td></tr>}
             </tbody>
           </table>
         </div>
