@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atualizacoesValorBaseEmLote, atualizacoesValorEmLote, regrasComReajusteEmLote, type ItemValorBase } from "./reajuste-lote";
+import { atualizacoesValorBaseEmLote, atualizacoesValorEmLote, regrasComReajusteEmLote, regrasComReajustesDiferentes, type ItemValorBase } from "./reajuste-lote";
 import type { Entrada, EntradaPessoal, Saida } from "./dados";
 
 describe("reajuste em lote das saídas", () => {
@@ -16,6 +16,16 @@ describe("reajuste em lote das saídas", () => {
     expect(resultado["s1"]).toEqual({ indice: 2.5, sobe: true });
     expect(resultado["s2"]).toEqual({ indice: 4, sobe: false });
     expect(atuais.s1).toEqual({ indice: 5.92, sobe: true });
+  });
+
+  it("aplica percentuais diferentes aos selecionados em uma única atualização", () => {
+    const atuais = { outra: { indice: 7, sobe: false } };
+    const resultado = regrasComReajustesDiferentes(atuais, { e1: 5.92, s1: 2.5, s2: 10 });
+    expect(resultado["e1"]).toEqual({ indice: 5.92, sobe: true });
+    expect(resultado["s1"]).toEqual({ indice: 2.5, sobe: true });
+    expect(resultado["s2"]).toEqual({ indice: 10, sobe: true });
+    expect(resultado["outra"]).toEqual({ indice: 7, sobe: false });
+    expect(atuais).toEqual({ outra: { indice: 7, sobe: false } });
   });
 });
 

@@ -12,3 +12,6 @@
 - [x] Permitir reajuste percentual e valor base em lote para entradas e saídas.
 - [x] Validar filtros, cálculos e integração com a Projeção.
 - [x] Restringir Reajustes a entradas e saídas do escritório, sem entradas pessoais.
+- [x] Adicionar modo % por item para percentuais diferentes com múltipla seleção.
+- [x] Salvar todos os percentuais diferentes em uma única ação.
+- [x] Validar o fluxo no navegador e restaurar os dados do teste.

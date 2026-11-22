@@ -14,6 +14,19 @@ export function regrasComReajusteEmLote(
   return novas;
 }
 
+/** Cria exceções com um percentual diferente para cada item escolhido. */
+export function regrasComReajustesDiferentes(
+  atuais: Record<string, Regra>,
+  ajustes: Record<string, number>,
+): Record<string, Regra> {
+  const novas = { ...atuais };
+  for (const [id, indice] of Object.entries(ajustes)) {
+    if (!Number.isFinite(indice) || indice < 0) throw new Error("Informe percentuais válidos, maiores ou iguais a zero.");
+    novas[id] = { indice, sobe: true };
+  }
+  return novas;
+}
+
 /** Prepara o novo valor/mês base apenas das saídas escolhidas. */
 export function atualizacoesValorEmLote(saidas: Saida[], ids: string[], valor: number, primeiroMes: string) {
   if (!Number.isFinite(valor) || valor < 0) throw new Error("Informe um valor válido, maior ou igual a zero.");

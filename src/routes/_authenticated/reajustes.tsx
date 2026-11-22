@@ -16,7 +16,7 @@ import { useConfig, useSalvarConfig } from "@/lib/config";
 import { useLista, type Entrada, type Saida } from "@/lib/dados";
 import { formatarBRL, formatarNumero } from "@/lib/format";
 import { norm, paraNumero } from "@/lib/importacao";
-import { atualizacoesValorBaseEmLote, regrasComReajusteEmLote, type ItemValorBase } from "@/lib/reajuste-lote";
+import { atualizacoesValorBaseEmLote, regrasComReajusteEmLote, regrasComReajustesDiferentes, type ItemValorBase } from "@/lib/reajuste-lote";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/reajustes")({
@@ -59,8 +59,9 @@ function Reajustes() {
   const [tipoF, setTipoF] = useState<"TODOS" | "E" | "S">("TODOS");
   const [categoriaF, setCategoriaF] = useState("TODAS");
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
-  const [modo, setModo] = useState<"percentual" | "valor">("percentual");
+  const [modo, setModo] = useState<"percentual" | "porItem" | "valor">("percentual");
   const [indiceLote, setIndiceLote] = useState("5");
+  const [indicesPorItem, setIndicesPorItem] = useState<Record<string, string>>({});
   const [valorLote, setValorLote] = useState("");
 
   const salvarValores = useMutation({
@@ -160,6 +161,26 @@ function Reajustes() {
       onSuccess: () => toast.success(`${formatarNumero(indice)}% aplicado a ${escolhidas.length} ${escolhidas.length === 1 ? "item" : "itens"}.`),
     });
   };
+  const aplicarDiferentes = () => {
+    if (!escolhidas.length) return;
+    const ajustes: Record<string, number> = {};
+    for (const l of escolhidas) {
+      const texto = indicesPorItem[l.id];
+      const indice = texto == null ? l.regra.indice : paraNumero(texto);
+      if (indice == null || indice < 0) {
+        toast.error(`Informe um percentual válido para ${l.nome}.`);
+        return;
+      }
+      ajustes[l.id] = indice;
+    }
+    salvar.mutate({ regras_item: regrasComReajustesDiferentes(regrasItem, ajustes) }, {
+      ...erroSalvar,
+      onSuccess: () => {
+        setIndicesPorItem({});
+        toast.success(`Percentuais diferentes aplicados a ${escolhidas.length} ${escolhidas.length === 1 ? "item" : "itens"}.`);
+      },
+    });
+  };
   const aplicarValor = () => {
     if (!escolhidas.length || valorNumero == null || valorNumero < 0) return;
     salvarValores.mutate({ itens: escolhidas, ids: escolhidas.map((l) => l.id), valor: valorNumero, primeiroMes: chaveMes(h.primeiro) });
@@ -189,7 +210,8 @@ function Reajustes() {
             <p className="text-xs text-muted-foreground">{escolhidas.length} {escolhidas.length === 1 ? "item selecionado" : "itens selecionados"} · a seleção fica ativa para ajustes consecutivos</p>
           </div>
           <div className="inline-flex rounded-md border bg-background p-0.5" aria-label="Modo de ajuste em lote">
-            <Button type="button" size="sm" variant={modo === "percentual" ? "default" : "ghost"} onClick={() => setModo("percentual")}>Percentual</Button>
+            <Button type="button" size="sm" variant={modo === "percentual" ? "default" : "ghost"} onClick={() => setModo("percentual")}>Mesmo %</Button>
+            <Button type="button" size="sm" variant={modo === "porItem" ? "default" : "ghost"} onClick={() => setModo("porItem")}>% por item</Button>
             <Button type="button" size="sm" variant={modo === "valor" ? "default" : "ghost"} onClick={() => setModo("valor")}>Valor base</Button>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => marcarVisiveis(true)}>Visíveis</Button>
@@ -202,6 +224,30 @@ function Reajustes() {
             {ATALHOS.map((v) => <Button key={v} type="button" variant="secondary" size="sm" className="num" disabled={!escolhidas.length || salvar.isPending} onClick={() => aplicarPercentual(v)}>{formatarNumero(v)}%</Button>)}
             <Input aria-label="Percentual para aplicar em lote" inputMode="decimal" className="num ml-2 h-8 w-24" placeholder="Outro %" value={indiceLote} onChange={(e) => setIndiceLote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && aplicarPercentual()} />
             <Button type="button" size="sm" disabled={!escolhidas.length || indiceNumero == null || indiceNumero < 0 || salvar.isPending} onClick={() => aplicarPercentual()}>Aplicar percentual</Button>
+          </div>
+        ) : modo === "porItem" ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mr-auto text-xs text-muted-foreground">Defina um percentual para cada selecionado e salve tudo de uma vez.</span>
+              <Button type="button" size="sm" disabled={!escolhidas.length || salvar.isPending} onClick={aplicarDiferentes}>Aplicar percentuais</Button>
+            </div>
+            {escolhidas.length ? (
+              <div className="grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
+                {escolhidas.map((l) => (
+                  <label key={l.id} className="flex min-w-0 items-center gap-2 rounded-md border bg-background p-2">
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium" title={l.nome}>{l.nome}</span>
+                    <Input
+                      aria-label={`Percentual individual de ${l.nome}`}
+                      inputMode="decimal"
+                      className="num h-8 w-24 text-right"
+                      value={indicesPorItem[l.id] ?? formatarNumero(l.regra.indice)}
+                      onChange={(e) => setIndicesPorItem((atuais) => ({ ...atuais, [l.id]: e.target.value }))}
+                      onKeyDown={(e) => e.key === "Enter" && aplicarDiferentes()}
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : <p className="text-sm text-muted-foreground">Selecione itens na tabela para definir percentuais diferentes.</p>}
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
