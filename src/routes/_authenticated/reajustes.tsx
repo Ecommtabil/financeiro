@@ -191,9 +191,7 @@ function Reajustes() {
     <div className="space-y-6 px-6 py-6 lg:px-10">
       <div>
         <h1 className="text-2xl font-bold">Reajustes de entradas e saídas</h1>
-        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          Entradas e saídas do escritório em um só lugar. Edite cada percentual ou valor base, ou selecione vários itens para ajustar de uma vez. O percentual vale para o primeiro reajuste, em {h.y0}; os anos seguintes continuam usando as premissas da Projeção.
-        </p>
+        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Central exclusiva para reajustes por item do escritório. Edite percentuais ou valores base e use a multisseleção; a Projeção consulta os valores calculados.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

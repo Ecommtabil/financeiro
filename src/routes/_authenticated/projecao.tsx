@@ -1,35 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { LinkImportar } from "@/components/link-importar";
-import { Fragment, useMemo, useRef, useState } from "react";
-import { Download, FileSpreadsheet, Pencil, Search } from "lucide-react";
-import { useEditorDemonstrativo } from "@/components/editor-demonstrativo";
-import * as XLSX from "xlsx";
+import { useMemo, useState } from "react";
+import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LinkImportar } from "@/components/link-importar";
 import { useArea, usePeriodo } from "@/components/app-shell";
 import { useConfig, useSalvarConfig, type Config } from "@/lib/config";
-import { useLista, type Saida } from "@/lib/dados";
+import { useLista } from "@/lib/dados";
 import { formatarBRL, formatarMes, formatarNumero } from "@/lib/format";
-import {
-  CHAVE_CAT_PESSOAL, chaveCatEntrada, chaveCatSaida, chaveMes, destinoSaida, fator, regraDo, somar, totaisDoMes,
-  valorEntrada, valorEntradaPessoal, valorSaida, type Regra, type TotaisMes,
-  premissaDoAno, type Premissas,
-} from "@/lib/calc";
+import { chaveMes, premissaDoAno, somar, totaisDoMes, type Premissas, type TotaisMes } from "@/lib/calc";
 import type { MesRef } from "@/lib/horizonte";
-import { acharCabecalho, lerPlanilha, norm, paraNumero } from "@/lib/importacao";
-import { atualizacoesValorEmLote, regrasComReajusteEmLote } from "@/lib/reajuste-lote";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/projecao")({
   head: () => ({
     meta: [
       { title: "Projeção · Fluxo Escritório & Casa" },
-      { name: "description", content: "Projeção com reajustes anuais: o que sobe, impacto no ano e resumo por ano." },
+      { name: "description", content: "Consulte os valores projetados com os reajustes e premissas já definidos." },
       { property: "og:title", content: "Projeção · Fluxo Escritório & Casa" },
-      { property: "og:description", content: "Projeção com reajustes anuais: o que sobe, impacto no ano e resumo por ano." },
+      { property: "og:description", content: "Consulte os valores projetados com os reajustes e premissas já definidos." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -38,142 +28,39 @@ export const Route = createFileRoute("/_authenticated/projecao")({
 });
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-const GRUPOS = [
-  { g: "E", nome: "Entradas do escritório", tipo: "E" as const },
-  { g: "SE", nome: "Saídas do escritório", tipo: "S" as const },
-  { g: "SP", nome: "Saídas pessoais", tipo: "S" as const },
-  { g: "EP", nome: "Entradas pessoais", tipo: "E" as const },
-];
-type Item = { id: string; nome: string; g: string; tipo: "E" | "S"; cat: string; catKey: string; valor: (k: string) => number };
-type LinhaItem = Item & { r: Required<Regra>; excecao: boolean; base: number; novo: number; total: number; impactoAno: number; semValorReaj: boolean };
-
 const sinal = (v: number) => (v > 0 ? "+" : "") + formatarNumero(v);
-const ATALHOS_REAJUSTE = [2.5, 5, 5.92, 10];
 
 function Projecao() {
-  const { abrirEditor } = useEditorDemonstrativo();
   const { horizonte: h } = usePeriodo();
   const { data: cfg } = useConfig();
   const salvar = useSalvarConfig();
-  const qc = useQueryClient();
-  const salvarValores = useMutation({
-    mutationFn: async ({ saidas, ids, valor, primeiroMes }: { saidas: Saida[]; ids: string[]; valor: number; primeiroMes: string }) => {
-      const atualizacoes = atualizacoesValorEmLote(saidas, ids, valor, primeiroMes);
-      const resultados = await Promise.all(atualizacoes.map(({ id, atualizacao }) => supabase.from("saidas").update(atualizacao).eq("id", id)));
-      const erro = resultados.find((r) => r.error)?.error;
-      if (erro) throw erro;
-    },
-    onSuccess: async (_d, v) => {
-      await qc.invalidateQueries({ queryKey: ["saidas"] });
-      toast.success(`Valor de ${formatarBRL(v.valor)} aplicado a ${v.ids.length} ${v.ids.length === 1 ? "saída" : "saídas"}.`);
-    },
-    onError: (e) => toast.error(`Não foi possível atualizar todos os valores: ${e.message}`),
-  });
   const ent = useLista("entradas"), sai = useLista("saidas"), pes = useLista("entradas_pessoais");
   const [anoSel, setAnoSel] = useState<number | null>(null);
-  const [grupoF, setGrupoF] = useState("todos");
   const area = useArea();
-  const gruposArea = area === "PESSOAL" ? ["SP", "EP"] : ["E", "SE"];
   const LINHAS = area === "PESSOAL" ? LINHAS_PES : LINHAS_ESC;
-  const [busca, setBusca] = useState("");
-  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
-  const [indiceLote, setIndiceLote] = useState("5");
-  const [valorLote, setValorLote] = useState("");
-  const [modoAjuste, setModoAjuste] = useState<"percentual" | "valor">("percentual");
-
   const dados = useMemo(() => (ent.data && sai.data && pes.data ? { entradas: ent.data, saidas: sai.data, pessoais: pes.data } : null), [ent.data, sai.data, pes.data]);
-
-  const itens = useMemo<Item[]>(() => {
-    if (!dados) return [];
-    return [
-      ...dados.entradas.map((e) => ({ id: e.id, nome: e.empresa, g: "E", tipo: "E" as const, cat: e.carteira?.trim() || "Sem carteira", catKey: chaveCatEntrada(e), valor: (k: string) => valorEntrada(e, k) })),
-      ...dados.saidas.map((s) => ({ id: s.id, nome: s.descricao, g: destinoSaida(s) === "PESSOAL" ? "SP" : "SE", tipo: "S" as const, cat: s.categoria?.trim() || "Sem categoria", catKey: chaveCatSaida(s), valor: (k: string) => valorSaida(s, k) })),
-      ...dados.pessoais.map((p) => ({ id: p.id, nome: p.descricao, g: "EP", tipo: "E" as const, cat: "Entradas pessoais", catKey: CHAVE_CAT_PESSOAL, valor: (k: string) => valorEntradaPessoal(p, k) })),
-    ];
-  }, [dados]);
-
   const anosAnalise = h ? h.anos.filter((a) => a.ano >= h.y0) : [];
   const ano = anoSel && anosAnalise.some((a) => a.ano === anoSel) ? anoSel : anosAnalise[0]?.ano ?? 0;
 
   const calc = useMemo(() => {
     if (!h || !cfg || !dados || !ano) return null;
-    const rm = cfg.reajuste_mes;
     const mesesAno: MesRef[] = Array.from({ length: 12 }, (_, i) => ({ ano, mes: i + 1 }));
-    const dezAnt: MesRef = { ano: ano - 1, mes: 12 };
-    const itensExt = (cfg.regras_item ?? {}) as Record<string, Regra>;
-    const linhas: LinhaItem[] = [];
-    for (const it of itens) {
-      const r = regraDo(cfg, it.id, it.catKey, it.tipo);
-      const fAnt = fator(dezAnt, h, rm, r);
-      let total = 0, nivelAnt = 0;
-      for (const m of mesesAno) { const v = it.valor(chaveMes(m)); total += v * fator(m, h, rm, r); nivelAnt += v * fAnt; }
-      if (!total && !nivelAnt) continue;
-      const mr: MesRef = { ano, mes: rm }, vr = it.valor(chaveMes(mr));
-      linhas.push({ ...it, r, excecao: it.id in itensExt, base: vr * fAnt, novo: vr * fator(mr, h, rm, r), total, impactoAno: total - nivelAnt, semValorReaj: !vr });
-    }
     const premZero = Object.fromEntries(h.anos.map((a) => [String(a.ano), { e: 0, s: 0 }]));
     const semCfg = { ...cfg, regras_item: {}, regras_categoria: {}, indice_padrao_entradas: 0, indice_padrao_saidas: 0, premissas: premZero } as Config;
     const porMes = new Map(h.meses.map((m) => [chaveMes(m), { com: totaisDoMes(m, dados, cfg, h), sem: totaisDoMes(m, dados, semCfg, h) }]));
     const doAno = (a: number, t: "com" | "sem") => somar(h.meses.filter((m) => m.ano === a).map((m) => porMes.get(chaveMes(m))![t]));
-    return { linhas, porMes, doAno, mesesAno };
-  }, [h, cfg, dados, itens, ano]);
+    return { porMes, doAno, mesesAno };
+  }, [h, cfg, dados, ano]);
 
   if (!h || !cfg || !calc) return <div className="px-6 py-8 text-muted-foreground lg:px-10">Carregando…</div>;
 
-  const regrasCat = (cfg.regras_categoria ?? {}) as Record<string, Regra>;
-  const regrasItem = (cfg.regras_item ?? {}) as Record<string, Regra>;
-  const padrao = (tipo: "E" | "S") => Number(tipo === "E" ? cfg.indice_padrao_entradas : cfg.indice_padrao_saidas);
-  const ok = { onError: (e: Error) => toast.error(e.message) };
-
-  const mudarCat = (catKey: string, tipo: "E" | "S", nova: Regra) => {
-    const atual = regrasCat[catKey] ?? {};
-    const r = { indice: atual.indice ?? padrao(tipo), sobe: atual.sobe ?? true, ...nova };
-    const ids = new Set(itens.filter((i) => i.catKey === catKey).map((i) => i.id));
-    const ri = Object.fromEntries(Object.entries(regrasItem).filter(([id]) => !ids.has(id)));
-    salvar.mutate({ regras_categoria: { ...regrasCat, [catKey]: r }, regras_item: ri }, ok);
-  };
-  const padraoCat = (catKey: string) => { const rc = { ...regrasCat }; delete rc[catKey]; salvar.mutate({ regras_categoria: rc }, ok); };
-  const mudarItem = (l: LinhaItem, nova: Regra) => salvar.mutate({ regras_item: { ...regrasItem, [l.id]: { ...l.r, ...nova } } }, ok);
-  const usarCat = (id: string) => { const ri = { ...regrasItem }; delete ri[id]; salvar.mutate({ regras_item: ri }, ok); };
-
-  const q = norm(busca);
-  const visiveis = calc.linhas.filter((l) => gruposArea.includes(l.g) && (grupoF === "todos" || l.g === grupoF) && (!q || norm(`${l.nome} ${l.cat}`).includes(q)));
-  const saidasArea = calc.linhas.filter((l) => gruposArea.includes(l.g) && l.tipo === "S");
-  const saidasVisiveis = visiveis.filter((l) => l.tipo === "S");
-  const selecionadasArea = saidasArea.filter((l) => selecionadas.has(l.id));
-  const todasVisiveis = saidasVisiveis.length > 0 && saidasVisiveis.every((l) => selecionadas.has(l.id));
-  const indiceLoteNumero = paraNumero(indiceLote);
-  const valorLoteNumero = paraNumero(valorLote);
-  const aplicarValorLote = () => {
-    if (!selecionadasArea.length || valorLoteNumero == null || valorLoteNumero < 0) return;
-    salvarValores.mutate({ saidas: dados!.saidas, ids: selecionadasArea.map((l) => l.id), valor: valorLoteNumero, primeiroMes: chaveMes(h.primeiro) });
-  };
-  const alternarSaida = (id: string) => setSelecionadas((atuais) => {
-    const novas = new Set(atuais);
-    if (novas.has(id)) novas.delete(id); else novas.add(id);
-    return novas;
-  });
-  const marcarTodasVisiveis = (marcar: boolean) => setSelecionadas((atuais) => {
-    const novas = new Set(atuais);
-    for (const l of saidasVisiveis) if (marcar) novas.add(l.id); else novas.delete(l.id);
-    return novas;
-  });
-  const aplicarLote = (atalho?: number) => {
-    const indice = atalho ?? indiceLoteNumero;
-    if (!selecionadasArea.length || indice == null || indice < 0) return;
-    if (atalho != null) setIndiceLote(String(atalho).replace(".", ","));
-    const regras_item = regrasComReajusteEmLote(regrasItem, selecionadasArea.map((l) => l.id), indice);
-    salvar.mutate({ regras_item }, {
-      ...ok,
-      onSuccess: () => toast.success(`Reajuste de ${formatarNumero(indice)}% aplicado a ${selecionadasArea.length} ${selecionadasArea.length === 1 ? "saída" : "saídas"}.`),
-    });
-  };
   const com = calc.doAno(ano, "com"), sem = calc.doAno(ano, "sem");
   const ultimo = h.anos[h.anos.length - 1]!.ano;
-  const sel = "rounded-md border bg-card px-2 py-1.5 text-sm";
   const prem = ((cfg as { premissas?: unknown }).premissas ?? {}) as Premissas;
   const anosPremissa: number[] = [];
   for (let a = h.y0 + 1; a <= ultimo; a++) anosPremissa.push(a);
+  const padrao = (tipo: "E" | "S") => Number(tipo === "E" ? cfg.indice_padrao_entradas : cfg.indice_padrao_saidas);
+  const ok = { onError: (e: Error) => toast.error(e.message) };
   const salvarPrem = (a: number, k: "e" | "s", v: number) =>
     salvar.mutate({ premissas: { ...prem, [String(a)]: { ...(prem[String(a)] ?? {}), [k]: v } } } as Partial<Config>, ok);
 
@@ -192,14 +79,15 @@ function Projecao() {
       const nomeA = area === "PESSOAL" ? "pessoal" : "do escritório";
       await gerarPdfTabela({
         titulo: `Projeção ${nomeA} ${anosPdf[0]!.ano}–${ultimo}`,
-        subtitulo: `Base zero ${String(h.base.dia).padStart(2,"0")}/${String(h.base.mes).padStart(2,"0")}/${h.base.ano} · * = ano parcial da base zero`,
-        colunas: cols, linhas,
+        subtitulo: `Base zero ${String(h.base.dia).padStart(2, "0")}/${String(h.base.mes).padStart(2, "0")}/${h.base.ano} · * = ano parcial da base zero`,
+        colunas: cols,
+        linhas,
         arquivo: `projecao-${area === "PESSOAL" ? "pessoal" : "escritorio"}.pdf`,
         extra: {
           titulo: "Premissas de crescimento",
           cabecalho: ["Ano", area === "PESSOAL" ? "Entradas pessoais %" : "Entradas %", area === "PESSOAL" ? "Saídas pessoais %" : "Saídas %"],
           linhas: [
-            [String(h.y0), "O que sobe", "O que sobe"],
+            [String(h.y0), "Reajustes por item", "Reajustes por item"],
             ...anosPremissa.map((a) => [String(a), formatarNumero(premissaDoAno(prem, a, "E", padrao("E"))), formatarNumero(premissaDoAno(prem, a, "S", padrao("S")))]),
           ],
         },
@@ -210,44 +98,49 @@ function Projecao() {
   return (
     <div className="space-y-6 px-6 py-6 lg:px-10">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-2xl font-bold">Projeção {area === "PESSOAL" ? "pessoal" : "do escritório"} {h.y0}–{ultimo}</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Projeção {area === "PESSOAL" ? "pessoal" : "do escritório"} {h.y0}–{ultimo}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Consulta dos valores projetados. Os reajustes por item são definidos somente na tela Reajustes.</p>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={gerarPdf}><Download className="mr-1 h-4 w-4" />PDF da projeção</Button>
-          <BotaoImportar itens={itens} cfg={cfg} salvar={(v) => salvar.mutateAsync(v)} />
+          <LinkImportar tipo="reajustes" rotulo="Importar reajustes" />
         </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-4">
         <label className="text-xs text-muted-foreground">Ano em análise<br />
-          <select className={sel} value={ano} onChange={(e) => setAnoSel(Number(e.target.value))}>{anosAnalise.map((a) => <option key={a.ano} value={a.ano}>{a.ano}</option>)}</select></label>
+          <select aria-label="Ano em análise" className="mt-1 rounded-md border bg-card px-2 py-1.5 text-sm" value={ano} onChange={(e) => setAnoSel(Number(e.target.value))}>
+            {anosAnalise.map((a) => <option key={a.ano} value={a.ano}>{a.ano}</option>)}
+          </select>
+        </label>
         <label className="text-xs text-muted-foreground">Reajuste a partir de<br />
-          <select className={sel} value={cfg.reajuste_mes} onChange={(e) => salvar.mutate({ reajuste_mes: Number(e.target.value) }, ok)}>{MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select></label>
+          <select className="mt-1 rounded-md border bg-card px-2 py-1.5 text-sm" value={cfg.reajuste_mes} onChange={(e) => salvar.mutate({ reajuste_mes: Number(e.target.value) }, ok)}>{MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select>
+        </label>
         <label className="text-xs text-muted-foreground">Índice padrão entradas (%)<br />
-          <CampoIndice valor={Number(cfg.indice_padrao_entradas)} salvar={(v) => salvar.mutate({ indice_padrao_entradas: v }, ok)} className="w-24" /></label>
+          <CampoIndice valor={padrao("E")} salvar={(v) => salvar.mutate({ indice_padrao_entradas: v }, ok)} className="mt-1 w-24" />
+        </label>
         <label className="text-xs text-muted-foreground">Índice padrão saídas (%)<br />
-          <CampoIndice valor={Number(cfg.indice_padrao_saidas)} salvar={(v) => salvar.mutate({ indice_padrao_saidas: v }, ok)} className="w-24" /></label>
+          <CampoIndice valor={padrao("S")} salvar={(v) => salvar.mutate({ indice_padrao_saidas: v }, ok)} className="mt-1 w-24" />
+        </label>
       </div>
 
       {anosPremissa.length > 0 && (
         <section className="surface-card space-y-3 p-4">
           <div>
             <h2 className="text-sm font-semibold">Premissas de crescimento</h2>
-            <p className="text-xs text-muted-foreground">
-              {h.y0} usa o reajuste de "O que sobe" sobre Dez/{String(h.fimBase.ano).slice(2)}. Cada ano seguinte parte de dezembro do ano anterior e aplica o % abaixo. Também dá para importar pela planilha de Reajustes.
-            </p>
+            <p className="text-xs text-muted-foreground">{h.y0} usa os reajustes por item sobre Dez/{String(h.fimBase.ano).slice(2)}. Cada ano seguinte parte de dezembro do ano anterior e aplica o % abaixo.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="text-sm">
               <thead><tr className="text-xs text-muted-foreground"><th className="pr-4 text-left font-medium">Ano</th><th className="pr-4 text-left font-medium">{area === "PESSOAL" ? "Entradas pessoais %" : "Entradas %"}</th><th className="text-left font-medium">{area === "PESSOAL" ? "Saídas pessoais %" : "Saídas %"}</th></tr></thead>
-              <tbody>
-                {anosPremissa.map((a) => (
-                  <tr key={a}>
-                    <td className="num pr-4 py-1">{a}</td>
-                    <td className="pr-4 py-1"><CampoIndice valor={premissaDoAno(prem, a, "E", padrao("E"))} salvar={(v) => salvarPrem(a, "e", v)} className="w-20" /></td>
-                    <td className="py-1"><CampoIndice valor={premissaDoAno(prem, a, "S", padrao("S"))} salvar={(v) => salvarPrem(a, "s", v)} className="w-20" /></td>
-                  </tr>
-                ))}
-              </tbody>
+              <tbody>{anosPremissa.map((a) => (
+                <tr key={a}>
+                  <td className="num py-1 pr-4">{a}</td>
+                  <td className="py-1 pr-4"><CampoIndice valor={premissaDoAno(prem, a, "E", padrao("E"))} salvar={(v) => salvarPrem(a, "e", v)} className="w-20" /></td>
+                  <td className="py-1"><CampoIndice valor={premissaDoAno(prem, a, "S", padrao("S"))} salvar={(v) => salvarPrem(a, "s", v)} className="w-20" /></td>
+                </tr>
+              ))}</tbody>
             </table>
           </div>
         </section>
@@ -278,113 +171,6 @@ function Projecao() {
                 <td className="num px-3 py-1.5 text-right">{formatarBRL(f(sem))}</td><td className="num px-3 py-1.5 text-right">{formatarBRL(f(com))}</td>
                 <td className="num px-3 py-1.5 text-right font-semibold">{sinal(f(com) - f(sem))}</td></tr>
             ))}</tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-lg font-semibold">O que sobe</h2>
-          <select className={sel} value={grupoF} onChange={(e) => setGrupoF(e.target.value)}>
-            <option value="todos">Todos os grupos</option>{GRUPOS.filter((g) => gruposArea.includes(g.g)).map((g) => <option key={g.g} value={g.g}>{g.nome}</option>)}</select>
-          <div className="relative min-w-60 flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8" placeholder="Buscar item ou categoria" value={busca} onChange={(e) => setBusca(e.target.value)} />
-          </div>
-        </div>
-        <div className="surface-card sticky top-3 z-20 space-y-2 p-3 shadow-lg">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="mr-auto min-w-48">
-              <div className="text-sm font-semibold">Ajuste rápido das saídas</div>
-              <div className="text-xs text-muted-foreground">{selecionadasArea.length} {selecionadasArea.length === 1 ? "selecionada" : "selecionadas"} · a seleção fica ativa para o próximo ajuste</div>
-            </div>
-            <div className="inline-flex rounded-md border bg-background p-0.5" aria-label="Modo de ajuste">
-              <Button type="button" size="sm" variant={modoAjuste === "percentual" ? "default" : "ghost"} onClick={() => setModoAjuste("percentual")}>Percentual</Button>
-              <Button type="button" size="sm" variant={modoAjuste === "valor" ? "default" : "ghost"} onClick={() => setModoAjuste("valor")}>Valor final</Button>
-            </div>
-            <div className="flex items-center gap-1" aria-label="Opções de seleção">
-              <Button type="button" variant="outline" size="sm" onClick={() => marcarTodasVisiveis(true)}>Visíveis</Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => setSelecionadas(new Set(saidasArea.map((l) => l.id)))}>Todas</Button>
-              <Button type="button" variant="ghost" size="sm" disabled={!selecionadasArea.length} onClick={() => setSelecionadas(new Set())}>Nenhuma</Button>
-            </div>
-          </div>
-          {modoAjuste === "percentual" ? (
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="mr-1 text-xs text-muted-foreground">Atalhos:</span>
-              {ATALHOS_REAJUSTE.map((v) => <Button key={v} type="button" variant="secondary" size="sm" className="num px-2.5" disabled={!selecionadasArea.length || salvar.isPending} onClick={() => aplicarLote(v)}>{formatarNumero(v)}%</Button>)}
-              <Input aria-label="Percentual do reajuste em lote" inputMode="decimal" placeholder="Outro %" className="num ml-2 h-8 w-24" value={indiceLote} onChange={(e) => setIndiceLote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && aplicarLote()} />
-              <Button type="button" size="sm" disabled={!selecionadasArea.length || indiceLoteNumero == null || indiceLoteNumero < 0 || salvar.isPending} onClick={() => aplicarLote()}>Aplicar</Button>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <Input aria-label="Novo valor mensal das saídas" inputMode="decimal" placeholder="Ex.: 1.234,56" className="num h-8 w-36" value={valorLote} onChange={(e) => setValorLote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && aplicarValorLote()} />
-              <Button type="button" size="sm" disabled={!selecionadasArea.length || valorLoteNumero == null || valorLoteNumero < 0 || salvarValores.isPending} onClick={aplicarValorLote}>Definir valor/mês</Button>
-              <span className="text-xs text-muted-foreground">Altera o valor/mês base, mantendo vigências, parcelas encerradas e reajustes.</span>
-            </div>
-          )}
-        </div>
-        <div className="surface-card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-muted-foreground">
-              <tr className="border-b text-right">
-                <th className="w-10 px-3 py-2 text-left"><input type="checkbox" aria-label="Selecionar todas as saídas visíveis" checked={todasVisiveis} onChange={(e) => marcarTodasVisiveis(e.target.checked)} /></th>
-                <th className="px-3 py-2 text-left">Item</th><th className="px-3 py-2 text-left">Sobe</th><th className="px-3 py-2 text-left">Índice %</th>
-                <th className="px-3 py-2">Base/mês</th><th className="px-3 py-2">Novo/mês</th><th className="px-3 py-2">Impacto/mês</th>
-                <th className="px-3 py-2">Total do ano</th><th className="px-3 py-2">Impacto no ano</th>
-              </tr>
-            </thead>
-            <tbody>
-              {GRUPOS.filter((G) => gruposArea.includes(G.g)).map((G) => {
-                const doG = visiveis.filter((l) => l.g === G.g);
-                if (!doG.length) return null;
-                const cats = [...new Set(doG.map((l) => l.catKey))];
-                return (
-                  <Fragment key={G.g}>
-                    <tr className="bg-muted"><td colSpan={9} className="px-3 py-2 font-bold">{G.nome}</td></tr>
-                    {cats.map((ck) => {
-                      const ls = doG.filter((l) => l.catKey === ck).sort((a, b) => a.nome.localeCompare(b.nome));
-                      const rc = regrasCat[ck], rcEf = { indice: rc?.indice ?? padrao(G.tipo), sobe: rc?.sobe ?? true };
-                      const s = (f: (l: LinhaItem) => number) => ls.reduce((t, l) => t + f(l), 0);
-                      return (
-                        <Fragment key={ck}>
-                          <tr className="border-b bg-muted/40 font-semibold">
-                            <td className="px-3 py-1.5">{G.tipo === "S" && <input type="checkbox" aria-label={`Selecionar saídas da categoria ${ls[0]!.cat}`} checked={ls.every((l) => selecionadas.has(l.id))} onChange={(e) => setSelecionadas((atuais) => { const novas = new Set(atuais); for (const l of ls) if (e.target.checked) novas.add(l.id); else novas.delete(l.id); return novas; })} />}</td>
-                            <td className="px-3 py-1.5">{ls[0]!.cat}</td>
-                            <td className="px-3 py-1.5"><label className="flex items-center gap-1.5 text-xs font-normal"><input type="checkbox" checked={rcEf.sobe} onChange={(e) => mudarCat(ck, G.tipo, { sobe: e.target.checked })} />Todos sobem</label></td>
-                            <td className="px-3 py-1.5"><div className="flex items-center gap-1.5">
-                              <CampoIndice valor={rcEf.indice} salvar={(v) => mudarCat(ck, G.tipo, { indice: v })} className="w-20" />
-                              {rc && <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => padraoCat(ck)}>Padrão</Button>}
-                            </div></td>
-                            <td className="num px-3 py-1.5 text-right">{formatarBRL(s((l) => l.base))}</td>
-                            <td className="num px-3 py-1.5 text-right">{formatarBRL(s((l) => l.novo))}</td>
-                            <td className="num px-3 py-1.5 text-right">{sinal(s((l) => l.novo - l.base))}</td>
-                            <td className="num px-3 py-1.5 text-right">{formatarBRL(s((l) => l.total))}</td>
-                            <td className="num px-3 py-1.5 text-right">{sinal(s((l) => l.impactoAno))}</td>
-                          </tr>
-                          {ls.map((l) => (
-                            <tr key={l.id} className={cn("border-b transition-colors", selecionadas.has(l.id) && "bg-primary/5", l.excecao && "border-l-4 border-l-[var(--warning,oklch(0.6_0.12_75))]")}>
-                              <td className="px-3 py-1.5">{l.tipo === "S" && <input type="checkbox" aria-label={`Selecionar ${l.nome}`} checked={selecionadas.has(l.id)} onChange={() => alternarSaida(l.id)} />}</td>
-                              <td className="px-3 py-1.5 pl-6"><span className="inline-flex items-center gap-2">{l.nome}<button type="button" className="text-primary" aria-label={`Editar ${l.nome}`} onClick={() => abrirEditor({ id: l.id, tabela: l.g === "E" ? "entradas" : l.g === "EP" ? "entradas_pessoais" : "saidas" })}><Pencil className="size-3.5" /></button>{l.semValorReaj && <span className="chip-base ml-2 text-muted-foreground">termina antes de {MESES[cfg.reajuste_mes - 1]!.slice(0, 3).toLowerCase()}</span>}</span></td>
-                              <td className="px-3 py-1.5"><input type="checkbox" checked={l.r.sobe} onChange={(e) => mudarItem(l, { sobe: e.target.checked })} /></td>
-                              <td className="px-3 py-1.5"><div className="flex items-center gap-1.5">
-                                <CampoIndice valor={l.r.indice} salvar={(v) => mudarItem(l, { indice: v })} className="w-20" />
-                                {l.excecao && <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => usarCat(l.id)}>Usar categoria</Button>}
-                              </div></td>
-                              <td className="num px-3 py-1.5 text-right">{formatarNumero(l.base)}</td>
-                              <td className="num px-3 py-1.5 text-right">{formatarNumero(l.novo)}</td>
-                              <td className={cn("num px-3 py-1.5 text-right font-semibold", l.novo - l.base !== 0 && "text-primary")}>{sinal(l.novo - l.base)}</td>
-                              <td className="num px-3 py-1.5 text-right">{formatarNumero(l.total)}</td>
-                              <td className="num px-3 py-1.5 text-right">{sinal(l.impactoAno)}</td>
-                            </tr>
-                          ))}
-                        </Fragment>
-                      );
-                    })}
-                  </Fragment>
-                );
-              })}
-              {!visiveis.length && <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground">Nenhum item com valor em {ano}.</td></tr>}
-            </tbody>
           </table>
         </div>
       </section>
@@ -433,11 +219,4 @@ function CampoIndice({ valor, salvar, className }: { valor: number; salvar: (v: 
       onBlur={(e) => { const v = Number(e.target.value.replace(",", ".")); if (Number.isFinite(v) && v !== valor) salvar(v); }}
       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
   );
-}
-
-// ---------- importar reajustes ----------
-const GRUPO_POR_NOME: Record<string, string> = { "ENTRADAS ESCRITORIO": "E", "SAIDAS ESCRITORIO": "SE", "SAIDAS PESSOAIS": "SP", "ENTRADAS PESSOAIS": "EP" };
-
-function BotaoImportar(_: { itens: Item[]; cfg: Config; salvar: (v: Partial<Config>) => unknown }) {
-  return <LinkImportar tipo="reajustes" rotulo="Importar reajustes" />;
 }

@@ -15,3 +15,6 @@
 - [x] Adicionar modo % por item para percentuais diferentes com múltipla seleção.
 - [x] Salvar todos os percentuais diferentes em uma única ação.
 - [x] Validar o fluxo no navegador e restaurar os dados do teste.
+- [x] Tornar a Projeção somente de consulta para valores por item, sem edição de reajustes.
+- [x] Manter índices padrão, premissas e importação na Projeção.
+- [x] Validar Projeção sem reajustes por item e edição exclusiva em Reajustes.
