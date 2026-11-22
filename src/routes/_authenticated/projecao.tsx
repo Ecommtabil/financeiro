@@ -27,7 +27,6 @@ export const Route = createFileRoute("/_authenticated/projecao")({
   component: Projecao,
 });
 
-const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const sinal = (v: number) => (v > 0 ? "+" : "") + formatarNumero(v);
 
 function Projecao() {
@@ -97,7 +96,7 @@ function Projecao() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Projeção {area === "PESSOAL" ? "pessoal" : "do escritório"} {h.y0}–{ultimo}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Consulta dos valores projetados. Os percentuais das entradas vêm da planilha importada em Reajustes.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Consulta dos valores projetados. O reajuste do primeiro ano e os percentuais das entradas vêm da planilha importada em Reajustes.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={gerarPdf}><Download className="mr-1 h-4 w-4" />PDF da projeção</Button>
@@ -110,15 +109,6 @@ function Projecao() {
           <select aria-label="Ano em análise" className="mt-1 rounded-md border bg-card px-2 py-1.5 text-sm" value={ano} onChange={(e) => setAnoSel(Number(e.target.value))}>
             {anosAnalise.map((a) => <option key={a.ano} value={a.ano}>{a.ano}</option>)}
           </select>
-        </label>
-        <label className="text-xs text-muted-foreground">Reajuste a partir de<br />
-          <select className="mt-1 rounded-md border bg-card px-2 py-1.5 text-sm" value={cfg.reajuste_mes} onChange={(e) => salvar.mutate({ reajuste_mes: Number(e.target.value) }, ok)}>{MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select>
-        </label>
-        <label className="text-xs text-muted-foreground">Índice padrão entradas (%)<br />
-          <CampoIndice valor={padrao("E")} salvar={(v) => salvar.mutate({ indice_padrao_entradas: v }, ok)} className="mt-1 w-24" />
-        </label>
-        <label className="text-xs text-muted-foreground">Índice padrão saídas (%)<br />
-          <CampoIndice valor={padrao("S")} salvar={(v) => salvar.mutate({ indice_padrao_saidas: v }, ok)} className="mt-1 w-24" />
         </label>
       </div>
 
